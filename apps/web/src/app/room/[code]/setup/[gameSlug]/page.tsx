@@ -4,6 +4,7 @@ import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { io } from "socket.io-client";
 import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 
 type Player = {
   id: string;
@@ -308,28 +309,17 @@ export default function GameSetupPage({
           </div>
 
           {playMode === "multiplayer" ? (
-            <ul className="mt-4 space-y-2">
+            <div className="mt-4 grid gap-3">
               {room.players.map((player) => (
-                <li
+                <Card
                   key={player.id}
-                  className="flex items-center justify-between rounded-lg border p-3"
-                >
-                  <span>{player.name}</span>
-
-                  <div className="flex items-center gap-2">
-                    {player.id === currentPlayerId && (
-                      <span className="text-sm opacity-70">You</span>
-                    )}
-
-                    {player.isHost && (
-                      <span className="rounded-full border px-2 py-1 text-xs">
-                        Host
-                      </span>
-                    )}
-                  </div>
-                </li>
+                  size="sm"
+                  title={player.name}
+                  label={player.isHost ? "Room Owner" : player.id === currentPlayerId ? "You" : "Player"}
+                  showLabel={player.isHost || player.id === currentPlayerId}
+                />
               ))}
-            </ul>
+            </div>
           ) : (
             <div className="mt-4 space-y-3">
               <div className="flex flex-col gap-3 sm:flex-row">
@@ -362,25 +352,27 @@ export default function GameSetupPage({
                   Add at least 2 names. These players do not need to join from separate devices.
                 </p>
               ) : (
-                <ul className="space-y-2">
+                <div className="grid gap-3">
                   {manualPlayers.map((playerName) => (
-                    <li
-                      key={playerName}
-                      className="flex items-center justify-between rounded-lg border p-3"
-                    >
-                      <span>{playerName}</span>
+                    <div key={playerName} className="flex items-center gap-3">
+                      <Card
+                        size="sm"
+                        title={playerName}
+                        label="Pass-the-phone player"
+                        showLabel
+                      />
 
                       {currentPlayerIsHost && (
                         <button
                           onClick={() => removeManualPlayer(playerName)}
-                          className="text-sm opacity-70 hover:opacity-100"
+                          className="text-footnote-semibold text-[var(--text-primary)] opacity-70 hover:opacity-100"
                         >
                           Remove
                         </button>
                       )}
-                    </li>
+                    </div>
                   ))}
-                </ul>
+                </div>
               )}
             </div>
           )}

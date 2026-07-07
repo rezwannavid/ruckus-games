@@ -4,6 +4,7 @@ import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { io } from "socket.io-client";
 import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 
 type Player = {
   id: string;
@@ -703,34 +704,28 @@ export default function PlayGamePage({
         <section className="rounded-2xl border p-6">
           <h2 className="text-2xl font-semibold">Players</h2>
 
-          <ul className="mt-4 grid gap-3 sm:grid-cols-2">
-            {displayedPlayers.map((player) => (
-              <li
-                key={player.id}
-                className="flex items-center justify-between rounded-lg border p-3"
-              >
-                <span>{player.name}</span>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {displayedPlayers.map((player) => {
+              const playerIsImposter = revealedImposterPlayerIds.includes(player.id);
+              const playerLabel = playerIsImposter
+                ? "Imposter"
+                : player.isHost
+                  ? "Room Owner"
+                  : player.id === currentPlayerId
+                    ? "You"
+                    : "Player";
 
-                <div className="flex items-center gap-2">
-                  {player.id === currentPlayerId && (
-                    <span className="text-sm opacity-70">You</span>
-                  )}
-
-                  {player.isHost && (
-                    <span className="rounded-full border px-2 py-1 text-xs">
-                      Host
-                    </span>
-                  )}
-
-                  {revealedImposterPlayerIds.includes(player.id) && (
-                    <span className="rounded-full border px-2 py-1 text-xs">
-                      Imposter
-                    </span>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
+              return (
+                <Card
+                  key={player.id}
+                  size="sm"
+                  title={player.name}
+                  label={playerLabel}
+                  showLabel={playerIsImposter || Boolean(player.isHost) || player.id === currentPlayerId}
+                />
+              );
+            })}
+          </div>
         </section>
       </div>
     </main>

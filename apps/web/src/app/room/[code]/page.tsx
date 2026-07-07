@@ -4,6 +4,7 @@ import { use, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { io, type Socket } from "socket.io-client";
 import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 
 type Player = {
   id: string;
@@ -455,28 +456,17 @@ export default function RoomPage({
             <p className="opacity-70">{room.players.length} joined</p>
           </div>
 
-          <ul className="mt-4 space-y-2">
+          <div className="mt-4 grid gap-3">
             {room.players.map((player) => (
-              <li
+              <Card
                 key={player.id}
-                className="flex items-center justify-between rounded-lg border p-3"
-              >
-                <span>{player.name}</span>
-
-                <div className="flex items-center gap-2">
-                  {player.id === currentPlayerId && (
-                    <span className="text-sm opacity-70">You</span>
-                  )}
-
-                  {player.isHost && (
-                    <span className="rounded-full border px-2 py-1 text-xs">
-                      Host
-                    </span>
-                  )}
-                </div>
-              </li>
+                size="sm"
+                title={player.name}
+                label={player.isHost ? "Room Owner" : player.id === currentPlayerId ? "You" : "Player"}
+                showLabel={player.isHost || player.id === currentPlayerId}
+              />
             ))}
-          </ul>
+          </div>
         </section>
 
         <section className="rounded-2xl border p-6">

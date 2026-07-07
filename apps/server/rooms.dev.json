@@ -1,17 +1,50 @@
 {
   "rooms": [
     [
-      "6612",
+      "9036",
       {
-        "code": "6612",
+        "code": "9036",
         "players": [
           {
-            "id": "de182f13-9b44-4e69-bdbf-0fca911a7a28",
-            "name": "Navid",
+            "id": "e0e10fb8-5b78-47bd-b238-94eb61d4fb08",
+            "name": "wqeqwe",
+            "isHost": true
+          },
+          {
+            "id": "6a3f7575-85fb-4e74-b591-e7904de9a31d",
+            "name": "qweqwewe",
+            "isHost": false
+          }
+        ],
+        "status": "waiting",
+        "selectedGame": {
+          "slug": "imposter",
+          "name": "Imposter",
+          "description": "Find the hidden player before they blend in.",
+          "minPlayers": 2,
+          "maxPlayers": 12
+        }
+      }
+    ],
+    [
+      "2091",
+      {
+        "code": "2091",
+        "players": [
+          {
+            "id": "90b4bdd6-0c95-4893-96ae-74a0faa0e290",
+            "name": "wqeqwe",
             "isHost": true
           }
         ],
-        "status": "waiting"
+        "status": "waiting",
+        "selectedGame": {
+          "slug": "imposter",
+          "name": "Imposter",
+          "description": "Find the hidden player before they blend in.",
+          "minPlayers": 2,
+          "maxPlayers": 12
+        }
       }
     ]
   ]
