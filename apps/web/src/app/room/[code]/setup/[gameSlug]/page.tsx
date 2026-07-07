@@ -3,6 +3,7 @@
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { io } from "socket.io-client";
+import { Button } from "@/components/ui/Button";
 
 type Player = {
   id: string;
@@ -203,12 +204,9 @@ export default function GameSetupPage({
           <h1 className="text-3xl font-bold">Setup Error</h1>
           <p>{error}</p>
 
-          <button
-            onClick={goBackToRoom}
-            className="rounded-lg border px-4 py-2 font-semibold hover:bg-white/10"
-          >
+          <Button onClick={goBackToRoom} variant="inverted" size="md">
             Back to Room
-          </button>
+          </Button>
         </div>
       </main>
     );
@@ -231,12 +229,9 @@ export default function GameSetupPage({
           <h1 className="text-3xl font-bold">Game Not Selected</h1>
           <p>This game is not currently selected for room {room.code}.</p>
 
-          <button
-            onClick={goBackToRoom}
-            className="rounded-lg border px-4 py-2 font-semibold hover:bg-white/10"
-          >
+          <Button onClick={goBackToRoom} variant="inverted" size="md">
             Back to Room
-          </button>
+          </Button>
         </div>
       </main>
     );
@@ -351,13 +346,15 @@ export default function GameSetupPage({
                   placeholder="Add another player name"
                   className="flex-1 rounded-lg border p-3 text-black disabled:opacity-50"
                 />
-                <button
+                <Button
                   onClick={addManualPlayer}
                   disabled={!currentPlayerIsHost}
-                  className="rounded-lg border px-4 py-2 font-semibold hover:bg-white/10 disabled:opacity-50"
+                  variant="secondary"
+                  size="md"
+                  showLeftIcon={false}
                 >
                   Add Player
-                </button>
+                </Button>
               </div>
 
               {manualPlayers.length === 0 ? (
@@ -458,12 +455,9 @@ export default function GameSetupPage({
         </section>
 
         <div className="flex flex-wrap gap-3">
-          <button
-            onClick={goBackToRoom}
-            className="rounded-lg border px-4 py-2 font-semibold hover:bg-white/10"
-          >
+          <Button onClick={goBackToRoom} variant="inverted" size="md">
             Back to Room
-          </button>
+          </Button>
 
           {playMode === "single_device" && !hasEnoughPlayers && (
             <p className="self-center text-sm opacity-70">
@@ -471,13 +465,14 @@ export default function GameSetupPage({
             </p>
           )}
           {currentPlayerIsHost ? (
-            <button
+            <Button
               onClick={startGame}
               disabled={!hasEnoughPlayers}
-              className="rounded-lg border px-4 py-2 font-semibold hover:bg-white/10 disabled:opacity-50"
+              variant="tertiary"
+              size="md"
             >
               Start {selectedGame.name}
-            </button>
+            </Button>
           ) : (
             <p className="self-center text-sm opacity-70">
               Waiting for the host to start {selectedGame.name}.

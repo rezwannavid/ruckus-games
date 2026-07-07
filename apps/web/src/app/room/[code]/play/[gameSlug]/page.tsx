@@ -3,6 +3,7 @@
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { io } from "socket.io-client";
+import { Button } from "@/components/ui/Button";
 
 type Player = {
   id: string;
@@ -453,12 +454,9 @@ export default function PlayGamePage({
           <h1 className="text-3xl font-bold">Game Error</h1>
           <p>{error}</p>
 
-          <button
-            onClick={goBackToRoom}
-            className="rounded-lg border px-4 py-2 font-semibold hover:bg-white/10"
-          >
+          <Button onClick={goBackToRoom} variant="inverted" size="md">
             Back to Room
-          </button>
+          </Button>
         </div>
       </main>
     );
@@ -481,12 +479,9 @@ export default function PlayGamePage({
           <h1 className="text-3xl font-bold">Game Not Active</h1>
           <p>This game is not currently active in room {room.code}.</p>
 
-          <button
-            onClick={goBackToRoom}
-            className="rounded-lg border px-4 py-2 font-semibold hover:bg-white/10"
-          >
+          <Button onClick={goBackToRoom} variant="inverted" size="md">
             Back to Room
-          </button>
+          </Button>
         </div>
       </main>
     );
@@ -516,31 +511,22 @@ export default function PlayGamePage({
             )}
 
             <div className="flex flex-wrap gap-3">
-              <button
-                onClick={goBackToRoom}
-                className="rounded-lg border px-4 py-2 font-semibold hover:bg-white/10"
-              >
+              <Button onClick={goBackToRoom} variant="inverted" size="md">
                 Back to Room
-              </button>
+              </Button>
 
               {currentPlayerIsHost &&
                 selectedGame.slug === "imposter" &&
                 activePhase !== "revealed" && (
-                  <button
-                    onClick={revealImposter}
-                    className="rounded-lg border px-4 py-2 font-semibold hover:bg-white/10"
-                  >
+                  <Button onClick={revealImposter} variant="tertiary" size="md">
                     Reveal Imposter
-                  </button>
+                  </Button>
                 )}
 
               {currentPlayerIsHost && (
-                <button
-                  onClick={endGame}
-                  className="rounded-lg border px-4 py-2 font-semibold hover:bg-white/10"
-                >
+                <Button onClick={endGame} variant="secondary" size="md">
                   End Game
-                </button>
+                </Button>
               )}
             </div>
           </div>
@@ -595,19 +581,17 @@ export default function PlayGamePage({
                       giving clues, and try to find the imposter.
                     </p>
                     <div className="flex flex-wrap justify-center gap-3">
-                      <button
+                      <Button
                         onClick={restartSingleDeviceRolePass}
-                        className="rounded-lg border px-4 py-2 font-semibold hover:bg-white/10"
+                        variant="inverted"
+                        size="md"
                       >
                         Review Roles Again
-                      </button>
+                      </Button>
                       {currentPlayerIsHost && (
-                        <button
-                          onClick={revealImposter}
-                          className="rounded-lg border px-4 py-2 font-semibold hover:bg-white/10"
-                        >
+                        <Button onClick={revealImposter} variant="tertiary" size="md">
                           Reveal Imposter
-                        </button>
+                        </Button>
                       )}
                     </div>
                   </>
@@ -623,12 +607,9 @@ export default function PlayGamePage({
                       Only {currentSingleDevicePlayer?.name} should look at the
                       next screen.
                     </p>
-                    <button
-                      onClick={revealSingleDeviceRole}
-                      className="rounded-lg border px-4 py-2 font-semibold hover:bg-white/10"
-                    >
+                    <Button onClick={revealSingleDeviceRole} variant="primary" size="md">
                       Reveal My Role
-                    </button>
+                    </Button>
                   </>
                 ) : singleDeviceRoleState?.role === "imposter" ? (
                   <>
@@ -640,12 +621,13 @@ export default function PlayGamePage({
                       You do not know the secret word. Memorize this, then hide
                       the screen before passing the phone.
                     </p>
-                    <button
+                    <Button
                       onClick={goToNextSingleDevicePlayer}
-                      className="rounded-lg border px-4 py-2 font-semibold hover:bg-white/10"
+                      variant="secondary"
+                      size="md"
                     >
                       Hide & Pass Phone
-                    </button>
+                    </Button>
                   </>
                 ) : (
                   <>
@@ -656,12 +638,13 @@ export default function PlayGamePage({
                     <p className="mx-auto max-w-xl opacity-80">
                       Memorize the word. Do not say it out loud yet.
                     </p>
-                    <button
+                    <Button
                       onClick={goToNextSingleDevicePlayer}
-                      className="rounded-lg border px-4 py-2 font-semibold hover:bg-white/10"
+                      variant="secondary"
+                      size="md"
                     >
                       Hide & Pass Phone
-                    </button>
+                    </Button>
                   </>
                 )
               ) : !playerGameState ? (

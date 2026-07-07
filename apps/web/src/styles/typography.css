@@ -1,0 +1,182 @@
+
+
+:root {
+  --font-primary: var(--font-libre-franklin, "Libre Franklin", Arial, Helvetica, sans-serif);
+  --font-callout: "SF Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.text-display-md-semibold {
+  font-family: var(--font-primary);
+  font-size: 3rem;
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.text-display-lg-semibold {
+  font-family: var(--font-primary);
+  font-size: 4rem;
+  line-height: 0.95;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.text-display-lg-bold {
+  font-family: var(--font-primary);
+  font-size: 4rem;
+  line-height: 0.95;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.text-title-lg-semibold {
+  font-family: var(--font-primary);
+  font-size: 2.125rem;
+  line-height: 1.1;
+  font-weight: 600;
+  letter-spacing: 0.025rem;
+}
+
+.text-title-lg-regular {
+  font-family: var(--font-primary);
+  font-size: 2.125rem;
+  line-height: 1.1;
+  font-weight: 400;
+  letter-spacing: 0.025rem;
+}
+
+.text-title-md-regular {
+  font-family: var(--font-primary);
+  font-size: 1.75rem;
+  line-height: 1.15;
+  font-weight: 400;
+  letter-spacing: 0.02375rem;
+}
+
+.text-title-md-medium {
+  font-family: var(--font-primary);
+  font-size: 1.75rem;
+  line-height: 1.15;
+  font-weight: 500;
+  letter-spacing: 0.02375rem;
+}
+
+.text-title-md-semibold {
+  font-family: var(--font-primary);
+  font-size: 1.75rem;
+  line-height: 1.15;
+  font-weight: 600;
+  letter-spacing: 0.02375rem;
+}
+
+.text-title-md-extrabold {
+  font-family: var(--font-primary);
+  font-size: 1.75rem;
+  line-height: 1.15;
+  font-weight: 800;
+  letter-spacing: 0.02375rem;
+}
+
+.text-title-sm-regular {
+  font-family: var(--font-primary);
+  font-size: 1.25rem;
+  line-height: 1.2;
+  font-weight: 400;
+  letter-spacing: -0.028125rem;
+}
+
+.text-title-sm-semibold {
+  font-family: var(--font-primary);
+  font-size: 1.25rem;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -0.028125rem;
+}
+
+.text-title-sm-extrabold {
+  font-family: var(--font-primary);
+  font-size: 1.25rem;
+  line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: -0.028125rem;
+}
+
+.text-headline-bold {
+  font-family: var(--font-primary);
+  font-size: 1.125rem;
+  line-height: 1.25;
+  font-weight: 700;
+  letter-spacing: -0.026875rem;
+}
+
+.text-headline-md-regular {
+  font-family: var(--font-primary);
+  font-size: 1.125rem;
+  line-height: 1.25;
+  font-weight: 400;
+  letter-spacing: -0.026875rem;
+}
+
+.text-body-regular {
+  font-family: var(--font-primary);
+  font-size: 1rem;
+  line-height: 1.5;
+  font-weight: 400;
+  letter-spacing: -0.00625rem;
+}
+
+.text-body-medium {
+  font-family: var(--font-primary);
+  font-size: 1rem;
+  line-height: 1.5;
+  font-weight: 500;
+  letter-spacing: -0.00625rem;
+}
+
+.text-body-semibold {
+  font-family: var(--font-primary);
+  font-size: 1rem;
+  line-height: 1.5;
+  font-weight: 600;
+  letter-spacing: -0.00625rem;
+}
+
+.text-body-extrabold {
+  font-family: var(--font-primary);
+  font-size: 1rem;
+  line-height: 1.5;
+  font-weight: 800;
+  letter-spacing: -0.00625rem;
+}
+
+.text-callout-regular {
+  font-family: var(--font-callout);
+  font-size: 1rem;
+  line-height: 1.35;
+  font-weight: 400;
+  letter-spacing: -0.019375rem;
+}
+
+.text-footnote-regular {
+  font-family: var(--font-primary);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  font-weight: 400;
+  letter-spacing: -0.005rem;
+}
+
+.text-footnote-semibold {
+  font-family: var(--font-primary);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  font-weight: 600;
+  letter-spacing: -0.005rem;
+}
+
+.text-caption-regular {
+  font-family: var(--font-primary);
+  font-size: 0.6875rem;
+  line-height: 1.35;
+  font-weight: 400;
+  letter-spacing: 0.00375rem;
+}

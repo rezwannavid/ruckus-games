@@ -1,0 +1,71 @@
+:root {
+  /* Primitive colors from Figma */
+  --primitive-white-500: #fef2e8;
+  --primitive-white-800: #dad3cd;
+  --primitive-blue-500: #439ee1;
+  --primitive-blue-800: #155c90;
+  --primitive-black-500: #1b1f22;
+  --primitive-black-800: #16191c;
+
+  /* Semantic surfaces */
+  --surface-primary: var(--primitive-black-800);
+  --surface-primary-light: var(--primitive-black-500);
+  --surface-secondary: var(--primitive-blue-500);
+  --surface-inverted: var(--primitive-white-800);
+  --surface-inverted-light: var(--primitive-white-500);
+
+  /* Semantic text */
+  --text-primary: var(--primitive-white-800);
+  --text-highlight: var(--primitive-blue-500);
+  --text-inverted: var(--primitive-black-500);
+
+  /* Button surfaces */
+  --button-primary-surface: var(--primitive-white-800);
+  --button-secondary-surface: var(--primitive-blue-800);
+  --button-tertiary-surface: var(--primitive-blue-500);
+  --button-inverted-surface: var(--primitive-black-500);
+
+  /* Button text */
+  --button-primary-text: var(--primitive-black-800);
+  --button-secondary-text: var(--primitive-white-500);
+  --button-tertiary-text: var(--primitive-black-500);
+  --button-inverted-text: var(--primitive-white-500);
+
+  /* Button icon */
+  --button-primary-icon: var(--primitive-white-500);
+  --button-secondary-icon: var(--primitive-blue-800);
+  --button-tertiary-icon: var(--primitive-white-800);
+  --button-inverted-icon: var(--primitive-black-800);
+
+  /* General icon colors */
+  --icon-primary: var(--primitive-black-800);
+  --icon-inverted: var(--primitive-white-800);
+  --icon-inverted-plus: var(--primitive-white-500);
+  --icon-secondary: var(--primitive-blue-500);
+
+  /* Icon sizes */
+  --icon-size-md: 20px;
+  --icon-size-lg: 30px;
+
+  /* App foundation tokens */
+  --background: var(--surface-primary);
+  --foreground: var(--text-primary);
+  --border-primary: rgba(218, 211, 205, 0.18);
+  --border-strong: rgba(218, 211, 205, 0.32);
+
+  /* Radius tokens */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-full: 999px;
+
+  /* Spacing tokens */
+  --space-page: 32px;
+  --space-section: 24px;
+  --space-card: 24px;
+
+  /* Motion tokens */
+  --motion-fast: 150ms;
+  --motion-medium: 220ms;
+}

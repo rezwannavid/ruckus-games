@@ -3,6 +3,7 @@
 import { use, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { io, type Socket } from "socket.io-client";
+import { Button } from "@/components/ui/Button";
 
 type Player = {
   id: string;
@@ -298,12 +299,9 @@ export default function RoomPage({
           <h1 className="text-3xl font-bold">Room Error</h1>
           <p>{error}</p>
 
-          <button
-            onClick={goHome}
-            className="rounded-lg border px-4 py-2 font-semibold hover:bg-white/10"
-          >
+          <Button onClick={goHome} variant="inverted" size="md">
             Back Home
-          </button>
+          </Button>
         </div>
       </main>
     );
@@ -347,13 +345,15 @@ export default function RoomPage({
               />
             </label>
 
-            <button
+            <Button
               onClick={joinRoom}
               disabled={isJoining}
-              className="w-full rounded-lg border p-3 font-semibold hover:bg-white/10 disabled:opacity-50"
+              variant="secondary"
+              size="md"
+              className="w-full"
             >
               {isJoining ? "Joining..." : "Join Room"}
-            </button>
+            </Button>
 
             {error && <p className="text-red-500">{error}</p>}
           </section>
@@ -363,12 +363,9 @@ export default function RoomPage({
             <div className="mt-2 flex items-center justify-between gap-4">
               <p className="text-2xl font-bold">{room.code}</p>
 
-              <button
-                onClick={copyRoomCode}
-                className="rounded-lg border px-4 py-2 font-semibold hover:bg-white/10"
-              >
+              <Button onClick={copyRoomCode} variant="inverted" size="md">
                 Copy Code
-              </button>
+              </Button>
             </div>
           </section>
 
@@ -392,26 +389,17 @@ export default function RoomPage({
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <button
-              onClick={copyRoomCode}
-              className="rounded-lg border px-4 py-2 font-semibold hover:bg-white/10"
-            >
+            <Button onClick={copyRoomCode} variant="primary" size="md">
               Copy Room Code
-            </button>
+            </Button>
 
-            <button
-              onClick={copyInviteLink}
-              className="rounded-lg border px-4 py-2 font-semibold hover:bg-white/10"
-            >
+            <Button onClick={copyInviteLink} variant="secondary" size="md">
               Copy Invite Link
-            </button>
+            </Button>
 
-            <button
-              onClick={leaveRoom}
-              className="rounded-lg border px-4 py-2 font-semibold hover:bg-white/10"
-            >
+            <Button onClick={leaveRoom} variant="inverted" size="md">
               Leave Room
-            </button>
+            </Button>
           </div>
 
           {copyMessage && <p className="text-sm opacity-70">{copyMessage}</p>}
@@ -444,13 +432,15 @@ export default function RoomPage({
             </div>
 
             {currentPlayerIsHost ? (
-              <button
+              <Button
                 onClick={goToGameSetup}
                 disabled={!canSetupSelectedGame}
-                className="mt-4 rounded-lg border px-4 py-2 font-semibold hover:bg-white/10 disabled:opacity-50"
+                variant="tertiary"
+                size="md"
+                className="mt-4"
               >
                 {room.status === "waiting" ? "Play / Setup" : "Continue"}
-              </button>
+              </Button>
             ) : (
               <p className="mt-4 text-sm opacity-70">
                 Waiting for the host to start the next round.

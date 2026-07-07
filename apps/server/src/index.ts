@@ -289,14 +289,7 @@ function getRoomParticipants(room: Room) {
 }
 
 function generateRoomCode() {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let code = "";
-
-  for (let i = 0; i < 6; i++) {
-    code += chars[Math.floor(Math.random() * chars.length)];
-  }
-
-  return code;
+  return Math.floor(1000 + Math.random() * 9000).toString();
 }
 
 app.get("/health", (_req, res) => {
