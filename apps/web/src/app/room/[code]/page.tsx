@@ -1,78 +1,15 @@
 "use client";
 
-import { use, useEffect, useMemo, useState } from "react";
+import { use, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { io, type Socket } from "socket.io-client";
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
-
-type Player = {
-  id: string;
-  name: string;
-  isHost: boolean;
-};
-
-type Game = {
-  slug: string;
-  name: string;
-  description: string;
-  minPlayers: number;
-  maxPlayers: number;
-};
-
-type Room = {
-  code: string;
-  players: Player[];
-  status: "waiting" | "in_game" | "ended";
-  selectedGame?: Game;
-};
-
-const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL ?? "http://localhost:4000";
-
-const games: Game[] = [
-  {
-    slug: "imposter",
-    name: "Imposter",
-    description: "Find the hidden player before they blend in.",
-    minPlayers: 2,
-    maxPlayers: 12
-  },
-  {
-    slug: "codenames",
-    name: "Codenames",
-    description: "Give clues and guess the right words with your team.",
-    minPlayers: 4,
-    maxPlayers: 10
-  },
-  {
-    slug: "name-3",
-    name: "Name 3",
-    description: "Name three things before time runs out.",
-    minPlayers: 3,
-    maxPlayers: 12
-  },
-  {
-    slug: "passwords",
-    name: "Passwords",
-    description: "Guess the secret word from clever clues.",
-    minPlayers: 4,
-    maxPlayers: 10
-  },
-  {
-    slug: "fibbage",
-    name: "Fibbage",
-    description: "Make up convincing lies and spot the truth.",
-    minPlayers: 3,
-    maxPlayers: 8
-  },
-  {
-    slug: "wavelength",
-    name: "Wavelength",
-    description: "Read the room and guess where the answer lands.",
-    minPlayers: 2,
-    maxPlayers: 12
-  }
-];
+import { RoomLobbyView } from "@/features/lobby/components/RoomLobbyView";
+import { games } from "@/features/lobby/data/games";
+import type { Game, Room } from "@/features/lobby/types/room";
+import { serverUrl } from "@/lib/config";
+import { joinRoom as joinExistingRoom } from "@/lib/rooms";
+import { clearRoomSession, getStoredSession, saveRoomSession } from "@/lib/session";
 
 export default function RoomPage({
   params
@@ -84,10 +21,20 @@ export default function RoomPage({
 
   const roomCode = code.toUpperCase();
 
-  const [socket, setSocket] = useState<Socket | null>(null);
+  const socketRef = useRef<Socket | null>(null);
   const [room, setRoom] = useState<Room | null>(null);
-  const [playerName, setPlayerName] = useState("");
-  const [currentPlayerId, setCurrentPlayerId] = useState<string | null>(null);
+  const [playerName, setPlayerName] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return getStoredSession().playerName ?? "";
+  });
+  const [currentPlayerId, setCurrentPlayerId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+
+    const savedSession = getStoredSession();
+    return savedSession.roomCode?.toUpperCase() === roomCode
+      ? savedSession.playerId
+      : null;
+  });
   const [error, setError] = useState("");
   const [copyMessage, setCopyMessage] = useState("");
   const [isJoining, setIsJoining] = useState(false);
@@ -104,28 +51,10 @@ export default function RoomPage({
   const hasJoinedRoom = Boolean(currentPlayer);
   const currentPlayerIsHost = Boolean(currentPlayer?.isHost);
   const selectedGame = room?.selectedGame;
-  const canSetupSelectedGame = Boolean(selectedGame);
-  const playersNeeded = selectedGame
-    ? Math.max(selectedGame.minPlayers - (room?.players.length ?? 0), 0)
-    : 0;
-  const hasEnoughPlayers = selectedGame ? playersNeeded === 0 : false;
-
-  useEffect(() => {
-    const savedRoomCode = localStorage.getItem("ruckusRoomCode");
-    const savedPlayerId = localStorage.getItem("ruckusPlayerId");
-    const savedPlayerName = localStorage.getItem("ruckusPlayerName");
-
-    if (savedRoomCode?.toUpperCase() === roomCode && savedPlayerId) {
-      setCurrentPlayerId(savedPlayerId);
-    }
-
-    if (savedPlayerName) {
-      setPlayerName(savedPlayerName);
-    }
-  }, [roomCode]);
 
   useEffect(() => {
     const nextSocket = io(serverUrl);
+    socketRef.current = nextSocket;
 
     nextSocket.emit("room:subscribe", {
       roomCode
@@ -141,9 +70,7 @@ export default function RoomPage({
     });
 
     nextSocket.on("room:ended", (payload: { message: string }) => {
-      localStorage.removeItem("ruckusPlayerId");
-      localStorage.removeItem("ruckusPlayerName");
-      localStorage.removeItem("ruckusRoomCode");
+      clearRoomSession();
 
       setCurrentPlayerId(null);
       setRoom(null);
@@ -156,9 +83,8 @@ export default function RoomPage({
       router.push(`/room/${roomCode}/play/${payload.game.slug}`);
     });
 
-    setSocket(nextSocket);
-
     return () => {
+      socketRef.current = null;
       nextSocket.disconnect();
     };
   }, [roomCode, router]);
@@ -168,31 +94,21 @@ export default function RoomPage({
     setIsJoining(true);
 
     try {
-      const response = await fetch(`${serverUrl}/rooms/${roomCode}/join`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          playerName
-        })
+      const data = await joinExistingRoom({
+        roomCode,
+        playerName
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.message ?? "Could not join room.");
-        return;
-      }
-
-      localStorage.setItem("ruckusPlayerId", data.player.id);
-      localStorage.setItem("ruckusPlayerName", data.player.name);
-      localStorage.setItem("ruckusRoomCode", data.room.code);
+      saveRoomSession({
+        playerId: data.player.id,
+        playerName: data.player.name,
+        roomCode: data.room.code
+      });
 
       setCurrentPlayerId(data.player.id);
       setRoom(data.room);
 
-      socket?.emit("room:subscribe", {
+      socketRef.current?.emit("room:subscribe", {
         roomCode: data.room.code
       });
     } catch {
@@ -240,9 +156,7 @@ export default function RoomPage({
         return;
       }
 
-      localStorage.removeItem("ruckusPlayerId");
-      localStorage.removeItem("ruckusPlayerName");
-      localStorage.removeItem("ruckusRoomCode");
+      clearRoomSession();
 
       setCurrentPlayerId(null);
       setRoom(null);
@@ -254,7 +168,7 @@ export default function RoomPage({
   }
 
   async function selectGame(gameSlug: string) {
-    if (!currentPlayerId) return;
+    if (!currentPlayerId) return false;
 
     setError("");
 
@@ -274,12 +188,14 @@ export default function RoomPage({
 
       if (!response.ok) {
         setError(data.message ?? "Could not select game.");
-        return;
+        return false;
       }
 
       setRoom(data.room);
+      return true;
     } catch {
       setError("Could not connect to the server.");
+      return false;
     }
   }
 
@@ -287,6 +203,38 @@ export default function RoomPage({
     if (!selectedGame) return;
 
     router.push(`/room/${roomCode}/setup/${selectedGame.slug}`);
+  }
+
+  async function chooseGame(gameSlug: string) {
+    if (!currentPlayerIsHost) {
+      setError("Only the room owner can choose a game.");
+      return;
+    }
+
+    if (gameSlug !== "imposter") {
+      setError("That game is coming soon.");
+      return;
+    }
+
+    await selectGame(gameSlug);
+  }
+
+  async function continueToSetup() {
+    if (!currentPlayerIsHost) {
+      setError("Only the room owner can start setup.");
+      return;
+    }
+
+    if (selectedGame) {
+      goToGameSetup();
+      return;
+    }
+
+    const didSelectGame = await selectGame("imposter");
+
+    if (didSelectGame) {
+      router.push(`/room/${roomCode}/setup/imposter`);
+    }
   }
 
   function goHome() {
@@ -377,150 +325,20 @@ export default function RoomPage({
   }
 
   return (
-    <main className="min-h-screen p-8">
-      <div className="mx-auto max-w-3xl space-y-8">
-        <header className="space-y-4">
-          <div>
-            <p className="text-sm opacity-70">Room Code</p>
-            <h1 className="text-5xl font-bold tracking-wide">{room.code}</h1>
-            <p className="mt-2 opacity-80">
-              You are playing as{" "}
-              <span className="font-semibold">{currentPlayer?.name}</span>.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-3">
-            <Button onClick={copyRoomCode} variant="primary" size="md">
-              Copy Room Code
-            </Button>
-
-            <Button onClick={copyInviteLink} variant="secondary" size="md">
-              Copy Invite Link
-            </Button>
-
-            <Button onClick={leaveRoom} variant="inverted" size="md">
-              Leave Room
-            </Button>
-          </div>
-
-          {copyMessage && <p className="text-sm opacity-70">{copyMessage}</p>}
-        </header>
-
-        {selectedGame && (
-          <section className="rounded-2xl border p-6">
-            <p className="text-sm opacity-70">Selected Game</p>
-            <h2 className="mt-1 text-3xl font-bold">{selectedGame.name}</h2>
-            <p className="mt-2 opacity-80">{selectedGame.description}</p>
-
-            <div className="mt-4 rounded-xl border p-4">
-              <p>
-                Connected players: {room.players.length}/{selectedGame.minPlayers} for everyone-joins mode
-              </p>
-
-              {selectedGame.slug === "imposter" ? (
-                <p className="mt-2 opacity-80">
-                  Continue to setup to choose everyone-joins mode or pass one phone around.
-                </p>
-              ) : hasEnoughPlayers ? (
-                <p className="mt-2 opacity-80">
-                  Ready to play. The host can continue to setup or choose another game.
-                </p>
-              ) : (
-                <p className="mt-2 opacity-80">
-                  Need {playersNeeded} more player{playersNeeded === 1 ? "" : "s"} to start.
-                </p>
-              )}
-            </div>
-
-            {currentPlayerIsHost ? (
-              <Button
-                onClick={goToGameSetup}
-                disabled={!canSetupSelectedGame}
-                variant="tertiary"
-                size="md"
-                className="mt-4"
-              >
-                {room.status === "waiting" ? "Play / Setup" : "Continue"}
-              </Button>
-            ) : (
-              <p className="mt-4 text-sm opacity-70">
-                Waiting for the host to start the next round.
-              </p>
-            )}
-          </section>
-        )}
-
-        <section className="rounded-2xl border p-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-semibold">Players</h2>
-            <p className="opacity-70">{room.players.length} joined</p>
-          </div>
-
-          <div className="mt-4 grid gap-3">
-            {room.players.map((player) => (
-              <Card
-                key={player.id}
-                size="sm"
-                title={player.name}
-                label={player.isHost ? "Room Owner" : player.id === currentPlayerId ? "You" : "Player"}
-                showLabel={player.isHost || player.id === currentPlayerId}
-              />
-            ))}
-          </div>
-        </section>
-
-        <section className="rounded-2xl border p-6">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h2 className="text-2xl font-semibold">Games</h2>
-              {!currentPlayerIsHost && (
-                <p className="mt-1 text-sm opacity-70">
-                  Only the host can select a game.
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            {games.map((game) => {
-              const isSelected = selectedGame?.slug === game.slug;
-              const tooManyPlayers = room.players.length > game.maxPlayers;
-              const isDisabled = !currentPlayerIsHost || tooManyPlayers;
-
-              return (
-                <button
-                  key={game.slug}
-                  onClick={() => selectGame(game.slug)}
-                  disabled={isDisabled}
-                  className="rounded-xl border p-4 text-left hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <h3 className="font-semibold">{game.name}</h3>
-                    {isSelected && (
-                      <span className="rounded-full border px-2 py-1 text-xs">
-                        Selected
-                      </span>
-                    )}
-                  </div>
-
-                  <p className="mt-2 text-sm opacity-70">{game.description}</p>
-                  <p className="mt-3 text-sm opacity-70">
-                    {game.minPlayers}–{game.maxPlayers} players
-                  </p>
-
-                  {tooManyPlayers && (
-                    <p className="mt-2 text-sm">
-                      Too many players for this game.
-                    </p>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          {error && <p className="mt-4 text-red-500">{error}</p>}
-        </section>
-      </div>
-    </main>
+    <RoomLobbyView
+      roomName={room.name}
+      roomCode={room.code}
+      players={room.players}
+      currentPlayerId={currentPlayerId}
+      isHost={currentPlayerIsHost}
+      games={games}
+      selectedGame={selectedGame}
+      copyMessage={error || copyMessage}
+      onBack={goHome}
+      onCopyLink={copyInviteLink}
+      onEndRoom={leaveRoom}
+      onSelectGame={chooseGame}
+      onContinueSetup={continueToSetup}
+    />
   );
 }

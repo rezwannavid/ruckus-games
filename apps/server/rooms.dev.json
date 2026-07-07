@@ -46,6 +46,216 @@
           "maxPlayers": 12
         }
       }
+    ],
+    [
+      "6429",
+      {
+        "code": "6429",
+        "players": [
+          {
+            "id": "bccb5dec-229b-42b6-974a-fcc512159f7f",
+            "name": "Player",
+            "isHost": true
+          }
+        ],
+        "status": "waiting",
+        "selectedGame": {
+          "slug": "imposter",
+          "name": "Imposter",
+          "description": "Find the hidden player before they blend in.",
+          "minPlayers": 2,
+          "maxPlayers": 12
+        }
+      }
+    ],
+    [
+      "6687",
+      {
+        "code": "6687",
+        "players": [
+          {
+            "id": "4fe16a58-985a-42e4-9bd4-bd843a7f64af",
+            "name": "Player",
+            "isHost": true
+          }
+        ],
+        "status": "waiting"
+      }
+    ],
+    [
+      "4910",
+      {
+        "code": "4910",
+        "players": [
+          {
+            "id": "6c992b99-b8c5-4ffa-86f2-00a2b9de16a0",
+            "name": "Player",
+            "isHost": true
+          },
+          {
+            "id": "4bc39e71-2071-4b49-8d82-ddb64c72e4d5",
+            "name": "wqeqwe",
+            "isHost": false
+          }
+        ],
+        "status": "waiting"
+      }
+    ],
+    [
+      "1221",
+      {
+        "code": "1221",
+        "name": "Flow Test Room",
+        "players": [
+          {
+            "id": "e3558a9c-272f-47eb-8198-a01c6afccd7a",
+            "name": "Host Player",
+            "isHost": true
+          }
+        ],
+        "status": "waiting",
+        "selectedGame": {
+          "slug": "imposter",
+          "name": "Imposter",
+          "description": "Find the hidden player before they blend in.",
+          "minPlayers": 2,
+          "maxPlayers": 12
+        }
+      }
+    ],
+    [
+      "1585",
+      {
+        "code": "1585",
+        "name": "Journey",
+        "players": [
+          {
+            "id": "17ae8631-2e37-4a18-8f36-f2af7aa879f9",
+            "name": "Soha",
+            "isHost": true
+          },
+          {
+            "id": "04f99550-50c8-4d03-9bc3-0c554c77e7c7",
+            "name": "wqeqwe",
+            "isHost": false
+          }
+        ],
+        "status": "in_game",
+        "selectedGame": {
+          "slug": "imposter",
+          "name": "Imposter",
+          "description": "Find the hidden player before they blend in.",
+          "minPlayers": 2,
+          "maxPlayers": 12
+        },
+        "gameState": {
+          "type": "imposter",
+          "playMode": "multiplayer",
+          "phase": "playing",
+          "players": [
+            {
+              "id": "7548bc36-553b-4c9b-8531-abeece1f752c",
+              "name": "Navid"
+            },
+            {
+              "id": "17ae8631-2e37-4a18-8f36-f2af7aa879f9",
+              "name": "Soha"
+            }
+          ],
+          "word": "Hotel",
+          "wordCategory": "random",
+          "roundTimerSeconds": 60,
+          "startedAt": "2026-07-07T13:14:42.305Z",
+          "endsAt": "2026-07-07T13:15:42.305Z",
+          "imposterPlayerId": "7548bc36-553b-4c9b-8531-abeece1f752c",
+          "imposterPlayerIds": [
+            "7548bc36-553b-4c9b-8531-abeece1f752c"
+          ]
+        }
+      }
+    ],
+    [
+      "6277",
+      {
+        "code": "6277",
+        "name": "Hello",
+        "players": [
+          {
+            "id": "d5192689-f21e-43d7-8870-f37a79231212",
+            "name": "Soha",
+            "isHost": true
+          },
+          {
+            "id": "04a1b7e5-1994-4853-9825-9c3a95bd47c1",
+            "name": "wqeqwe",
+            "isHost": false
+          },
+          {
+            "id": "99fb813a-5d71-4175-ae7c-428180491790",
+            "name": "Player",
+            "isHost": false
+          }
+        ],
+        "status": "waiting",
+        "selectedGame": {
+          "slug": "imposter",
+          "name": "Imposter",
+          "description": "Find the hidden player before they blend in.",
+          "minPlayers": 2,
+          "maxPlayers": 12
+        }
+      }
+    ],
+    [
+      "6156",
+      {
+        "code": "6156",
+        "name": "Player's Room",
+        "players": [
+          {
+            "id": "d03912d9-04dd-4a0c-9908-90c3e173ace4",
+            "name": "Player",
+            "isHost": true
+          },
+          {
+            "id": "710ce6df-6fac-475b-a8db-90bfd620dea1",
+            "name": "wqeqwe",
+            "isHost": false
+          }
+        ],
+        "status": "in_game",
+        "selectedGame": {
+          "slug": "imposter",
+          "name": "Imposter",
+          "description": "Find the hidden player before they blend in.",
+          "minPlayers": 2,
+          "maxPlayers": 12
+        },
+        "gameState": {
+          "type": "imposter",
+          "playMode": "multiplayer",
+          "phase": "revealed",
+          "players": [
+            {
+              "id": "d03912d9-04dd-4a0c-9908-90c3e173ace4",
+              "name": "Player"
+            },
+            {
+              "id": "710ce6df-6fac-475b-a8db-90bfd620dea1",
+              "name": "wqeqwe"
+            }
+          ],
+          "word": "Hotel",
+          "wordCategory": "random",
+          "roundTimerSeconds": 60,
+          "startedAt": "2026-07-07T13:33:15.889Z",
+          "endsAt": "2026-07-07T13:34:15.889Z",
+          "imposterPlayerId": "d03912d9-04dd-4a0c-9908-90c3e173ace4",
+          "imposterPlayerIds": [
+            "d03912d9-04dd-4a0c-9908-90c3e173ace4"
+          ]
+        }
+      }
     ]
   ]
 }

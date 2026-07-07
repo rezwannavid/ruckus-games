@@ -10,8 +10,27 @@ dotenv.config();
 
 const app = express();
 
+const configuredWebOrigins = (process.env.WEB_ORIGIN ?? "http://localhost:3000")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+const localDevOriginPattern =
+  /^https?:\/\/(localhost|127\.0\.0\.1|10(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2}|172\.(1[6-9]|2\d|3[01])(?:\.\d{1,3}){2})(?::\d+)?$/;
+
+function allowLocalDevOrigin(
+  origin: string | undefined,
+  callback: (err: Error | null, allow?: boolean) => void
+) {
+  if (!origin || configuredWebOrigins.includes(origin) || localDevOriginPattern.test(origin)) {
+    callback(null, true);
+    return;
+  }
+
+  callback(new Error(`Origin ${origin} is not allowed by CORS.`));
+}
+
 app.use(cors({
-  origin: process.env.WEB_ORIGIN ?? "http://localhost:3000"
+  origin: allowLocalDevOrigin
 }));
 
 app.use(express.json());
@@ -20,7 +39,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: process.env.WEB_ORIGIN ?? "http://localhost:3000",
+    origin: allowLocalDevOrigin,
     methods: ["GET", "POST"]
   }
 });
@@ -64,6 +83,7 @@ type GameState = ImposterGameState;
 
 type Room = {
   code: string;
+  name?: string;
   players: Player[];
   status: "waiting" | "in_game" | "ended";
   selectedGame?: Game;
@@ -301,7 +321,10 @@ app.get("/games", (_req, res) => {
 });
 
 app.post("/rooms", (req, res) => {
-  const { playerName } = req.body as { playerName?: string };
+  const { playerName, roomName } = req.body as {
+    playerName?: string;
+    roomName?: string;
+  };
 
   if (!playerName || playerName.trim().length === 0) {
     return res.status(400).json({ message: "Player name is required." });
@@ -321,6 +344,7 @@ app.post("/rooms", (req, res) => {
 
   const room: Room = {
     code,
+    name: roomName?.trim() || `${player.name}'s Room`,
     players: [player],
     status: "waiting"
   };

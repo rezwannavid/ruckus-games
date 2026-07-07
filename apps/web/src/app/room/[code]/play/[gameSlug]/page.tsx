@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { io } from "socket.io-client";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { serverUrl } from "@/lib/config";
+import { clearRoomSession, getStoredSession } from "@/lib/session";
 
 type Player = {
   id: string;
@@ -76,8 +78,6 @@ type ImposterReveal = {
   imposterPlayerNames: string[];
 };
 
-const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL ?? "http://localhost:4000";
-
 export default function PlayGamePage({
   params
 }: {
@@ -89,7 +89,14 @@ export default function PlayGamePage({
   const roomCode = code.toUpperCase();
 
   const [room, setRoom] = useState<Room | null>(null);
-  const [currentPlayerId, setCurrentPlayerId] = useState<string | null>(null);
+  const [currentPlayerId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+
+    const savedSession = getStoredSession();
+    return savedSession.roomCode?.toUpperCase() === roomCode
+      ? savedSession.playerId
+      : null;
+  });
   const [playerGameState, setPlayerGameState] = useState<PlayerGameState | null>(null);
   const [singleDeviceGameState, setSingleDeviceGameState] = useState<SingleDeviceGameState | null>(null);
   const [singleDeviceRoleState, setSingleDeviceRoleState] = useState<PlayerGameState | null>(null);
@@ -97,6 +104,7 @@ export default function PlayGamePage({
   const [isSingleDeviceRoleVisible, setIsSingleDeviceRoleVisible] = useState(false);
   const [imposterReveal, setImposterReveal] = useState<ImposterReveal | null>(null);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [isGameEnded, setIsGameEnded] = useState(false);
   const [error, setError] = useState("");
 
   const currentPlayer = room?.players.find(
@@ -146,15 +154,12 @@ export default function PlayGamePage({
   }
 
   useEffect(() => {
-    const savedRoomCode = localStorage.getItem("ruckusRoomCode");
-    const savedPlayerId = localStorage.getItem("ruckusPlayerId");
+    const savedSession = getStoredSession();
 
-    if (savedRoomCode?.toUpperCase() !== roomCode || !savedPlayerId) {
+    if (savedSession.roomCode?.toUpperCase() !== roomCode || !savedSession.playerId) {
       router.push(`/room/${roomCode}`);
       return;
     }
-
-    setCurrentPlayerId(savedPlayerId);
   }, [roomCode, router]);
 
   useEffect(() => {
@@ -284,13 +289,11 @@ export default function PlayGamePage({
     });
 
     socket.on("game:ended", () => {
-      router.push(`/room/${roomCode}`);
+      setIsGameEnded(true);
     });
 
     socket.on("room:ended", () => {
-      localStorage.removeItem("ruckusPlayerId");
-      localStorage.removeItem("ruckusPlayerName");
-      localStorage.removeItem("ruckusRoomCode");
+      clearRoomSession();
 
       router.push("/");
     });
@@ -308,8 +311,6 @@ export default function PlayGamePage({
     ) {
       return;
     }
-
-    setTimeLeft(getSyncedTimeLeft(activeEndsAt));
 
     const timer = window.setInterval(() => {
       setTimeLeft(getSyncedTimeLeft(activeEndsAt));
@@ -442,15 +443,40 @@ export default function PlayGamePage({
       }
 
       setRoom(data.room);
-      router.push(`/room/${roomCode}`);
+      setIsGameEnded(true);
     } catch {
       setError("Could not connect to the server.");
     }
   }
 
+  if (isGameEnded) {
+    return (
+      <main className="min-h-screen bg-[var(--surface-inverted)] px-4 py-8 text-[var(--text-inverted)]">
+        <div className="mx-auto max-w-[25rem] rounded-[2rem] bg-[var(--surface-inverted-light)] p-6 text-center">
+          <p className="text-footnote-semibold text-[var(--text-highlight)]">
+            Room {roomCode}
+          </p>
+          <h1 className="mt-2 text-title-md-extrabold">Game Ended</h1>
+          <p className="mt-3 text-body-regular">
+            Return to the same room to choose another game or start a new round.
+          </p>
+          <Button
+            onClick={goBackToRoom}
+            variant="tertiary"
+            size="lg"
+            showLeftIcon={false}
+            className="mt-6 w-full"
+          >
+            Back to Same Room
+          </Button>
+        </div>
+      </main>
+    );
+  }
+
   if (error) {
     return (
-      <main className="min-h-screen p-8">
+      <main className="min-h-screen bg-[var(--surface-inverted)] p-8 text-[var(--text-inverted)]">
         <div className="mx-auto max-w-xl space-y-6">
           <h1 className="text-3xl font-bold">Game Error</h1>
           <p>{error}</p>
@@ -465,7 +491,7 @@ export default function PlayGamePage({
 
   if (!room) {
     return (
-      <main className="min-h-screen p-8">
+      <main className="min-h-screen bg-[var(--surface-inverted)] p-8 text-[var(--text-inverted)]">
         <div className="mx-auto max-w-xl">
           <p>Loading game...</p>
         </div>
@@ -475,7 +501,7 @@ export default function PlayGamePage({
 
   if (!selectedGame || selectedGame.slug !== gameSlug) {
     return (
-      <main className="min-h-screen p-8">
+      <main className="min-h-screen bg-[var(--surface-inverted)] p-8 text-[var(--text-inverted)]">
         <div className="mx-auto max-w-xl space-y-6">
           <h1 className="text-3xl font-bold">Game Not Active</h1>
           <p>This game is not currently active in room {room.code}.</p>
@@ -489,9 +515,9 @@ export default function PlayGamePage({
   }
 
   return (
-    <main className="min-h-screen p-8">
+    <main className="min-h-screen bg-[var(--surface-inverted)] p-4 py-8 text-[var(--text-inverted)]">
       <div className="mx-auto max-w-4xl space-y-8">
-        <header className="flex flex-col gap-4 rounded-2xl border p-6 sm:flex-row sm:items-center sm:justify-between">
+        <header className="flex flex-col gap-4 rounded-[2rem] bg-[var(--surface-inverted-light)] p-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm opacity-70">Room {room.code}</p>
             <h1 className="text-4xl font-bold">{selectedGame.name}</h1>
@@ -533,7 +559,7 @@ export default function PlayGamePage({
           </div>
         </header>
 
-        <section className="rounded-2xl border p-8 text-center">
+        <section className="rounded-[2rem] bg-[var(--surface-inverted-light)] p-8 text-center">
           <p className="text-sm uppercase tracking-[0.3em] opacity-60">
             Game Area
           </p>
@@ -541,7 +567,7 @@ export default function PlayGamePage({
           {selectedGame.slug === "imposter" ? (
             <div className="mt-4 space-y-4">
               {activePhase !== "revealed" && formattedTimeLeft && (
-                <div className="mx-auto max-w-xs rounded-2xl border p-4">
+                <div className="mx-auto max-w-xs rounded-2xl bg-[var(--surface-inverted)] p-4">
                   <p className="text-sm uppercase tracking-[0.3em] opacity-60">
                     Timer
                   </p>

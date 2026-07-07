@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { io } from "socket.io-client";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { serverUrl } from "@/lib/config";
+import { clearRoomSession, getStoredSession } from "@/lib/session";
 
 type Player = {
   id: string;
@@ -27,8 +29,6 @@ type Room = {
   selectedGame?: Game;
 };
 
-const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL ?? "http://localhost:4000";
-
 export default function GameSetupPage({
   params
 }: {
@@ -40,7 +40,14 @@ export default function GameSetupPage({
   const roomCode = code.toUpperCase();
 
   const [room, setRoom] = useState<Room | null>(null);
-  const [currentPlayerId, setCurrentPlayerId] = useState<string | null>(null);
+  const [currentPlayerId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+
+    const savedSession = getStoredSession();
+    return savedSession.roomCode?.toUpperCase() === roomCode
+      ? savedSession.playerId
+      : null;
+  });
   const [error, setError] = useState("");
 
   const [playMode, setPlayMode] = useState<"multiplayer" | "single_device">("multiplayer");
@@ -64,15 +71,12 @@ export default function GameSetupPage({
   const maxImposters = Math.max(1, activePlayerCount - 1);
 
   useEffect(() => {
-    const savedRoomCode = localStorage.getItem("ruckusRoomCode");
-    const savedPlayerId = localStorage.getItem("ruckusPlayerId");
+    const savedSession = getStoredSession();
 
-    if (savedRoomCode?.toUpperCase() !== roomCode || !savedPlayerId) {
+    if (savedSession.roomCode?.toUpperCase() !== roomCode || !savedSession.playerId) {
       router.push(`/room/${roomCode}`);
       return;
     }
-
-    setCurrentPlayerId(savedPlayerId);
   }, [roomCode, router]);
 
   useEffect(() => {
@@ -98,14 +102,6 @@ export default function GameSetupPage({
   }, [roomCode]);
 
   useEffect(() => {
-    if (playMode !== "single_device" || !room || manualPlayers.length > 0) {
-      return;
-    }
-
-    setManualPlayers(room.players.map((player) => player.name));
-  }, [playMode, room, manualPlayers.length]);
-
-  useEffect(() => {
     const socket = io(serverUrl);
 
     socket.emit("room:subscribe", {
@@ -121,9 +117,7 @@ export default function GameSetupPage({
     });
 
     socket.on("room:ended", () => {
-      localStorage.removeItem("ruckusPlayerId");
-      localStorage.removeItem("ruckusPlayerName");
-      localStorage.removeItem("ruckusRoomCode");
+      clearRoomSession();
 
       router.push("/");
     });
@@ -200,7 +194,7 @@ export default function GameSetupPage({
 
   if (error) {
     return (
-      <main className="min-h-screen p-8">
+      <main className="min-h-screen bg-[var(--surface-inverted)] p-8 text-[var(--text-inverted)]">
         <div className="mx-auto max-w-xl space-y-6">
           <h1 className="text-3xl font-bold">Setup Error</h1>
           <p>{error}</p>
@@ -215,7 +209,7 @@ export default function GameSetupPage({
 
   if (!room) {
     return (
-      <main className="min-h-screen p-8">
+      <main className="min-h-screen bg-[var(--surface-inverted)] p-8 text-[var(--text-inverted)]">
         <div className="mx-auto max-w-xl">
           <p>Loading setup...</p>
         </div>
@@ -225,7 +219,7 @@ export default function GameSetupPage({
 
   if (!selectedGame || selectedGame.slug !== gameSlug) {
     return (
-      <main className="min-h-screen p-8">
+      <main className="min-h-screen bg-[var(--surface-inverted)] p-8 text-[var(--text-inverted)]">
         <div className="mx-auto max-w-xl space-y-6">
           <h1 className="text-3xl font-bold">Game Not Selected</h1>
           <p>This game is not currently selected for room {room.code}.</p>
@@ -239,7 +233,7 @@ export default function GameSetupPage({
   }
 
   return (
-    <main className="min-h-screen p-8">
+    <main className="min-h-screen bg-[var(--surface-inverted)] p-4 py-8 text-[var(--text-inverted)]">
       <div className="mx-auto max-w-3xl space-y-8">
         <header className="space-y-3">
           <p className="text-sm opacity-70">Room {room.code}</p>
@@ -272,8 +266,8 @@ export default function GameSetupPage({
               <button
                 onClick={() => setPlayMode("multiplayer")}
                 disabled={!currentPlayerIsHost}
-                className={`rounded-2xl border p-4 text-left hover:bg-white/10 disabled:opacity-50 ${
-                  playMode === "multiplayer" ? "bg-white/10" : ""
+                className={`rounded-2xl bg-[var(--surface-inverted-light)] p-4 text-left disabled:opacity-50 ${
+                  playMode === "multiplayer" ? "outline outline-2 outline-[var(--surface-secondary)]" : ""
                 }`}
               >
                 <p className="font-semibold">Everyone joins</p>
@@ -283,10 +277,16 @@ export default function GameSetupPage({
               </button>
 
               <button
-                onClick={() => setPlayMode("single_device")}
+                onClick={() => {
+                  setPlayMode("single_device");
+
+                  if (manualPlayers.length === 0) {
+                    setManualPlayers(room.players.map((player) => player.name));
+                  }
+                }}
                 disabled={!currentPlayerIsHost}
-                className={`rounded-2xl border p-4 text-left hover:bg-white/10 disabled:opacity-50 ${
-                  playMode === "single_device" ? "bg-white/10" : ""
+                className={`rounded-2xl bg-[var(--surface-inverted-light)] p-4 text-left disabled:opacity-50 ${
+                  playMode === "single_device" ? "outline outline-2 outline-[var(--surface-secondary)]" : ""
                 }`}
               >
                 <p className="font-semibold">Pass one phone around</p>
@@ -334,7 +334,7 @@ export default function GameSetupPage({
                   }}
                   disabled={!currentPlayerIsHost}
                   placeholder="Add another player name"
-                  className="flex-1 rounded-lg border p-3 text-black disabled:opacity-50"
+                  className="flex-1 rounded-[1rem] border-0 bg-[var(--surface-inverted-light)] p-3 text-[var(--text-inverted)] outline-none disabled:opacity-50"
                 />
                 <Button
                   onClick={addManualPlayer}
@@ -395,7 +395,7 @@ export default function GameSetupPage({
                   value={numberOfImposters}
                   onChange={(event) => setNumberOfImposters(event.target.value)}
                   disabled={!currentPlayerIsHost}
-                  className="w-full rounded-lg border p-3 text-black disabled:opacity-50"
+                  className="w-full rounded-[1rem] border-0 bg-[var(--surface-inverted-light)] p-3 text-[var(--text-inverted)] disabled:opacity-50"
                 >
                   <option value="1">1</option>
                   {maxImposters >= 2 && <option value="2">2</option>}
@@ -409,7 +409,7 @@ export default function GameSetupPage({
                   value={roundTimer}
                   onChange={(event) => setRoundTimer(event.target.value)}
                   disabled={!currentPlayerIsHost}
-                  className="w-full rounded-lg border p-3 text-black disabled:opacity-50"
+                  className="w-full rounded-[1rem] border-0 bg-[var(--surface-inverted-light)] p-3 text-[var(--text-inverted)] disabled:opacity-50"
                 >
                   <option value="30">30 seconds</option>
                   <option value="60">60 seconds</option>
@@ -424,7 +424,7 @@ export default function GameSetupPage({
                   value={wordCategory}
                   onChange={(event) => setWordCategory(event.target.value)}
                   disabled={!currentPlayerIsHost}
-                  className="w-full rounded-lg border p-3 text-black disabled:opacity-50"
+                  className="w-full rounded-[1rem] border-0 bg-[var(--surface-inverted-light)] p-3 text-[var(--text-inverted)] disabled:opacity-50"
                 >
                   <option value="random">Random</option>
                   <option value="movies">Movies</option>
