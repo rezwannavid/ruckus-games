@@ -1,0 +1,78 @@
+{
+  "rooms": [
+    [
+      "9LD8PV",
+      {
+        "code": "9LD8PV",
+        "players": [
+          {
+            "id": "887e9ce5-4101-4cc1-86b2-2842cad72974",
+            "name": "weew",
+            "isHost": true
+          }
+        ],
+        "status": "waiting",
+        "selectedGame": {
+          "slug": "imposter",
+          "name": "Imposter",
+          "description": "Find the hidden player before they blend in.",
+          "minPlayers": 2,
+          "maxPlayers": 12
+        }
+      }
+    ],
+    [
+      "D849VJ",
+      {
+        "code": "D849VJ",
+        "players": [
+          {
+            "id": "8442c989-5352-48b1-8d4b-0f425c82beeb",
+            "name": "werwer213",
+            "isHost": true
+          }
+        ],
+        "status": "in_game",
+        "selectedGame": {
+          "slug": "imposter",
+          "name": "Imposter",
+          "description": "Find the hidden player before they blend in.",
+          "minPlayers": 2,
+          "maxPlayers": 12
+        },
+        "gameState": {
+          "type": "imposter",
+          "playMode": "single_device",
+          "phase": "revealed",
+          "players": [
+            {
+              "id": "320def18-fc1c-4426-b693-bf788760b440",
+              "name": "werwer213"
+            },
+            {
+              "id": "f09703a4-4883-4d82-9e37-6a253f59e262",
+              "name": "sadsad"
+            },
+            {
+              "id": "87aa05b5-3677-4031-9bd0-f110b0a0d106",
+              "name": "sadasd"
+            },
+            {
+              "id": "a5e92d04-60e4-4bf9-9298-f2a359546dea",
+              "name": "asdads"
+            }
+          ],
+          "word": "Cinema",
+          "wordCategory": "random",
+          "roundTimerSeconds": 60,
+          "startedAt": "2026-07-07T09:56:16.219Z",
+          "endsAt": "2026-07-07T09:57:16.219Z",
+          "imposterPlayerId": "320def18-fc1c-4426-b693-bf788760b440",
+          "imposterPlayerIds": [
+            "320def18-fc1c-4426-b693-bf788760b440"
+          ]
+        }
+      }
+    ]
+  ]
+}
