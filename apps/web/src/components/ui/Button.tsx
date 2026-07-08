@@ -1,8 +1,9 @@
 
 
 import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 
-type ButtonVariant = "primary" | "secondary" | "tertiary" | "inverted";
+type ButtonVariant = "primary" | "primary-plus" | "secondary" | "tertiary" | "inverted";
 type ButtonSize = "md" | "lg" | "xl";
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -27,6 +28,8 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
     "bg-[var(--button-primary-surface)] text-[var(--button-primary-text)]",
+  "primary-plus":
+    "bg-[var(--button-primary-plus-surface)] text-[var(--button-primary-text)]",
   secondary:
     "bg-[var(--button-secondary-surface)] text-[var(--button-secondary-text)]",
   tertiary:
@@ -36,8 +39,8 @@ const variantClasses: Record<ButtonVariant, string> = {
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  md: "h-[3.5rem] px-6 py-1 gap-2 text-body-medium",
-  lg: "h-[5rem] px-6 py-1 gap-2 text-title-sm-extrabold",
+  md: "h-12 px-6 py-1 gap-2 text-footnote-semibold rounded-[20px]",
+  lg: "h-20 px-6 py-1 gap-[13px] text-headline-md-bold rounded-[28px]",
   xl: "h-[7.5rem] px-6 py-1 gap-2 text-title-sm-extrabold"
 };
 
@@ -46,42 +49,6 @@ const iconSizeClasses: Record<ButtonSize, string> = {
   lg: "size-[1.875rem]",
   xl: "size-5"
 };
-
-function ArrowLeftIcon({ className = "" }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      className={className}
-    >
-      <path d="m12 19-7-7 7-7" />
-      <path d="M19 12H5" />
-    </svg>
-  );
-}
-
-function ArrowRightIcon({ className = "" }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      className={className}
-    >
-      <path d="M5 12h14" />
-      <path d="m12 5 7 7-7 7" />
-    </svg>
-  );
-}
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -123,10 +90,10 @@ export function Button({
       type={type}
       disabled={disabled}
       className={cx(
-        "inline-flex items-center justify-center overflow-hidden rounded-[3rem] whitespace-nowrap transition duration-[var(--motion-fast)]",
-        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--surface-secondary)]",
+        "inline-flex items-center justify-center overflow-hidden whitespace-nowrap transition duration-[var(--motion-fast)]",
+        "focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-[var(--focus-ring)]",
         "disabled:pointer-events-none disabled:opacity-50",
-        "hover:brightness-105 active:scale-[0.98]",
+        "hover:brightness-110 active:translate-y-px active:brightness-90",
         variantClasses[resolvedVariant],
         sizeClasses[resolvedSize],
         className
@@ -134,12 +101,12 @@ export function Button({
       {...props}
     >
       {shouldShowLeftIcon &&
-        (resolvedLeftIcon ?? <ArrowLeftIcon className={iconClassName} />)}
+        (resolvedLeftIcon ?? <ArrowLeft aria-hidden className={iconClassName} />)}
 
       <span>{content}</span>
 
       {shouldShowRightIcon &&
-        (resolvedRightIcon ?? <ArrowRightIcon className={iconClassName} />)}
+        (resolvedRightIcon ?? <ArrowRight aria-hidden className={iconClassName} />)}
     </button>
   );
 }

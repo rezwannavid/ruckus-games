@@ -30,6 +30,11 @@ function RoomRequiredContent() {
       onBack={() => router.push(`/games/${game.slug}`)}
       onCreateRoom={() => router.push(`/create?game=${game.slug}`)}
       onJoinRoom={() => router.push(`/join?game=${game.slug}`)}
+      onSingleDevice={
+        game.slug === "imposter"
+          ? () => router.push("/games/imposter/local")
+          : undefined
+      }
     />
   );
 }

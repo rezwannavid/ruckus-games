@@ -4,6 +4,8 @@ import { use, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { io, type Socket } from "socket.io-client";
 import { Button } from "@/components/ui/Button";
+import { AvatarPicker } from "@/components/ui/AvatarPicker";
+import { FormField } from "@/components/ui/FormField";
 import { RoomLobbyView } from "@/features/lobby/components/RoomLobbyView";
 import { games } from "@/features/lobby/data/games";
 import type { Game, Room } from "@/features/lobby/types/room";
@@ -34,6 +36,10 @@ export default function RoomPage({
     return savedSession.roomCode?.toUpperCase() === roomCode
       ? savedSession.playerId
       : null;
+  });
+  const [avatarId, setAvatarId] = useState(() => {
+    if (typeof window === "undefined") return 1;
+    return getStoredSession().avatarId;
   });
   const [error, setError] = useState("");
   const [copyMessage, setCopyMessage] = useState("");
@@ -96,13 +102,15 @@ export default function RoomPage({
     try {
       const data = await joinExistingRoom({
         roomCode,
-        playerName
+        playerName,
+        avatarId
       });
 
       saveRoomSession({
         playerId: data.player.id,
         playerName: data.player.name,
-        roomCode: data.room.code
+        roomCode: data.room.code,
+        avatarId: data.player.avatarId
       });
 
       setCurrentPlayerId(data.player.id);
@@ -268,37 +276,25 @@ export default function RoomPage({
 
   if (!hasJoinedRoom) {
     return (
-      <main className="min-h-screen p-8">
-        <div className="mx-auto max-w-xl space-y-8">
+      <main className="min-h-screen bg-[var(--surface-secondary)] p-4 pt-10 text-[var(--text-inverted-plus)]">
+        <div className="mx-auto max-w-[25rem] space-y-8">
           <header className="space-y-3">
-            <p className="text-sm opacity-70">You were invited to room</p>
-            <h1 className="text-5xl font-bold tracking-wide">{room.code}</h1>
-            <p className="text-lg opacity-80">
+            <p className="text-footnote-semibold opacity-70">You were invited to</p>
+            <h1 className="text-display-lg-bold">{room.name}</h1>
+            <p className="text-body-medium opacity-80">
               Enter your name to join this Ruckus Games room.
             </p>
           </header>
 
-          <section className="space-y-4 rounded-2xl border p-6">
-            <label className="block space-y-2">
-              <span className="font-semibold">Your Name</span>
-              <input
-                className="w-full rounded-lg border p-3 text-black"
-                placeholder="Enter your name"
-                value={playerName}
-                onChange={(event) => setPlayerName(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    joinRoom();
-                  }
-                }}
-              />
-            </label>
+          <section className="space-y-5">
+            <FormField label="Your name" name="invitePlayerName" placeholder="Enter your name" value={playerName} onChange={(event) => setPlayerName(event.target.value)} />
+            <AvatarPicker value={avatarId} onChange={setAvatarId} />
 
             <Button
               onClick={joinRoom}
               disabled={isJoining}
-              variant="secondary"
-              size="md"
+              variant="inverted"
+              size="lg"
               className="w-full"
             >
               {isJoining ? "Joining..." : "Join Room"}
@@ -307,10 +303,10 @@ export default function RoomPage({
             {error && <p className="text-red-500">{error}</p>}
           </section>
 
-          <section className="rounded-2xl border p-6">
-            <p className="text-sm opacity-70">Room Code</p>
+          <section className="rounded-[24px] bg-[var(--surface-inverted-light)] p-6">
+            <p className="text-footnote-semibold opacity-70">Room Code</p>
             <div className="mt-2 flex items-center justify-between gap-4">
-              <p className="text-2xl font-bold">{room.code}</p>
+              <p className="text-title-md-extrabold">{room.code}</p>
 
               <Button onClick={copyRoomCode} variant="inverted" size="md">
                 Copy Code

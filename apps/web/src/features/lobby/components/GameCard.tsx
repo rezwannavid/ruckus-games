@@ -9,9 +9,10 @@ type GameCardProps = {
   selected?: boolean;
   disabled?: boolean;
   onClick?: () => void;
+  className?: string;
 };
 
-export function GameCard({ game, selected = false, disabled = false, onClick }: GameCardProps) {
+export function GameCard({ game, selected = false, disabled = false, onClick, className = "" }: GameCardProps) {
   const playerText =
     game.supportsSingleDevice && !game.supportsMultiplayer
       ? "Single Phone"
@@ -24,7 +25,7 @@ export function GameCard({ game, selected = false, disabled = false, onClick }: 
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="text-left disabled:cursor-not-allowed disabled:opacity-50"
+      className={`text-left disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
     >
       <Card
         size="xl"
@@ -32,9 +33,9 @@ export function GameCard({ game, selected = false, disabled = false, onClick }: 
         gameName={game.name.toUpperCase()}
         gameDescription={game.description}
         playerCount={playerText}
-        className="max-w-none"
+        className="max-w-none hover:-translate-y-1 active:translate-y-0"
       >
-        <GameArtwork label={game.name[0]} />
+        <GameArtwork label={game.name[0]} gameSlug={game.slug} />
       </Card>
     </button>
   );

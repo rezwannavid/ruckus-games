@@ -3,6 +3,7 @@ export type RoomStatus = "waiting" | "in_game" | "ended";
 export type Player = {
   id: string;
   name: string;
+  avatarId: number;
   isHost: boolean;
 };
 

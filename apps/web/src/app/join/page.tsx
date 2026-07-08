@@ -1,12 +1,12 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { JoinRoomView } from "@/features/lobby/components/JoinRoomView";
 import { getGameBySlug } from "@/features/lobby/data/games";
 import { joinRoom } from "@/lib/rooms";
-import { getFallbackPlayerName, saveRoomSession } from "@/lib/session";
+import { getStoredSession, saveRoomSession } from "@/lib/session";
 
 type JoinState = "initial" | "typed" | "joining" | "joined" | "wrong-code";
 
@@ -25,7 +25,20 @@ function JoinContent() {
   const pendingGame = pendingGameSlug ? getGameBySlug(pendingGameSlug) : undefined;
 
   const [roomCode, setRoomCode] = useState("");
-  const [playerName, setPlayerName] = useState(() => getFallbackPlayerName());
+  const storedPlayerName = useSyncExternalStore(
+    () => () => {},
+    () => getStoredSession().playerName ?? "Player",
+    () => "Player"
+  );
+  const storedAvatarId = useSyncExternalStore(
+    () => () => {},
+    () => getStoredSession().avatarId,
+    () => 1
+  );
+  const [playerNameOverride, setPlayerNameOverride] = useState<string | null>(null);
+  const [avatarIdOverride, setAvatarIdOverride] = useState<number | null>(null);
+  const playerName = playerNameOverride ?? storedPlayerName;
+  const avatarId = avatarIdOverride ?? storedAvatarId;
   const [state, setState] = useState<JoinState>("initial");
   const [error, setError] = useState("");
   const lastSubmittedJoinKeyRef = useRef("");
@@ -57,7 +70,8 @@ function JoinContent() {
       try {
         const data = await joinRoom({
           roomCode,
-          playerName
+          playerName,
+          avatarId
         });
 
         if (!isMounted) return;
@@ -65,7 +79,8 @@ function JoinContent() {
         saveRoomSession({
           playerId: data.player.id,
           playerName: data.player.name,
-          roomCode: data.room.code
+          roomCode: data.room.code,
+          avatarId: data.player.avatarId
         });
 
         setState("joined");
@@ -87,7 +102,7 @@ function JoinContent() {
     return () => {
       isMounted = false;
     };
-  }, [canSubmit, pendingGame, playerName, roomCode, router]);
+  }, [avatarId, canSubmit, pendingGame, playerName, roomCode, router]);
 
   function addDigit(digit: string) {
     setError("");
@@ -119,10 +134,12 @@ function JoinContent() {
     <JoinRoomView
       roomCode={roomCode}
       playerName={playerName}
+      avatarId={avatarId}
       state={state}
       error={error}
       pendingGameName={pendingGame?.name}
-      onPlayerNameChange={setPlayerName}
+      onPlayerNameChange={setPlayerNameOverride}
+      onAvatarChange={setAvatarIdOverride}
       onBack={() => router.push("/")}
       onDigit={addDigit}
       onDelete={deleteDigit}

@@ -1,759 +1,276 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { io } from "socket.io-client";
+import { ArrowLeft, Eye, EyeOff, Flag, Play, RotateCcw, Vote } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+import { AppScreen, ErrorState, GameStatus, LoadingState, VoteCard } from "@/components/ui/GameUI";
+import { BrandNav } from "@/features/lobby/components/BrandNav";
 import { serverUrl } from "@/lib/config";
 import { clearRoomSession, getStoredSession } from "@/lib/session";
 
-type Player = {
-  id: string;
-  name: string;
-  isHost: boolean;
-};
-
-type GameParticipant = {
-  id: string;
-  name: string;
-  isHost?: boolean;
-};
-
-type Game = {
-  slug: string;
-  name: string;
-  description: string;
-  minPlayers: number;
-  maxPlayers: number;
-};
-
-type Room = {
-  code: string;
-  players: Player[];
-  status: "waiting" | "in_game" | "ended";
-  selectedGame?: Game;
-  gameState?: {
-    playMode?: "multiplayer" | "single_device";
-  };
-};
-
-type PlayerGameState = {
-  gameSlug: string;
+type Player = { id: string; name: string; avatarId?: number; isHost?: boolean };
+type GameState = {
+  type: "imposter";
   playMode: "multiplayer" | "single_device";
-  players: GameParticipant[];
-  phase: "playing" | "revealed";
-  role: "player" | "imposter";
-  word: string | null;
+  phase: "role_reveal" | "discussion" | "voting" | "results";
+  players: Player[];
   wordCategory: string;
   roundTimerSeconds: number;
   startedAt: string;
   endsAt: string;
-  imposterPlayerId: string | null;
-  imposterPlayerName: string | null;
+  readyPlayerIds: string[];
+  votes: Record<string, string>;
+  round: number;
+};
+type Room = {
+  code: string;
+  name?: string;
+  players: Player[];
+  status: "waiting" | "in_game" | "ended";
+  selectedGame?: { slug: string; name: string };
+  gameState?: GameState;
+};
+type PersonalState = GameState & {
+  role: "player" | "imposter";
+  word: string | null;
   imposterPlayerIds: string[] | null;
   imposterPlayerNames: string[] | null;
 };
 
-type SingleDeviceGameState = {
-  gameSlug: string;
-  playMode: "single_device";
-  phase: "playing" | "revealed";
-  players: GameParticipant[];
-  wordCategory: string;
-  roundTimerSeconds: number;
-  startedAt: string;
-  endsAt: string;
-};
-
-type ImposterReveal = {
-  word: string;
-  wordCategory: string;
-  roundTimerSeconds: number;
-  startedAt: string;
-  endsAt: string;
-  imposterPlayerId: string;
-  imposterPlayerName: string;
-  imposterPlayerIds: string[];
-  imposterPlayerNames: string[];
-};
-
-export default function PlayGamePage({
-  params
-}: {
-  params: Promise<{ code: string; gameSlug: string }>;
-}) {
+export default function PlayGamePage({ params }: { params: Promise<{ code: string; gameSlug: string }> }) {
   const router = useRouter();
   const { code, gameSlug } = use(params);
-
   const roomCode = code.toUpperCase();
-
   const [room, setRoom] = useState<Room | null>(null);
-  const [currentPlayerId] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-
-    const savedSession = getStoredSession();
-    return savedSession.roomCode?.toUpperCase() === roomCode
-      ? savedSession.playerId
-      : null;
-  });
-  const [playerGameState, setPlayerGameState] = useState<PlayerGameState | null>(null);
-  const [singleDeviceGameState, setSingleDeviceGameState] = useState<SingleDeviceGameState | null>(null);
-  const [singleDeviceRoleState, setSingleDeviceRoleState] = useState<PlayerGameState | null>(null);
-  const [currentSingleDeviceIndex, setCurrentSingleDeviceIndex] = useState(0);
-  const [isSingleDeviceRoleVisible, setIsSingleDeviceRoleVisible] = useState(false);
-  const [imposterReveal, setImposterReveal] = useState<ImposterReveal | null>(null);
-  const [timeLeft, setTimeLeft] = useState<number | null>(null);
-  const [isGameEnded, setIsGameEnded] = useState(false);
+  const [personal, setPersonal] = useState<PersonalState | null>(null);
+  const [currentPlayerId] = useState(() => getStoredSession().roomCode?.toUpperCase() === roomCode ? getStoredSession().playerId : null);
+  const [roleVisible, setRoleVisible] = useState(false);
+  const [selectedVote, setSelectedVote] = useState("");
+  const [timeLeft, setTimeLeft] = useState(0);
   const [error, setError] = useState("");
+  const [ended, setEnded] = useState(false);
 
-  const currentPlayer = room?.players.find(
-    (player) => player.id === currentPlayerId
-  );
+  const gameState = room?.gameState;
+  const currentPlayer = room?.players.find((player) => player.id === currentPlayerId);
+  const isHost = Boolean(currentPlayer?.isHost);
+  const hasVoted = Boolean(currentPlayerId && gameState?.votes[currentPlayerId]);
+  const readyCount = gameState?.readyPlayerIds.length ?? 0;
+  const playerCount = gameState?.players.length ?? 0;
+  const voteCount = gameState ? Object.keys(gameState.votes).length : 0;
+  const allReady = playerCount > 0 && readyCount === playerCount;
+  const allVoted = playerCount > 0 && voteCount === playerCount;
 
-  const selectedGame = room?.selectedGame;
-  const currentPlayerIsHost = Boolean(currentPlayer?.isHost);
-  const isSingleDeviceMode =
-    singleDeviceGameState?.playMode === "single_device" ||
-    room?.gameState?.playMode === "single_device" ||
-    playerGameState?.playMode === "single_device";
-  const currentSingleDevicePlayer =
-    singleDeviceGameState?.players[currentSingleDeviceIndex] ?? null;
-  const displayedPlayers: GameParticipant[] =
-    singleDeviceGameState?.players ?? room?.players ?? [];
-  const allSingleDeviceRolesSeen = Boolean(
-    singleDeviceGameState && currentSingleDeviceIndex >= singleDeviceGameState.players.length
-  );
-  const revealedImposterPlayerIds =
-    imposterReveal?.imposterPlayerIds ??
-    playerGameState?.imposterPlayerIds ??
-    (imposterReveal?.imposterPlayerId
-      ? [imposterReveal.imposterPlayerId]
-      : playerGameState?.imposterPlayerId
-        ? [playerGameState.imposterPlayerId]
-        : []);
-  const revealedImposterNames =
-    imposterReveal?.imposterPlayerNames ??
-    playerGameState?.imposterPlayerNames ??
-    (imposterReveal?.imposterPlayerName
-      ? [imposterReveal.imposterPlayerName]
-      : playerGameState?.imposterPlayerName
-        ? [playerGameState.imposterPlayerName]
-        : []);
-  const activeEndsAt = singleDeviceGameState?.endsAt ?? playerGameState?.endsAt;
-  const activePhase = singleDeviceGameState?.phase ?? playerGameState?.phase;
-
-  const formattedTimeLeft =
-    timeLeft === null
-      ? null
-      : `${Math.floor(timeLeft / 60)}:${String(timeLeft % 60).padStart(2, "0")}`;
-
-  function getSyncedTimeLeft(endsAt: string) {
-    const millisecondsLeft = new Date(endsAt).getTime() - Date.now();
-    return Math.max(0, Math.ceil(millisecondsLeft / 1000));
-  }
+  const voteTotals = useMemo(() => {
+    const totals: Record<string, number> = {};
+    Object.values(gameState?.votes ?? {}).forEach((target) => { totals[target] = (totals[target] ?? 0) + 1; });
+    return totals;
+  }, [gameState?.votes]);
 
   useEffect(() => {
-    const savedSession = getStoredSession();
-
-    if (savedSession.roomCode?.toUpperCase() !== roomCode || !savedSession.playerId) {
-      router.push(`/room/${roomCode}`);
-      return;
-    }
-  }, [roomCode, router]);
-
-  useEffect(() => {
-    async function fetchRoom() {
-      setError("");
-
-      try {
-        const response = await fetch(`${serverUrl}/rooms/${roomCode}`);
-        const data = await response.json();
-
-        if (!response.ok) {
-          setError(data.message ?? "Could not load room.");
-          return;
-        }
-
-        setRoom(data.room);
-      } catch {
-        setError("Could not connect to the server.");
-      }
-    }
-
-    fetchRoom();
-  }, [roomCode]);
-
-  useEffect(() => {
-    async function fetchSingleDeviceGameState() {
-      if (gameSlug !== "imposter" || room?.gameState?.playMode !== "single_device") return;
-
-      setError("");
-
-      try {
-        const response = await fetch(
-          `${serverUrl}/rooms/${roomCode}/single-device-game-state`
-        );
-        const data = await response.json();
-
-        if (!response.ok) {
-          setError(data.message ?? "Could not load pass-the-phone game state.");
-          return;
-        }
-
-        setSingleDeviceGameState(data);
-        setPlayerGameState(null);
-        setTimeLeft(data.endsAt ? getSyncedTimeLeft(data.endsAt) : null);
-      } catch {
-        setError("Could not connect to the server.");
-      }
-    }
-
-    fetchSingleDeviceGameState();
-  }, [roomCode, room?.gameState?.playMode, gameSlug]);
-
-  useEffect(() => {
-    async function fetchPlayerGameState() {
-      if (
-        !currentPlayerId ||
-        !room ||
-        room.gameState?.playMode === "single_device" ||
-        gameSlug !== "imposter"
-      ) {
-        return;
-      }
-
-      setError("");
-
-      try {
-        const response = await fetch(
-          `${serverUrl}/rooms/${roomCode}/game-state/${currentPlayerId}`
-        );
-        const data = await response.json();
-
-        if (!response.ok) {
-          setError(data.message ?? "Could not load game state.");
-          return;
-        }
-
-        setPlayerGameState(data);
-        setSingleDeviceGameState(null);
-        setTimeLeft(data.endsAt ? getSyncedTimeLeft(data.endsAt) : null);
-      } catch {
-        setError("Could not connect to the server.");
-      }
-    }
-
-    fetchPlayerGameState();
-  }, [roomCode, currentPlayerId, room, gameSlug]);
+    if (!currentPlayerId) router.replace(`/room/${roomCode}`);
+  }, [currentPlayerId, roomCode, router]);
 
   useEffect(() => {
     const socket = io(serverUrl);
-
-    socket.emit("room:subscribe", {
-      roomCode
+    socket.emit("room:subscribe", { roomCode });
+    socket.on("room:state", (nextRoom: Room) => {
+      setRoom(nextRoom);
+      setError("");
     });
-
-    socket.on("room:state", (roomState: Room) => {
-      setRoom(roomState);
-    });
-
-    socket.on("imposter:revealed", (reveal: ImposterReveal) => {
-      setImposterReveal(reveal);
-      setTimeLeft(0);
-      setSingleDeviceGameState((currentState) => {
-        if (!currentState) return currentState;
-
-        return {
-          ...currentState,
-          phase: "revealed"
-        };
-      });
-      setPlayerGameState((currentState) => {
-        if (!currentState) return currentState;
-
-        return {
-          ...currentState,
-          phase: "revealed",
-          word: reveal.word,
-          wordCategory: reveal.wordCategory,
-          roundTimerSeconds: reveal.roundTimerSeconds,
-          startedAt: reveal.startedAt,
-          endsAt: reveal.endsAt,
-          imposterPlayerId: reveal.imposterPlayerId,
-          imposterPlayerName: reveal.imposterPlayerName,
-          imposterPlayerIds: reveal.imposterPlayerIds,
-          imposterPlayerNames: reveal.imposterPlayerNames
-        };
-      });
-    });
-
-    socket.on("game:ended", () => {
-      setIsGameEnded(true);
-    });
-
+    socket.on("game:ended", () => setEnded(true));
     socket.on("room:ended", () => {
       clearRoomSession();
-
       router.push("/");
     });
-
+    socket.on("room:error", (payload: { message: string }) => setError(payload.message));
     return () => {
       socket.disconnect();
     };
   }, [roomCode, router]);
 
   useEffect(() => {
-    if (
-      selectedGame?.slug !== "imposter" ||
-      !activeEndsAt ||
-      activePhase === "revealed"
-    ) {
-      return;
-    }
+    if (!currentPlayerId || !gameState || gameSlug !== "imposter") return;
+    fetch(`${serverUrl}/rooms/${roomCode}/game-state/${currentPlayerId}`)
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message);
+        setPersonal(data);
+      })
+      .catch((reason) => setError(reason instanceof Error ? reason.message : "Could not load your role."));
+  }, [currentPlayerId, gameSlug, gameState, roomCode]);
 
-    const timer = window.setInterval(() => {
-      setTimeLeft(getSyncedTimeLeft(activeEndsAt));
-    }, 1000);
+  useEffect(() => {
+    if (!gameState?.endsAt || gameState.phase !== "discussion") return;
+    const update = () => setTimeLeft(Math.max(0, Math.ceil((new Date(gameState.endsAt).getTime() - Date.now()) / 1000)));
+    update();
+    const timer = window.setInterval(update, 1000);
+    return () => window.clearInterval(timer);
+  }, [gameState?.endsAt, gameState?.phase]);
 
-    return () => {
-      window.clearInterval(timer);
-    };
-  }, [selectedGame?.slug, activeEndsAt, activePhase]);
-
-  function goBackToRoom() {
-    router.push(`/room/${roomCode}`);
-  }
-
-  async function revealSingleDeviceRole() {
-    if (!currentSingleDevicePlayer) return;
-
-    setError("");
-
-    try {
-      const response = await fetch(
-        `${serverUrl}/rooms/${roomCode}/game-state/${currentSingleDevicePlayer.id}`
-      );
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.message ?? "Could not reveal this player's role.");
-        return;
-      }
-
-      setSingleDeviceRoleState(data);
-      setIsSingleDeviceRoleVisible(true);
-    } catch {
-      setError("Could not connect to the server.");
-    }
-  }
-
-  function goToNextSingleDevicePlayer() {
-    setIsSingleDeviceRoleVisible(false);
-    setSingleDeviceRoleState(null);
-    setCurrentSingleDeviceIndex((currentIndex) => currentIndex + 1);
-  }
-
-  function restartSingleDeviceRolePass() {
-    setIsSingleDeviceRoleVisible(false);
-    setSingleDeviceRoleState(null);
-    setCurrentSingleDeviceIndex(0);
-  }
-
-  async function revealImposter() {
+  async function post(action: string, body: Record<string, unknown> = {}) {
     if (!currentPlayerId) return;
-
     setError("");
+    const response = await fetch(`${serverUrl}/rooms/${roomCode}/games/imposter/${action}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playerId: currentPlayerId, ...body })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message);
+    if (data.room) setRoom(data.room);
+    return data;
+  }
 
+  async function perform(action: string, body?: Record<string, unknown>) {
     try {
-      const response = await fetch(
-        `${serverUrl}/rooms/${roomCode}/games/imposter/reveal`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            playerId: currentPlayerId
-          })
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.message ?? "Could not reveal imposter.");
-        return;
-      }
-
-      setRoom(data.room);
-      setImposterReveal(data.reveal);
-      setTimeLeft(0);
-      setSingleDeviceGameState((currentState) => {
-        if (!currentState) return currentState;
-
-        return {
-          ...currentState,
-          phase: "revealed"
-        };
-      });
-      setPlayerGameState((currentState) => {
-        if (!currentState) return currentState;
-
-        return {
-          ...currentState,
-          phase: "revealed",
-          word: data.reveal.word,
-          wordCategory: data.reveal.wordCategory,
-          roundTimerSeconds: data.reveal.roundTimerSeconds,
-          startedAt: data.reveal.startedAt,
-          endsAt: data.reveal.endsAt,
-          imposterPlayerId: data.reveal.imposterPlayerId,
-          imposterPlayerName: data.reveal.imposterPlayerName,
-          imposterPlayerIds: data.reveal.imposterPlayerIds,
-          imposterPlayerNames: data.reveal.imposterPlayerNames
-        };
-      });
-    } catch {
-      setError("Could not connect to the server.");
+      await post(action, body);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "That action failed.");
     }
   }
 
   async function endGame() {
     if (!currentPlayerId) return;
-
-    setError("");
-
     try {
       const response = await fetch(`${serverUrl}/rooms/${roomCode}/games/end`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          playerId: currentPlayerId
-        })
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playerId: currentPlayerId })
       });
-
       const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.message ?? "Could not end game.");
-        return;
-      }
-
-      setRoom(data.room);
-      setIsGameEnded(true);
-    } catch {
-      setError("Could not connect to the server.");
+      if (!response.ok) throw new Error(data.message);
+      setEnded(true);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not end game.");
     }
   }
 
-  if (isGameEnded) {
+  if (ended) {
     return (
-      <main className="min-h-screen bg-[var(--surface-inverted)] px-4 py-8 text-[var(--text-inverted)]">
-        <div className="mx-auto max-w-[25rem] rounded-[2rem] bg-[var(--surface-inverted-light)] p-6 text-center">
-          <p className="text-footnote-semibold text-[var(--text-highlight)]">
-            Room {roomCode}
-          </p>
-          <h1 className="mt-2 text-title-md-extrabold">Game Ended</h1>
-          <p className="mt-3 text-body-regular">
-            Return to the same room to choose another game or start a new round.
-          </p>
-          <Button
-            onClick={goBackToRoom}
-            variant="tertiary"
-            size="lg"
-            showLeftIcon={false}
-            className="mt-6 w-full"
-          >
-            Back to Same Room
-          </Button>
-        </div>
-      </main>
+      <AppScreen tone="blue" className="grid place-items-center">
+        <section className="w-full max-w-[25rem] text-center">
+          <Flag className="mx-auto" size={48} />
+          <h1 className="mt-5 text-title-lg-bold">Game Ended</h1>
+          <p className="mt-3 text-body-medium opacity-70">Everyone returns to the same room to choose what to play next.</p>
+          <Button onClick={() => router.push(`/room/${roomCode}`)} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<ArrowLeft />} className="mt-8 w-full">Back to Same Room</Button>
+        </section>
+      </AppScreen>
     );
   }
-
-  if (error) {
-    return (
-      <main className="min-h-screen bg-[var(--surface-inverted)] p-8 text-[var(--text-inverted)]">
-        <div className="mx-auto max-w-xl space-y-6">
-          <h1 className="text-3xl font-bold">Game Error</h1>
-          <p>{error}</p>
-
-          <Button onClick={goBackToRoom} variant="inverted" size="md">
-            Back to Room
-          </Button>
-        </div>
-      </main>
-    );
+  if (error && !room) {
+    return <ErrorState title="Game unavailable" message={error} action={<Button onClick={() => router.push(`/room/${roomCode}`)} variant="inverted" size="lg" className="w-full">Back to Room</Button>} />;
   }
+  if (!room || !gameState || !personal) return <LoadingState title="Joining Game..." subtitle={`as ${currentPlayer?.name ?? "player"}`} />;
 
-  if (!room) {
-    return (
-      <main className="min-h-screen bg-[var(--surface-inverted)] p-8 text-[var(--text-inverted)]">
-        <div className="mx-auto max-w-xl">
-          <p>Loading game...</p>
-        </div>
-      </main>
-    );
-  }
-
-  if (!selectedGame || selectedGame.slug !== gameSlug) {
-    return (
-      <main className="min-h-screen bg-[var(--surface-inverted)] p-8 text-[var(--text-inverted)]">
-        <div className="mx-auto max-w-xl space-y-6">
-          <h1 className="text-3xl font-bold">Game Not Active</h1>
-          <p>This game is not currently active in room {room.code}.</p>
-
-          <Button onClick={goBackToRoom} variant="inverted" size="md">
-            Back to Room
-          </Button>
-        </div>
-      </main>
-    );
-  }
+  const formattedTime = `${Math.floor(timeLeft / 60)}m ${String(timeLeft % 60).padStart(2, "0")}s`;
+  const ready = Boolean(currentPlayerId && gameState.readyPlayerIds.includes(currentPlayerId));
+  const firstPlayer = gameState.players[gameState.round % gameState.players.length]?.name ?? gameState.players[0]?.name;
 
   return (
-    <main className="min-h-screen bg-[var(--surface-inverted)] p-4 py-8 text-[var(--text-inverted)]">
-      <div className="mx-auto max-w-4xl space-y-8">
-        <header className="flex flex-col gap-4 rounded-[2rem] bg-[var(--surface-inverted-light)] p-6 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm opacity-70">Room {room.code}</p>
-            <h1 className="text-4xl font-bold">{selectedGame.name}</h1>
-            <p className="mt-2 opacity-80">
-              {isSingleDeviceMode ? (
-                "Pass-the-phone mode"
-              ) : (
-                <>
-                  Playing as <span className="font-semibold">{currentPlayer?.name}</span>
-                </>
-              )}
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            {currentPlayerIsHost && (
-              <p className="text-sm font-semibold opacity-70">Host Controls</p>
-            )}
-
-            <div className="flex flex-wrap gap-3">
-              <Button onClick={goBackToRoom} variant="inverted" size="md">
-                Back to Room
-              </Button>
-
-              {currentPlayerIsHost &&
-                selectedGame.slug === "imposter" &&
-                activePhase !== "revealed" && (
-                  <Button onClick={revealImposter} variant="tertiary" size="md">
-                    Reveal Imposter
-                  </Button>
-                )}
-
-              {currentPlayerIsHost && (
-                <Button onClick={endGame} variant="secondary" size="md">
-                  End Game
-                </Button>
-              )}
+    <AppScreen tone={gameState.phase === "role_reveal" ? "dark" : "light"}>
+      <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-[42rem] flex-col">
+        <div className="flex items-start justify-between gap-4">
+          <BrandNav title={gameState.phase === "voting" ? "Cast your Vote" : gameState.phase === "results" ? "Results" : undefined} tone={gameState.phase === "role_reveal" ? "dark" : "light"} />
+          {isHost && (
+            <div className="flex gap-2">
+              <Button onClick={() => router.push(`/room/${roomCode}`)} variant={gameState.phase === "role_reveal" ? "inverted" : "primary"} size="md" showLeftIcon={false} showRightIcon={false}>Go to Room</Button>
+              <Button onClick={endGame} variant="secondary" size="md" showLeftIcon={false} showRightIcon={false}>End Game</Button>
             </div>
-          </div>
-        </header>
-
-        <section className="rounded-[2rem] bg-[var(--surface-inverted-light)] p-8 text-center">
-          <p className="text-sm uppercase tracking-[0.3em] opacity-60">
-            Game Area
-          </p>
-
-          {selectedGame.slug === "imposter" ? (
-            <div className="mt-4 space-y-4">
-              {activePhase !== "revealed" && formattedTimeLeft && (
-                <div className="mx-auto max-w-xs rounded-2xl bg-[var(--surface-inverted)] p-4">
-                  <p className="text-sm uppercase tracking-[0.3em] opacity-60">
-                    Timer
-                  </p>
-                  <p className="mt-2 text-5xl font-black">{formattedTimeLeft}</p>
-                  {timeLeft === 0 && (
-                    <p className="mt-2 text-sm opacity-80">
-                      Time is up. The host can reveal the imposter.
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {isSingleDeviceMode ? (
-                singleDeviceGameState?.phase === "revealed" || imposterReveal ? (
-                  <>
-                    <p className="text-sm uppercase tracking-[0.3em] opacity-60">
-                      Reveal
-                    </p>
-                    <h2 className="text-4xl font-bold">
-                      {revealedImposterNames.length === 1
-                        ? `The Imposter was ${revealedImposterNames[0]}`
-                        : `The Imposters were ${revealedImposterNames.join(", ")}`}
-                    </h2>
-                    <p className="text-2xl font-semibold">
-                      The word was {imposterReveal?.word}
-                    </p>
-                  </>
-                ) : !singleDeviceGameState ? (
-                  <p className="opacity-80">Loading pass-the-phone game...</p>
-                ) : allSingleDeviceRolesSeen ? (
-                  <>
-                    <p className="text-sm uppercase tracking-[0.3em] opacity-60">
-                      All Roles Viewed
-                    </p>
-                    <h2 className="text-4xl font-bold">Start the discussion</h2>
-                    <p className="mx-auto max-w-xl opacity-80">
-                      Everyone has seen their role. Put the phone down, start
-                      giving clues, and try to find the imposter.
-                    </p>
-                    <div className="flex flex-wrap justify-center gap-3">
-                      <Button
-                        onClick={restartSingleDeviceRolePass}
-                        variant="inverted"
-                        size="md"
-                      >
-                        Review Roles Again
-                      </Button>
-                      {currentPlayerIsHost && (
-                        <Button onClick={revealImposter} variant="tertiary" size="md">
-                          Reveal Imposter
-                        </Button>
-                      )}
-                    </div>
-                  </>
-                ) : !isSingleDeviceRoleVisible ? (
-                  <>
-                    <p className="text-sm uppercase tracking-[0.3em] opacity-60">
-                      Pass the phone
-                    </p>
-                    <h2 className="text-4xl font-bold">
-                      Pass to {currentSingleDevicePlayer?.name}
-                    </h2>
-                    <p className="mx-auto max-w-xl opacity-80">
-                      Only {currentSingleDevicePlayer?.name} should look at the
-                      next screen.
-                    </p>
-                    <Button onClick={revealSingleDeviceRole} variant="primary" size="md">
-                      Reveal My Role
-                    </Button>
-                  </>
-                ) : singleDeviceRoleState?.role === "imposter" ? (
-                  <>
-                    <p className="text-sm uppercase tracking-[0.3em] opacity-60">
-                      {currentSingleDevicePlayer?.name}&apos;s Role
-                    </p>
-                    <h2 className="text-4xl font-bold">You are the Imposter</h2>
-                    <p className="mx-auto max-w-xl opacity-80">
-                      You do not know the secret word. Memorize this, then hide
-                      the screen before passing the phone.
-                    </p>
-                    <Button
-                      onClick={goToNextSingleDevicePlayer}
-                      variant="secondary"
-                      size="md"
-                    >
-                      Hide & Pass Phone
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-sm uppercase tracking-[0.3em] opacity-60">
-                      {currentSingleDevicePlayer?.name}&apos;s Secret Word
-                    </p>
-                    <h2 className="text-6xl font-black">{singleDeviceRoleState?.word}</h2>
-                    <p className="mx-auto max-w-xl opacity-80">
-                      Memorize the word. Do not say it out loud yet.
-                    </p>
-                    <Button
-                      onClick={goToNextSingleDevicePlayer}
-                      variant="secondary"
-                      size="md"
-                    >
-                      Hide & Pass Phone
-                    </Button>
-                  </>
-                )
-              ) : !playerGameState ? (
-                <p className="opacity-80">Loading your role...</p>
-              ) : playerGameState.phase === "revealed" || imposterReveal ? (
-                <>
-                  <p className="text-sm uppercase tracking-[0.3em] opacity-60">
-                    Reveal
-                  </p>
-                  <h2 className="text-4xl font-bold">
-                    {revealedImposterNames.length === 1
-                      ? `The Imposter was ${revealedImposterNames[0]}`
-                      : `The Imposters were ${revealedImposterNames.join(", ")}`}
-                  </h2>
-                  <p className="text-2xl font-semibold">
-                    The word was {imposterReveal?.word ?? playerGameState.word}
-                  </p>
-                </>
-              ) : playerGameState.role === "imposter" ? (
-                <>
-                  <p className="text-sm uppercase tracking-[0.3em] opacity-60">
-                    Your Role
-                  </p>
-                  <h2 className="text-4xl font-bold">You are the Imposter</h2>
-                  <p className="mx-auto max-w-xl opacity-80">
-                    You do not know the secret word. Listen carefully, blend in,
-                    and try not to get caught.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p className="text-sm uppercase tracking-[0.3em] opacity-60">
-                    Your Secret Word
-                  </p>
-                  <h2 className="text-6xl font-black">{playerGameState.word}</h2>
-                  <p className="mx-auto max-w-xl opacity-80">
-                    Do not reveal the word directly. Give clues carefully and try
-                    to find the imposter.
-                  </p>
-                </>
-              )}
-            </div>
-          ) : (
-            <>
-              <h2 className="mt-4 text-3xl font-bold">
-                {selectedGame.name} UI goes here
-              </h2>
-              <p className="mx-auto mt-4 max-w-xl opacity-80">
-                This is the shared in-game shell. The actual game interface will
-                be built inside this area later.
-              </p>
-            </>
           )}
-        </section>
+        </div>
 
-        <section className="rounded-2xl border p-6">
-          <h2 className="text-2xl font-semibold">Players</h2>
+        {error && <p role="alert" className="mt-5 rounded-[var(--radius-md)] bg-[var(--danger)] px-4 py-3 text-footnote-semibold text-white">{error}</p>}
 
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {displayedPlayers.map((player) => {
-              const playerIsImposter = revealedImposterPlayerIds.includes(player.id);
-              const playerLabel = playerIsImposter
-                ? "Imposter"
-                : player.isHost
-                  ? "Room Owner"
-                  : player.id === currentPlayerId
-                    ? "You"
-                    : "Player";
+        {gameState.phase === "role_reveal" && (
+          <section className="flex flex-1 flex-col items-center justify-center py-8 text-center">
+            {!roleVisible ? (
+              <>
+                <p className="text-title-md-extrabold">Swipe up to reveal your word</p>
+                <button type="button" onClick={() => setRoleVisible(true)} className="mt-8 grid min-h-64 w-full max-w-[25rem] place-items-center rounded-[var(--radius-card)] bg-[var(--surface-inverted)] text-[var(--text-inverted)] focus-visible:outline-3 focus-visible:outline-[var(--surface-secondary)]">
+                  <Eye size={42} />
+                </button>
+              </>
+            ) : (
+              <>
+                <button type="button" onClick={() => setRoleVisible(false)} className="grid min-h-64 w-full max-w-[25rem] place-items-center rounded-[var(--radius-card)] bg-[var(--surface-inverted)] p-7 text-[var(--text-inverted)]">
+                  <span>
+                    <EyeOff className="mx-auto" size={32} />
+                    <span className="mt-4 block text-footnote-semibold text-[var(--text-highlight)]">{personal.role === "imposter" ? "Your role is" : "Your word is"}</span>
+                    <span className="mt-2 block text-title-lg-bold">{personal.role === "imposter" ? "IMPOSTER" : personal.word}</span>
+                  </span>
+                </button>
+              </>
+            )}
+            <GameStatus players={`${readyCount}/${playerCount} players ready`} label={`Playing as ${currentPlayer?.name}`} />
+            {!ready ? (
+              <Button onClick={() => perform("ready")} disabled={!roleVisible} variant="tertiary" size="lg" showLeftIcon={false} className="mt-6 w-full max-w-[25rem]">I&apos;m Ready</Button>
+            ) : !allReady ? (
+              <div className="mt-6 text-title-sm-bold">Press ready when you are</div>
+            ) : isHost ? (
+              <div className="mt-6 w-full max-w-[25rem]">
+                <p className="text-title-md-extrabold">All Players Ready</p>
+                <Button onClick={() => perform("start-round")} variant="tertiary" size="lg" showLeftIcon={false} rightIcon={<Play />} className="mt-4 w-full">Start Round</Button>
+              </div>
+            ) : (
+              <p className="mt-6 text-title-sm-bold">Waiting for the Room Owner...</p>
+            )}
+          </section>
+        )}
 
-              return (
-                <Card
-                  key={player.id}
-                  size="sm"
-                  title={player.name}
-                  label={playerLabel}
-                  showLabel={playerIsImposter || Boolean(player.isHost) || player.id === currentPlayerId}
-                />
-              );
-            })}
-          </div>
-        </section>
+        {gameState.phase === "discussion" && (
+          <section className="flex flex-1 flex-col items-center justify-center py-10 text-center">
+            <p className="text-footnote-semibold text-[var(--text-highlight)]">Go clockwise</p>
+            <h1 className="mt-2 text-display-md-semibold">Start from<br />{firstPlayer}</h1>
+            <div className="mt-10 text-display-lg-bold tabular-nums">{formattedTime}</div>
+            <p className="mt-4 max-w-sm text-body-medium opacity-65">Give clues, listen carefully, and work out who never knew the word.</p>
+            {isHost && (
+              <Button onClick={() => perform("start-voting")} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Vote />} className="mt-10 w-full max-w-[25rem]">
+                Start Voting Round
+              </Button>
+            )}
+          </section>
+        )}
+
+        {gameState.phase === "voting" && (
+          <section className="py-8">
+            <GameStatus players={`${voteCount}/${playerCount} players voted`} time={formattedTime} />
+            <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {gameState.players.map((player) => (
+                <VoteCard key={player.id} player={player} selected={selectedVote === player.id} disabled={hasVoted} onClick={() => setSelectedVote(player.id)} />
+              ))}
+            </div>
+            {!hasVoted ? (
+              <Button onClick={() => perform("vote", { targetPlayerId: selectedVote })} disabled={!selectedVote} variant="tertiary" size="lg" showLeftIcon={false} rightIcon={<Vote />} className="mt-6 w-full">Cast Vote</Button>
+            ) : (
+              <div className="mt-10 text-center">
+                <h2 className="text-title-md-extrabold">{allVoted ? "All Players Voted" : "Waiting for others"}</h2>
+                <p className="mt-2 text-body-medium opacity-60">{voteCount}/{playerCount} Players Voted</p>
+                {isHost && allVoted && <Button onClick={() => perform("reveal")} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Eye />} className="mt-6 w-full">See Imposter</Button>}
+              </div>
+            )}
+          </section>
+        )}
+
+        {gameState.phase === "results" && (
+          <section className="py-8 text-center">
+            <p className="text-footnote-semibold text-[var(--text-highlight)]">The word was {personal.word}</p>
+            <h1 className="mt-2 text-title-lg-bold">
+              {(personal.imposterPlayerNames ?? []).join(", ")} {personal.imposterPlayerNames?.length === 1 ? "is" : "are"} the imposter
+            </h1>
+            <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {gameState.players.map((player) => <VoteCard key={player.id} player={player} votes={voteTotals[player.id] ?? 0} disabled />)}
+            </div>
+            {isHost && (
+              <div className="mt-8 grid gap-3 sm:grid-cols-2">
+                <Button onClick={() => { setRoleVisible(false); setSelectedVote(""); perform("next-round"); }} variant="tertiary" size="lg" showLeftIcon={false} rightIcon={<RotateCcw />}>Another Round</Button>
+                <Button onClick={endGame} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Flag />}>End Game</Button>
+              </div>
+            )}
+          </section>
+        )}
       </div>
-    </main>
+    </AppScreen>
   );
 }

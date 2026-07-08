@@ -35,7 +35,7 @@ export default function GameDetailPage({
 
         <section className="mt-10">
           <div className="h-[18rem]">
-            <GameArtwork label={game.name[0]} />
+            <GameArtwork label={game.name[0]} gameSlug={game.slug} />
           </div>
 
           <p className="mt-8 text-footnote-semibold uppercase tracking-[0.18em] text-[var(--text-highlight)]">

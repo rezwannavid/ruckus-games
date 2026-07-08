@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+import { PlayerCard } from "@/components/ui/PlayerCard";
 import { BrandNav } from "@/features/lobby/components/BrandNav";
 import { GameCard } from "@/features/lobby/components/GameCard";
 import { CopyIcon, DiceIcon, SkullIcon } from "@/features/lobby/components/icons";
@@ -39,6 +40,7 @@ export function RoomLobbyView({
   onContinueSetup
 }: RoomLobbyViewProps) {
   const canContinue = Boolean(selectedGame);
+  const [showGames, setShowGames] = useState(Boolean(selectedGame));
 
   return (
     <main className="min-h-screen overflow-hidden bg-[var(--surface-inverted)] px-4 pb-28 pt-8 text-[var(--text-inverted)]">
@@ -87,25 +89,12 @@ export function RoomLobbyView({
 
           <div className="mt-4 flex flex-col gap-1">
             {players.map((player) => (
-              <Card
-                key={player.id}
-                size="sm"
-                title={player.name}
-                label={
-                  player.isHost
-                    ? "Room Owner"
-                    : player.id === currentPlayerId
-                      ? "You"
-                      : undefined
-                }
-                showLabel={player.isHost || player.id === currentPlayerId}
-                className="max-w-none"
-              />
+              <PlayerCard key={player.id} player={player} isCurrentPlayer={player.id === currentPlayerId} />
             ))}
           </div>
         </section>
 
-        <section className="mt-8">
+        {showGames && <section className="mt-8">
           <div className="mx-auto max-w-[25rem] text-center">
             <h2 className="text-title-sm-extrabold">Choose Game</h2>
             <p className="mt-1 text-footnote-regular">
@@ -119,7 +108,7 @@ export function RoomLobbyView({
             {games.map((game) => {
               const tooManyPlayers = players.length > game.maxPlayers;
               const isImplemented = game.slug === "imposter";
-              const disabled = !isHost || tooManyPlayers || !isImplemented;
+                  const disabled = !isHost || tooManyPlayers || !isImplemented;
 
               return (
                 <div key={game.slug} className="relative">
@@ -143,18 +132,28 @@ export function RoomLobbyView({
               );
             })}
           </div>
-        </section>
+        </section>}
 
         <Button
-          onClick={onContinueSetup}
-          disabled={!isHost || !canContinue}
+          onClick={() => {
+            if (!showGames) {
+              setShowGames(true);
+              return;
+            }
+            onContinueSetup();
+          }}
+          disabled={showGames && (!isHost || !canContinue)}
           variant="tertiary"
           size="lg"
           showLeftIcon={false}
           rightIcon={<DiceIcon className="size-[1.875rem]" />}
           className="fixed inset-x-4 bottom-8 mx-auto max-w-[22.5625rem]"
         >
-          {selectedGame ? `Set Up ${selectedGame.name}` : "Choose Game"}
+          {!showGames
+            ? isHost ? "Select a Game" : "Show Games"
+            : selectedGame
+              ? isHost ? `Set Up ${selectedGame.name}` : `${selectedGame.name} Selected`
+              : isHost ? "Choose Game" : "Waiting for Room Owner"}
         </Button>
       </div>
     </main>

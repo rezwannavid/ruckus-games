@@ -3,475 +3,140 @@
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { io } from "socket.io-client";
+import { Play, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+import { NumberSlider, ErrorState, LoadingState, AppScreen } from "@/components/ui/GameUI";
+import { PlayerCard } from "@/components/ui/PlayerCard";
+import { Tag, Toggle } from "@/components/ui/Controls";
+import { BrandNav } from "@/features/lobby/components/BrandNav";
+import { imposterCategories } from "@/features/imposter/data/words";
+import type { Room } from "@/features/lobby/types/room";
 import { serverUrl } from "@/lib/config";
 import { clearRoomSession, getStoredSession } from "@/lib/session";
 
-type Player = {
-  id: string;
-  name: string;
-  isHost: boolean;
-};
-
-type Game = {
-  slug: string;
-  name: string;
-  description: string;
-  minPlayers: number;
-  maxPlayers: number;
-};
-
-type Room = {
-  code: string;
-  players: Player[];
-  status: "waiting" | "in_game" | "ended";
-  selectedGame?: Game;
-};
-
-export default function GameSetupPage({
-  params
-}: {
-  params: Promise<{ code: string; gameSlug: string }>;
-}) {
+export default function GameSetupPage({ params }: { params: Promise<{ code: string; gameSlug: string }> }) {
   const router = useRouter();
   const { code, gameSlug } = use(params);
-
   const roomCode = code.toUpperCase();
-
   const [room, setRoom] = useState<Room | null>(null);
-  const [currentPlayerId] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-
-    const savedSession = getStoredSession();
-    return savedSession.roomCode?.toUpperCase() === roomCode
-      ? savedSession.playerId
-      : null;
-  });
-  const [error, setError] = useState("");
-
-  const [playMode, setPlayMode] = useState<"multiplayer" | "single_device">("multiplayer");
-  const [manualPlayerName, setManualPlayerName] = useState("");
-  const [manualPlayers, setManualPlayers] = useState<string[]>([]);
-  const [numberOfImposters, setNumberOfImposters] = useState("1");
-  const [roundTimer, setRoundTimer] = useState("60");
+  const [currentPlayerId] = useState(() => getStoredSession().roomCode?.toUpperCase() === roomCode ? getStoredSession().playerId : null);
+  const [numberOfImposters, setNumberOfImposters] = useState(1);
+  const [roundTimer, setRoundTimer] = useState(90);
   const [wordCategory, setWordCategory] = useState("random");
+  const [hintsEnabled, setHintsEnabled] = useState(true);
+  const [error, setError] = useState("");
+  const [isStarting, setIsStarting] = useState(false);
 
-  const currentPlayer = room?.players.find(
-    (player) => player.id === currentPlayerId
-  );
-
-  const currentPlayerIsHost = Boolean(currentPlayer?.isHost);
+  const currentPlayer = room?.players.find((player) => player.id === currentPlayerId);
+  const isHost = Boolean(currentPlayer?.isHost);
   const selectedGame = room?.selectedGame;
-  const activePlayerCount =
-    playMode === "single_device" ? manualPlayers.length : room?.players.length ?? 0;
-  const hasEnoughPlayers = selectedGame
-    ? activePlayerCount >= selectedGame.minPlayers
-    : false;
-  const maxImposters = Math.max(1, activePlayerCount - 1);
+  const enoughPlayers = Boolean(selectedGame && room && room.players.length >= selectedGame.minPlayers);
 
   useEffect(() => {
-    const savedSession = getStoredSession();
-
-    if (savedSession.roomCode?.toUpperCase() !== roomCode || !savedSession.playerId) {
-      router.push(`/room/${roomCode}`);
-      return;
-    }
-  }, [roomCode, router]);
+    if (!currentPlayerId) router.replace(`/room/${roomCode}`);
+  }, [currentPlayerId, roomCode, router]);
 
   useEffect(() => {
-    async function fetchRoom() {
-      setError("");
-
-      try {
-        const response = await fetch(`${serverUrl}/rooms/${roomCode}`);
+    fetch(`${serverUrl}/rooms/${roomCode}`)
+      .then(async (response) => {
         const data = await response.json();
-
-        if (!response.ok) {
-          setError(data.message ?? "Could not load room.");
-          return;
-        }
-
+        if (!response.ok) throw new Error(data.message);
         setRoom(data.room);
-      } catch {
-        setError("Could not connect to the server.");
-      }
-    }
+      })
+      .catch((reason) => setError(reason instanceof Error ? reason.message : "Could not load room."));
 
-    fetchRoom();
-  }, [roomCode]);
-
-  useEffect(() => {
     const socket = io(serverUrl);
-
-    socket.emit("room:subscribe", {
-      roomCode
-    });
-
-    socket.on("room:state", (roomState: Room) => {
-      setRoom(roomState);
-    });
-
-    socket.on("game:started", (payload: { game: Game }) => {
-      router.push(`/room/${roomCode}/play/${payload.game.slug}`);
-    });
-
+    socket.emit("room:subscribe", { roomCode });
+    socket.on("room:state", setRoom);
+    socket.on("game:started", (payload: { game: { slug: string } }) => router.push(`/room/${roomCode}/play/${payload.game.slug}`));
     socket.on("room:ended", () => {
       clearRoomSession();
-
       router.push("/");
     });
-
     return () => {
       socket.disconnect();
     };
   }, [roomCode, router]);
 
-  function goBackToRoom() {
-    router.push(`/room/${roomCode}`);
-  }
-
-  function addManualPlayer() {
-    const trimmedName = manualPlayerName.trim();
-
-    if (!trimmedName) return;
-
-    const nameAlreadyExists = manualPlayers.some(
-      (playerName) => playerName.toLowerCase() === trimmedName.toLowerCase()
-    );
-
-    if (nameAlreadyExists) {
-      return;
-    }
-
-    setManualPlayers((currentPlayers) => [...currentPlayers, trimmedName]);
-    setManualPlayerName("");
-    setError("");
-  }
-
-  function removeManualPlayer(playerNameToRemove: string) {
-    setManualPlayers((currentPlayers) =>
-      currentPlayers.filter((playerName) => playerName !== playerNameToRemove)
-    );
-  }
-
   async function startGame() {
-    if (!currentPlayerId || !selectedGame) return;
-
+    if (!currentPlayerId) return;
     setError("");
-
+    setIsStarting(true);
     try {
       const response = await fetch(`${serverUrl}/rooms/${roomCode}/games/start`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           playerId: currentPlayerId,
           settings: {
-            playMode,
-            manualPlayers,
-            numberOfImposters: Number(numberOfImposters),
-            roundTimer: Number(roundTimer),
-            wordCategory
+            playMode: "multiplayer",
+            numberOfImposters,
+            roundTimer,
+            wordCategory,
+            hintsEnabled
           }
         })
       });
-
       const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.message ?? "Could not start game.");
-        return;
-      }
-
-      setRoom(data.room);
-      router.push(`/room/${roomCode}/play/${selectedGame.slug}`);
-    } catch {
-      setError("Could not connect to the server.");
+      if (!response.ok) throw new Error(data.message);
+      router.push(`/room/${roomCode}/play/${gameSlug}`);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not start game.");
+      setIsStarting(false);
     }
   }
 
-  if (error) {
-    return (
-      <main className="min-h-screen bg-[var(--surface-inverted)] p-8 text-[var(--text-inverted)]">
-        <div className="mx-auto max-w-xl space-y-6">
-          <h1 className="text-3xl font-bold">Setup Error</h1>
-          <p>{error}</p>
-
-          <Button onClick={goBackToRoom} variant="inverted" size="md">
-            Back to Room
-          </Button>
-        </div>
-      </main>
-    );
+  if (error && !room) {
+    return <ErrorState title="Setup unavailable" message={error} action={<Button onClick={() => router.push(`/room/${roomCode}`)} variant="inverted" size="lg" className="w-full">Back to Room</Button>} />;
   }
-
-  if (!room) {
-    return (
-      <main className="min-h-screen bg-[var(--surface-inverted)] p-8 text-[var(--text-inverted)]">
-        <div className="mx-auto max-w-xl">
-          <p>Loading setup...</p>
-        </div>
-      </main>
-    );
-  }
-
+  if (!room) return <LoadingState title="Loading game setup..." subtitle={`Room ${roomCode}`} />;
   if (!selectedGame || selectedGame.slug !== gameSlug) {
-    return (
-      <main className="min-h-screen bg-[var(--surface-inverted)] p-8 text-[var(--text-inverted)]">
-        <div className="mx-auto max-w-xl space-y-6">
-          <h1 className="text-3xl font-bold">Game Not Selected</h1>
-          <p>This game is not currently selected for room {room.code}.</p>
-
-          <Button onClick={goBackToRoom} variant="inverted" size="md">
-            Back to Room
-          </Button>
-        </div>
-      </main>
-    );
+    return <ErrorState title="Game not selected" message="Return to the room and select this game first." action={<Button onClick={() => router.push(`/room/${roomCode}`)} variant="inverted" size="lg" className="w-full">Back to Room</Button>} />;
+  }
+  if (!isHost) {
+    return <LoadingState title="Waiting for the Room Owner..." subtitle={`${selectedGame.name} setup is in progress`} />;
   }
 
   return (
-    <main className="min-h-screen bg-[var(--surface-inverted)] p-4 py-8 text-[var(--text-inverted)]">
-      <div className="mx-auto max-w-3xl space-y-8">
-        <header className="space-y-3">
-          <p className="text-sm opacity-70">Room {room.code}</p>
-          <h1 className="text-5xl font-bold">{selectedGame.name} Setup</h1>
-          <p className="text-lg opacity-80">{selectedGame.description}</p>
-
-          {selectedGame.slug === "imposter" && (
-            <div className="rounded-2xl border p-5">
-              <p className="text-sm uppercase tracking-[0.3em] opacity-60">
-                How this round works
-              </p>
-              <p className="mt-3 opacity-80">
-                Choose whether everyone joins with their own phone or one phone
-                is passed around. When the host starts, one or more players will
-                secretly become imposters. Everyone else gets the same secret word.
-              </p>
+    <AppScreen tone="light">
+      <div className="mx-auto max-w-[42rem]">
+        <BrandNav title="Imposter Game Rules" tone="light" onBack={() => router.push(`/room/${roomCode}`)} />
+        <section className="mt-8 grid gap-8 md:grid-cols-[1fr_1.1fr]">
+          <div>
+            <div className="flex items-end justify-between">
+              <h2 className="text-title-sm-extrabold">Players</h2>
+              <p className="text-footnote-semibold opacity-55">{room.players.length} Players</p>
             </div>
-          )}
-        </header>
-
-        {selectedGame.slug === "imposter" && (
-          <section className="rounded-2xl border p-6">
-            <h2 className="text-2xl font-semibold">Play Mode</h2>
-            <p className="mt-2 opacity-80">
-              Choose whether everyone uses their own device or one phone is
-              passed around the group.
-            </p>
-
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <button
-                onClick={() => setPlayMode("multiplayer")}
-                disabled={!currentPlayerIsHost}
-                className={`rounded-2xl bg-[var(--surface-inverted-light)] p-4 text-left disabled:opacity-50 ${
-                  playMode === "multiplayer" ? "outline outline-2 outline-[var(--surface-secondary)]" : ""
-                }`}
-              >
-                <p className="font-semibold">Everyone joins</p>
-                <p className="mt-1 text-sm opacity-70">
-                  Each player uses their own phone and sees their own role.
-                </p>
-              </button>
-
-              <button
-                onClick={() => {
-                  setPlayMode("single_device");
-
-                  if (manualPlayers.length === 0) {
-                    setManualPlayers(room.players.map((player) => player.name));
-                  }
-                }}
-                disabled={!currentPlayerIsHost}
-                className={`rounded-2xl bg-[var(--surface-inverted-light)] p-4 text-left disabled:opacity-50 ${
-                  playMode === "single_device" ? "outline outline-2 outline-[var(--surface-secondary)]" : ""
-                }`}
-              >
-                <p className="font-semibold">Pass one phone around</p>
-                <p className="mt-1 text-sm opacity-70">
-                  Add player names, then pass this phone around to reveal roles.
-                </p>
-              </button>
+            <div className="mt-3 space-y-2">
+              {room.players.map((player) => <PlayerCard key={player.id} player={player} isCurrentPlayer={player.id === currentPlayerId} />)}
             </div>
-          </section>
-        )}
-
-        <section className="rounded-2xl border p-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-semibold">
-              {playMode === "single_device" ? "Pass-the-Phone Players" : "Players"}
-            </h2>
-            <p className="opacity-70">
-              {activePlayerCount}/{selectedGame.minPlayers} minimum
-            </p>
           </div>
 
-          {playMode === "multiplayer" ? (
-            <div className="mt-4 grid gap-3">
-              {room.players.map((player) => (
-                <Card
-                  key={player.id}
-                  size="sm"
-                  title={player.name}
-                  label={player.isHost ? "Room Owner" : player.id === currentPlayerId ? "You" : "Player"}
-                  showLabel={player.isHost || player.id === currentPlayerId}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="mt-4 space-y-3">
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <input
-                  value={manualPlayerName}
-                  onChange={(event) => setManualPlayerName(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      addManualPlayer();
-                    }
-                  }}
-                  disabled={!currentPlayerIsHost}
-                  placeholder="Add another player name"
-                  className="flex-1 rounded-[1rem] border-0 bg-[var(--surface-inverted-light)] p-3 text-[var(--text-inverted)] outline-none disabled:opacity-50"
-                />
-                <Button
-                  onClick={addManualPlayer}
-                  disabled={!currentPlayerIsHost}
-                  variant="secondary"
-                  size="md"
-                  showLeftIcon={false}
-                >
-                  Add Player
-                </Button>
+          <div className="space-y-4">
+            <NumberSlider label="Imposters" value={numberOfImposters} min={1} max={Math.max(1, room.players.length - 1)} onChange={setNumberOfImposters} />
+            <NumberSlider label="Round time" value={roundTimer} min={30} max={300} suffix="s" onChange={setRoundTimer} />
+            <Toggle label="Hint for Imposters" checked={hintsEnabled} onChange={setHintsEnabled} />
+            <fieldset className="rounded-[24px] bg-[var(--surface-inverted-light)] p-5">
+              <legend className="px-1 text-body-semibold">Game Pack</legend>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {imposterCategories.map((category) => (
+                  <Tag key={category} selected={wordCategory === category} onClick={() => setWordCategory(category)}>
+                    <span className="capitalize">{category}</span>
+                  </Tag>
+                ))}
               </div>
-
-              {manualPlayers.length === 0 ? (
-                <p className="opacity-80">
-                  Add at least 2 names. These players do not need to join from separate devices.
-                </p>
-              ) : (
-                <div className="grid gap-3">
-                  {manualPlayers.map((playerName) => (
-                    <div key={playerName} className="flex items-center gap-3">
-                      <Card
-                        size="sm"
-                        title={playerName}
-                        label="Pass-the-phone player"
-                        showLabel
-                      />
-
-                      {currentPlayerIsHost && (
-                        <button
-                          onClick={() => removeManualPlayer(playerName)}
-                          className="text-footnote-semibold text-[var(--text-primary)] opacity-70 hover:opacity-100"
-                        >
-                          Remove
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+            </fieldset>
+            {error && <p role="alert" className="rounded-[var(--radius-md)] bg-[var(--danger)] px-4 py-3 text-footnote-semibold text-white">{error}</p>}
+          </div>
         </section>
 
-        <section className="rounded-2xl border p-6">
-          <h2 className="text-2xl font-semibold">Game Options</h2>
-          {selectedGame.slug === "imposter" && (
-            <p className="mt-2 opacity-80">
-              Choose how the round is played, how many imposters there are, the
-              timer length, and the word category.
-            </p>
-          )}
-
-          {selectedGame.slug === "imposter" ? (
-            <div className="mt-4 space-y-4">
-              <label className="block space-y-2">
-                <span className="font-semibold">Number of Imposters</span>
-                <select
-                  value={numberOfImposters}
-                  onChange={(event) => setNumberOfImposters(event.target.value)}
-                  disabled={!currentPlayerIsHost}
-                  className="w-full rounded-[1rem] border-0 bg-[var(--surface-inverted-light)] p-3 text-[var(--text-inverted)] disabled:opacity-50"
-                >
-                  <option value="1">1</option>
-                  {maxImposters >= 2 && <option value="2">2</option>}
-                  {maxImposters >= 3 && <option value="3">3</option>}
-                </select>
-              </label>
-
-              <label className="block space-y-2">
-                <span className="font-semibold">Round Timer</span>
-                <select
-                  value={roundTimer}
-                  onChange={(event) => setRoundTimer(event.target.value)}
-                  disabled={!currentPlayerIsHost}
-                  className="w-full rounded-[1rem] border-0 bg-[var(--surface-inverted-light)] p-3 text-[var(--text-inverted)] disabled:opacity-50"
-                >
-                  <option value="30">30 seconds</option>
-                  <option value="60">60 seconds</option>
-                  <option value="90">90 seconds</option>
-                  <option value="120">120 seconds</option>
-                </select>
-              </label>
-
-              <label className="block space-y-2">
-                <span className="font-semibold">Word Category</span>
-                <select
-                  value={wordCategory}
-                  onChange={(event) => setWordCategory(event.target.value)}
-                  disabled={!currentPlayerIsHost}
-                  className="w-full rounded-[1rem] border-0 bg-[var(--surface-inverted-light)] p-3 text-[var(--text-inverted)] disabled:opacity-50"
-                >
-                  <option value="random">Random</option>
-                  <option value="movies">Movies</option>
-                  <option value="places">Places</option>
-                  <option value="objects">Objects</option>
-                </select>
-              </label>
-            </div>
-          ) : (
-            <p className="mt-4 opacity-80">
-              Setup options for {selectedGame.name} will be added later.
-            </p>
-          )}
-
-          {!currentPlayerIsHost && (
-            <p className="mt-4 text-sm opacity-70">
-              Only the host can change setup options.
-            </p>
-          )}
-        </section>
-
-        <div className="flex flex-wrap gap-3">
-          <Button onClick={goBackToRoom} variant="inverted" size="md">
-            Back to Room
+        <div className="sticky bottom-4 mt-8 grid grid-cols-[auto_1fr] gap-2 rounded-[28px] bg-[var(--surface-inverted)] p-2 shadow-lg">
+          <Button onClick={() => router.push(`/room/${roomCode}`)} variant="primary-plus" size="lg" showLeftIcon={false} showRightIcon={false} aria-label="Cancel setup"><X /></Button>
+          <Button onClick={startGame} disabled={!enoughPlayers || isStarting} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Play />}>
+            {isStarting ? "Starting..." : enoughPlayers ? "Start Game" : `Need ${selectedGame.minPlayers} Players`}
           </Button>
-
-          {playMode === "single_device" && !hasEnoughPlayers && (
-            <p className="self-center text-sm opacity-70">
-              Add at least {selectedGame.minPlayers} names. They do not need separate devices.
-            </p>
-          )}
-          {currentPlayerIsHost ? (
-            <Button
-              onClick={startGame}
-              disabled={!hasEnoughPlayers}
-              variant="tertiary"
-              size="md"
-            >
-              Start {selectedGame.name}
-            </Button>
-          ) : (
-            <p className="self-center text-sm opacity-70">
-              Waiting for the host to start {selectedGame.name}.
-            </p>
-          )}
         </div>
       </div>
-    </main>
+    </AppScreen>
   );
 }

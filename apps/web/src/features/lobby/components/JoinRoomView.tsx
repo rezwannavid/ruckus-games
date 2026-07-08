@@ -1,6 +1,8 @@
 "use client";
 
 import { NumberInput } from "@/components/ui/NumberInput";
+import { AvatarPicker } from "@/components/ui/AvatarPicker";
+import { FormField } from "@/components/ui/FormField";
 import { BrandNav } from "@/features/lobby/components/BrandNav";
 import { NumericKeypad } from "@/features/lobby/components/NumericKeypad";
 
@@ -9,10 +11,12 @@ type JoinRoomViewState = "initial" | "typed" | "joining" | "joined" | "wrong-cod
 type JoinRoomViewProps = {
   roomCode: string;
   playerName: string;
+  avatarId: number;
   state: JoinRoomViewState;
   error?: string;
   pendingGameName?: string;
   onPlayerNameChange: (value: string) => void;
+  onAvatarChange: (avatarId: number) => void;
   onBack: () => void;
   onDigit: (digit: string) => void;
   onDelete: () => void;
@@ -22,10 +26,12 @@ type JoinRoomViewProps = {
 export function JoinRoomView({
   roomCode,
   playerName,
+  avatarId,
   state,
   error,
   pendingGameName,
   onPlayerNameChange,
+  onAvatarChange,
   onBack,
   onDigit,
   onDelete,
@@ -36,25 +42,18 @@ export function JoinRoomView({
       <div className="mx-auto flex min-h-screen max-w-[25rem] flex-col">
         <BrandNav title="Enter Room Code" tone="light" onBack={onBack} />
 
-        <section className="mt-10 px-4">
+        <section className="mt-8 space-y-5 px-4">
           {pendingGameName && (
             <p className="mb-4 rounded-[1rem] bg-[var(--surface-inverted-light)] px-4 py-3 text-footnote-semibold text-[var(--text-highlight)]">
               Joining for {pendingGameName}
             </p>
           )}
 
-          <label className="block">
-            <span className="text-footnote-semibold">Your Name</span>
-            <input
-              value={playerName}
-              onChange={(event) => onPlayerNameChange(event.target.value)}
-              placeholder="Navid"
-              className="mt-2 w-full rounded-[1rem] border-0 bg-[var(--surface-inverted-light)] px-4 py-4 text-title-sm-semibold outline-none"
-            />
-          </label>
+          <FormField name="playerName" label="Your name" value={playerName} onChange={(event) => onPlayerNameChange(event.target.value)} placeholder="Navid" autoComplete="nickname" maxLength={24} />
+          <AvatarPicker value={avatarId} onChange={onAvatarChange} />
         </section>
 
-        <section className="flex flex-1 items-center justify-center px-4 pb-60">
+        <section className="flex flex-1 items-center justify-center px-4 pb-60 pt-6">
           <NumberInput
             value={roomCode}
             state={state}

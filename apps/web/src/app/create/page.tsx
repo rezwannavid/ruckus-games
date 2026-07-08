@@ -1,13 +1,13 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useMemo, useState, useSyncExternalStore } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CreateRoomView } from "@/features/lobby/components/CreateRoomView";
 import { RoomCreatedView } from "@/features/lobby/components/RoomCreatedView";
 import { getGameBySlug } from "@/features/lobby/data/games";
 import type { Room } from "@/features/lobby/types/room";
 import { createRoom, selectRoomGame } from "@/lib/rooms";
-import { getFallbackPlayerName, saveRoomSession } from "@/lib/session";
+import { getStoredSession, saveRoomSession } from "@/lib/session";
 
 export default function CreateRoomPage() {
   return (
@@ -27,7 +27,20 @@ function CreateRoomContent() {
   );
 
   const [roomName, setRoomName] = useState("");
-  const [playerName, setPlayerName] = useState(() => getFallbackPlayerName());
+  const storedPlayerName = useSyncExternalStore(
+    () => () => {},
+    () => getStoredSession().playerName ?? "Player",
+    () => "Player"
+  );
+  const storedAvatarId = useSyncExternalStore(
+    () => () => {},
+    () => getStoredSession().avatarId,
+    () => 1
+  );
+  const [playerNameOverride, setPlayerNameOverride] = useState<string | null>(null);
+  const [avatarIdOverride, setAvatarIdOverride] = useState<number | null>(null);
+  const playerName = playerNameOverride ?? storedPlayerName;
+  const avatarId = avatarIdOverride ?? storedAvatarId;
   const [error, setError] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [createdRoom, setCreatedRoom] = useState<Room | null>(null);
@@ -40,13 +53,15 @@ function CreateRoomContent() {
     try {
       const data = await createRoom({
         playerName,
-        roomName
+        roomName,
+        avatarId
       });
 
       saveRoomSession({
         playerId: data.player.id,
         playerName: data.player.name,
-        roomCode: data.room.code
+        roomCode: data.room.code,
+        avatarId: data.player.avatarId
       });
 
       let nextRoom = data.room;
@@ -94,11 +109,13 @@ function CreateRoomContent() {
     <CreateRoomView
       roomName={roomName}
       playerName={playerName}
+      avatarId={avatarId}
       pendingGame={pendingGame}
       error={error}
       isCreating={isCreating}
       onRoomNameChange={setRoomName}
-      onPlayerNameChange={setPlayerName}
+      onPlayerNameChange={setPlayerNameOverride}
+      onAvatarChange={setAvatarIdOverride}
       onBack={() => router.back()}
       onCreateRoom={handleCreateRoom}
     />

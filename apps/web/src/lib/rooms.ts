@@ -8,10 +8,12 @@ type RoomResponse = {
 
 export async function createRoom({
   playerName,
-  roomName
+  roomName,
+  avatarId
 }: {
   playerName: string;
   roomName?: string;
+  avatarId: number;
 }): Promise<RoomResponse> {
   const response = await fetchWithTimeout(`${serverUrl}/rooms`, {
     method: "POST",
@@ -20,7 +22,8 @@ export async function createRoom({
     },
     body: JSON.stringify({
       playerName,
-      roomName
+      roomName,
+      avatarId
     })
   });
 
@@ -29,10 +32,12 @@ export async function createRoom({
 
 export async function joinRoom({
   roomCode,
-  playerName
+  playerName,
+  avatarId
 }: {
   roomCode: string;
   playerName: string;
+  avatarId: number;
 }): Promise<RoomResponse> {
   const response = await fetchWithTimeout(`${serverUrl}/rooms/${roomCode}/join`, {
     method: "POST",
@@ -40,7 +45,8 @@ export async function joinRoom({
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      playerName
+      playerName,
+      avatarId
     })
   });
 

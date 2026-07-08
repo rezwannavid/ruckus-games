@@ -37,6 +37,14 @@
   letter-spacing: 0.025rem;
 }
 
+.text-title-lg-bold {
+  font-family: var(--font-primary);
+  font-size: 2.125rem;
+  line-height: 2.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.025rem;
+}
+
 .text-title-lg-regular {
   font-family: var(--font-primary);
   font-size: 2.125rem;
@@ -93,6 +101,22 @@
   letter-spacing: -0.028125rem;
 }
 
+.text-title-sm-medium {
+  font-family: var(--font-primary);
+  font-size: 1.25rem;
+  line-height: 1.5625rem;
+  font-weight: 500;
+  letter-spacing: -0.028125rem;
+}
+
+.text-title-sm-bold {
+  font-family: var(--font-primary);
+  font-size: 1.25rem;
+  line-height: 1.5625rem;
+  font-weight: 700;
+  letter-spacing: -0.028125rem;
+}
+
 .text-title-sm-extrabold {
   font-family: var(--font-primary);
   font-size: 1.25rem;
@@ -116,6 +140,21 @@
   font-weight: 400;
   letter-spacing: -0.026875rem;
 }
+
+.text-headline-md-medium,
+.text-headline-md-semibold,
+.text-headline-md-bold,
+.text-headline-md-extrabold {
+  font-family: var(--font-primary);
+  font-size: 1.125rem;
+  line-height: 1.375rem;
+  letter-spacing: -0.026875rem;
+}
+
+.text-headline-md-medium { font-weight: 500; }
+.text-headline-md-semibold { font-weight: 600; }
+.text-headline-md-bold { font-weight: 700; }
+.text-headline-md-extrabold { font-weight: 800; }
 
 .text-body-regular {
   font-family: var(--font-primary);
@@ -149,13 +188,32 @@
   letter-spacing: -0.00625rem;
 }
 
+.text-body-bold {
+  font-family: var(--font-primary);
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.00625rem;
+}
+
 .text-callout-regular {
-  font-family: var(--font-callout);
+  font-family: var(--font-primary);
   font-size: 1rem;
   line-height: 1.35;
   font-weight: 400;
   letter-spacing: -0.019375rem;
 }
+
+.text-callout-semibold,
+.text-callout-extrabold {
+  font-family: var(--font-primary);
+  font-size: 1rem;
+  line-height: 1.375rem;
+  letter-spacing: -0.019375rem;
+}
+
+.text-callout-semibold { font-weight: 600; }
+.text-callout-extrabold { font-weight: 800; }
 
 .text-footnote-regular {
   font-family: var(--font-primary);
@@ -178,5 +236,13 @@
   font-size: 0.6875rem;
   line-height: 1.35;
   font-weight: 400;
+  letter-spacing: 0.00375rem;
+}
+
+.text-caption-semibold {
+  font-family: var(--font-primary);
+  font-size: 0.6875rem;
+  line-height: 0.8125rem;
+  font-weight: 600;
   letter-spacing: 0.00375rem;
 }

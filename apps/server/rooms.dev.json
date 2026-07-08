@@ -8,12 +8,14 @@
           {
             "id": "e0e10fb8-5b78-47bd-b238-94eb61d4fb08",
             "name": "wqeqwe",
-            "isHost": true
+            "isHost": true,
+            "avatarId": 1
           },
           {
             "id": "6a3f7575-85fb-4e74-b591-e7904de9a31d",
             "name": "qweqwewe",
-            "isHost": false
+            "isHost": false,
+            "avatarId": 2
           }
         ],
         "status": "waiting",
@@ -34,7 +36,8 @@
           {
             "id": "90b4bdd6-0c95-4893-96ae-74a0faa0e290",
             "name": "wqeqwe",
-            "isHost": true
+            "isHost": true,
+            "avatarId": 1
           }
         ],
         "status": "waiting",
@@ -55,7 +58,8 @@
           {
             "id": "bccb5dec-229b-42b6-974a-fcc512159f7f",
             "name": "Player",
-            "isHost": true
+            "isHost": true,
+            "avatarId": 1
           }
         ],
         "status": "waiting",
@@ -76,7 +80,8 @@
           {
             "id": "4fe16a58-985a-42e4-9bd4-bd843a7f64af",
             "name": "Player",
-            "isHost": true
+            "isHost": true,
+            "avatarId": 1
           }
         ],
         "status": "waiting"
@@ -90,12 +95,14 @@
           {
             "id": "6c992b99-b8c5-4ffa-86f2-00a2b9de16a0",
             "name": "Player",
-            "isHost": true
+            "isHost": true,
+            "avatarId": 1
           },
           {
             "id": "4bc39e71-2071-4b49-8d82-ddb64c72e4d5",
             "name": "wqeqwe",
-            "isHost": false
+            "isHost": false,
+            "avatarId": 2
           }
         ],
         "status": "waiting"
@@ -110,7 +117,8 @@
           {
             "id": "e3558a9c-272f-47eb-8198-a01c6afccd7a",
             "name": "Host Player",
-            "isHost": true
+            "isHost": true,
+            "avatarId": 1
           }
         ],
         "status": "waiting",
@@ -132,12 +140,14 @@
           {
             "id": "17ae8631-2e37-4a18-8f36-f2af7aa879f9",
             "name": "Soha",
-            "isHost": true
+            "isHost": true,
+            "avatarId": 1
           },
           {
             "id": "04f99550-50c8-4d03-9bc3-0c554c77e7c7",
             "name": "wqeqwe",
-            "isHost": false
+            "isHost": false,
+            "avatarId": 2
           }
         ],
         "status": "in_game",
@@ -151,15 +161,17 @@
         "gameState": {
           "type": "imposter",
           "playMode": "multiplayer",
-          "phase": "playing",
+          "phase": "discussion",
           "players": [
             {
               "id": "7548bc36-553b-4c9b-8531-abeece1f752c",
-              "name": "Navid"
+              "name": "Navid",
+              "avatarId": 1
             },
             {
               "id": "17ae8631-2e37-4a18-8f36-f2af7aa879f9",
-              "name": "Soha"
+              "name": "Soha",
+              "avatarId": 1
             }
           ],
           "word": "Hotel",
@@ -170,7 +182,14 @@
           "imposterPlayerId": "7548bc36-553b-4c9b-8531-abeece1f752c",
           "imposterPlayerIds": [
             "7548bc36-553b-4c9b-8531-abeece1f752c"
-          ]
+          ],
+          "readyPlayerIds": [
+            "7548bc36-553b-4c9b-8531-abeece1f752c",
+            "17ae8631-2e37-4a18-8f36-f2af7aa879f9"
+          ],
+          "votes": {},
+          "round": 1,
+          "numberOfImposters": 1
         }
       }
     ],
@@ -183,17 +202,20 @@
           {
             "id": "d5192689-f21e-43d7-8870-f37a79231212",
             "name": "Soha",
-            "isHost": true
+            "isHost": true,
+            "avatarId": 1
           },
           {
             "id": "04a1b7e5-1994-4853-9825-9c3a95bd47c1",
             "name": "wqeqwe",
-            "isHost": false
+            "isHost": false,
+            "avatarId": 2
           },
           {
             "id": "99fb813a-5d71-4175-ae7c-428180491790",
             "name": "Player",
-            "isHost": false
+            "isHost": false,
+            "avatarId": 3
           }
         ],
         "status": "waiting",
@@ -215,12 +237,14 @@
           {
             "id": "d03912d9-04dd-4a0c-9908-90c3e173ace4",
             "name": "Player",
-            "isHost": true
+            "isHost": true,
+            "avatarId": 1
           },
           {
             "id": "710ce6df-6fac-475b-a8db-90bfd620dea1",
             "name": "wqeqwe",
-            "isHost": false
+            "isHost": false,
+            "avatarId": 2
           }
         ],
         "status": "in_game",
@@ -234,15 +258,17 @@
         "gameState": {
           "type": "imposter",
           "playMode": "multiplayer",
-          "phase": "revealed",
+          "phase": "results",
           "players": [
             {
               "id": "d03912d9-04dd-4a0c-9908-90c3e173ace4",
-              "name": "Player"
+              "name": "Player",
+              "avatarId": 1
             },
             {
               "id": "710ce6df-6fac-475b-a8db-90bfd620dea1",
-              "name": "wqeqwe"
+              "name": "wqeqwe",
+              "avatarId": 2
             }
           ],
           "word": "Hotel",
@@ -253,8 +279,175 @@
           "imposterPlayerId": "d03912d9-04dd-4a0c-9908-90c3e173ace4",
           "imposterPlayerIds": [
             "d03912d9-04dd-4a0c-9908-90c3e173ace4"
-          ]
+          ],
+          "readyPlayerIds": [
+            "d03912d9-04dd-4a0c-9908-90c3e173ace4",
+            "710ce6df-6fac-475b-a8db-90bfd620dea1"
+          ],
+          "votes": {},
+          "round": 1,
+          "numberOfImposters": 1
         }
+      }
+    ],
+    [
+      "3895",
+      {
+        "code": "3895",
+        "name": "qweqwe",
+        "players": [
+          {
+            "id": "dced07d4-9849-4ba4-a6ab-7bcefc635a3f",
+            "name": "wqeqwe",
+            "avatarId": 3,
+            "isHost": true
+          }
+        ],
+        "status": "waiting",
+        "selectedGame": {
+          "slug": "imposter",
+          "name": "Imposter",
+          "description": "Find the hidden player before they blend in.",
+          "minPlayers": 2,
+          "maxPlayers": 12
+        }
+      }
+    ],
+    [
+      "3485",
+      {
+        "code": "3485",
+        "name": "Player's Room",
+        "players": [
+          {
+            "id": "eecaf8c6-e6c4-4052-8e3b-15fc5e67741a",
+            "name": "Player",
+            "avatarId": 4,
+            "isHost": true
+          }
+        ],
+        "status": "waiting",
+        "selectedGame": {
+          "slug": "imposter",
+          "name": "Imposter",
+          "description": "Find the hidden player before they blend in.",
+          "minPlayers": 2,
+          "maxPlayers": 12
+        }
+      }
+    ],
+    [
+      "3289",
+      {
+        "code": "3289",
+        "name": "Player's Room",
+        "players": [
+          {
+            "id": "e9d8fe5d-861d-4b17-b2e1-6bd602b25691",
+            "name": "Player",
+            "avatarId": 2,
+            "isHost": true
+          }
+        ],
+        "status": "waiting",
+        "selectedGame": {
+          "slug": "imposter",
+          "name": "Imposter",
+          "description": "Find the hidden player before they blend in.",
+          "minPlayers": 2,
+          "maxPlayers": 12
+        }
+      }
+    ],
+    [
+      "7543",
+      {
+        "code": "7543",
+        "name": "Player's Room",
+        "players": [
+          {
+            "id": "4936550b-0713-4bd3-a96d-6f3fb2b18974",
+            "name": "Player",
+            "avatarId": 2,
+            "isHost": true
+          }
+        ],
+        "status": "waiting"
+      }
+    ],
+    [
+      "6022",
+      {
+        "code": "6022",
+        "name": "Navid's Room",
+        "players": [
+          {
+            "id": "1c05fbc6-54bd-4023-89cb-76de8506c7c7",
+            "name": "Player",
+            "avatarId": 1,
+            "isHost": true
+          }
+        ],
+        "status": "in_game",
+        "selectedGame": {
+          "slug": "imposter",
+          "name": "Imposter",
+          "description": "Find the hidden player before they blend in.",
+          "minPlayers": 2,
+          "maxPlayers": 12
+        },
+        "gameState": {
+          "type": "imposter",
+          "playMode": "multiplayer",
+          "phase": "results",
+          "players": [
+            {
+              "id": "17a741c4-008b-4c2e-a4e2-bafdea3ca8cd",
+              "name": "Navid",
+              "avatarId": 3
+            },
+            {
+              "id": "1c05fbc6-54bd-4023-89cb-76de8506c7c7",
+              "name": "Player",
+              "avatarId": 1
+            }
+          ],
+          "word": "Selfie",
+          "wordCategory": "random",
+          "roundTimerSeconds": 90,
+          "startedAt": "2026-07-08T22:16:35.089Z",
+          "endsAt": "2026-07-08T22:18:05.089Z",
+          "imposterPlayerId": "17a741c4-008b-4c2e-a4e2-bafdea3ca8cd",
+          "imposterPlayerIds": [
+            "17a741c4-008b-4c2e-a4e2-bafdea3ca8cd"
+          ],
+          "readyPlayerIds": [
+            "17a741c4-008b-4c2e-a4e2-bafdea3ca8cd",
+            "1c05fbc6-54bd-4023-89cb-76de8506c7c7"
+          ],
+          "votes": {
+            "17a741c4-008b-4c2e-a4e2-bafdea3ca8cd": "1c05fbc6-54bd-4023-89cb-76de8506c7c7",
+            "1c05fbc6-54bd-4023-89cb-76de8506c7c7": "1c05fbc6-54bd-4023-89cb-76de8506c7c7"
+          },
+          "round": 3,
+          "numberOfImposters": 1
+        }
+      }
+    ],
+    [
+      "6703",
+      {
+        "code": "6703",
+        "name": "Player's Room",
+        "players": [
+          {
+            "id": "f84b75f2-e940-47ff-8af7-ecefdc4bca9b",
+            "name": "Player",
+            "avatarId": 3,
+            "isHost": true
+          }
+        ],
+        "status": "waiting"
       }
     ]
   ]

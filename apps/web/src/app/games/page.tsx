@@ -18,6 +18,7 @@ export default function GamesListPage() {
             <GameCard
               key={game.slug}
               game={game}
+              disabled={game.slug !== "imposter"}
               onClick={() => router.push(`/games/${game.slug}`)}
             />
           ))}

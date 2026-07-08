@@ -1,6 +1,7 @@
 "use client";
 
 import { LogoMark } from "@/features/lobby/components/icons";
+import { ArrowLeft } from "lucide-react";
 
 type BrandNavProps = {
   title?: string;
@@ -27,20 +28,12 @@ export function BrandNav({ title, tone = "dark", onBack }: BrandNavProps) {
             aria-label="Go back"
             className="flex size-6 items-center justify-center"
           >
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="size-6">
-              <path
-                d="M19 12H5m7 7-7-7 7-7"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-              />
-            </svg>
+            <ArrowLeft aria-hidden className="size-6" />
           </button>
         )}
 
         <div className="flex items-center gap-1">
-          <LogoMark className="size-5" />
+          <LogoMark className={`size-5 ${isLight ? "" : "brightness-0 invert"}`} />
           <span className="text-body-semibold">ruckus games</span>
         </div>
       </div>
