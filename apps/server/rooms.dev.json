@@ -449,6 +449,64 @@
         ],
         "status": "waiting"
       }
+    ],
+    [
+      "7695",
+      {
+        "code": "7695",
+        "name": "Soha's Room",
+        "players": [
+          {
+            "id": "10874d3e-cc8c-4074-9e60-97150422fe89",
+            "name": "Soha",
+            "avatarId": 3,
+            "isHost": true
+          }
+        ],
+        "status": "waiting",
+        "selectedGame": {
+          "slug": "imposter",
+          "name": "Imposter",
+          "description": "Find the hidden player before they blend in.",
+          "minPlayers": 2,
+          "maxPlayers": 12
+        }
+      }
+    ],
+    [
+      "6915",
+      {
+        "code": "6915",
+        "name": "Soha's Room",
+        "players": [
+          {
+            "id": "9e7c9ecb-1c04-4b9c-96f3-5dd2df10c441",
+            "name": "Soha",
+            "avatarId": 3,
+            "isHost": true
+          },
+          {
+            "id": "29b74248-770f-4843-bdab-75a80eeeca39",
+            "name": "Navid",
+            "avatarId": 5,
+            "isHost": false
+          },
+          {
+            "id": "9c1c46a2-83a1-4a45-b795-9085824af5b1",
+            "name": "Ludmila",
+            "avatarId": 10,
+            "isHost": false
+          }
+        ],
+        "status": "waiting",
+        "selectedGame": {
+          "slug": "imposter",
+          "name": "Imposter",
+          "description": "Find the hidden player before they blend in.",
+          "minPlayers": 2,
+          "maxPlayers": 12
+        }
+      }
     ]
   ]
 }
