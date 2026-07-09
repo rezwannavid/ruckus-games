@@ -189,7 +189,8 @@
           ],
           "votes": {},
           "round": 1,
-          "numberOfImposters": 1
+          "numberOfImposters": 1,
+          "answerRevealed": false
         }
       }
     ],
@@ -286,7 +287,8 @@
           ],
           "votes": {},
           "round": 1,
-          "numberOfImposters": 1
+          "numberOfImposters": 1,
+          "answerRevealed": false
         }
       }
     ],
@@ -430,7 +432,8 @@
             "1c05fbc6-54bd-4023-89cb-76de8506c7c7": "1c05fbc6-54bd-4023-89cb-76de8506c7c7"
           },
           "round": 3,
-          "numberOfImposters": 1
+          "numberOfImposters": 1,
+          "answerRevealed": false
         }
       }
     ],
@@ -506,6 +509,171 @@
           "minPlayers": 2,
           "maxPlayers": 12
         }
+      }
+    ],
+    [
+      "1762",
+      {
+        "code": "1762",
+        "name": "Navid's Room",
+        "players": [
+          {
+            "id": "b36a897b-4e4b-4a18-8e2c-63ec095aa22a",
+            "name": "Navid",
+            "avatarId": 4,
+            "isHost": true
+          }
+        ],
+        "status": "waiting",
+        "selectedGame": {
+          "slug": "imposter",
+          "name": "Imposter",
+          "description": "Find the hidden player before they blend in.",
+          "minPlayers": 2,
+          "maxPlayers": 12
+        }
+      }
+    ],
+    [
+      "7250",
+      {
+        "code": "7250",
+        "name": "Navid's Room",
+        "players": [
+          {
+            "id": "79e3944e-b951-4820-bb81-9f9c1dc5d812",
+            "name": "Navid",
+            "avatarId": 4,
+            "isHost": true
+          }
+        ],
+        "status": "waiting",
+        "selectedGame": {
+          "slug": "imposter",
+          "name": "Imposter",
+          "description": "Find the hidden player before they blend in.",
+          "minPlayers": 2,
+          "maxPlayers": 12
+        }
+      }
+    ],
+    [
+      "9545",
+      {
+        "code": "9545",
+        "name": "Navid's Room",
+        "players": [
+          {
+            "id": "f076e7d2-732c-47ba-ac42-d8954229ca57",
+            "name": "Navid",
+            "avatarId": 4,
+            "isHost": true
+          }
+        ],
+        "status": "waiting",
+        "selectedGame": {
+          "slug": "imposter",
+          "name": "Imposter",
+          "description": "Find the hidden player before they blend in.",
+          "minPlayers": 2,
+          "maxPlayers": 12
+        }
+      }
+    ],
+    [
+      "9071",
+      {
+        "code": "9071",
+        "name": "dsds's Room",
+        "players": [
+          {
+            "id": "3aa01545-3ae9-4fda-8100-1979be1099f4",
+            "name": "dsds",
+            "avatarId": 3,
+            "isHost": true
+          }
+        ],
+        "status": "waiting"
+      }
+    ],
+    [
+      "8738",
+      {
+        "code": "8738",
+        "name": "Navid's Room",
+        "players": [
+          {
+            "id": "dc02a1fd-ee10-4b02-b0a6-d5a9d2feff17",
+            "name": "Navid",
+            "avatarId": 4,
+            "isHost": true
+          },
+          {
+            "id": "0625586f-84a5-4b1e-9688-05af5dbb382a",
+            "name": "Soha",
+            "avatarId": 1,
+            "isHost": false
+          }
+        ],
+        "status": "waiting",
+        "selectedGame": {
+          "slug": "imposter",
+          "name": "Imposter",
+          "description": "Find the hidden player before they blend in.",
+          "minPlayers": 2,
+          "maxPlayers": 12
+        }
+      }
+    ],
+    [
+      "2752",
+      {
+        "code": "2752",
+        "name": "Navid's Room",
+        "players": [
+          {
+            "id": "f9ef8bdb-dae0-436e-980a-2c9ea6b4e005",
+            "name": "Navid",
+            "avatarId": 2,
+            "isHost": true
+          },
+          {
+            "id": "cd6b1452-d74a-448c-bb04-9706d079825f",
+            "name": "Aeyenun",
+            "avatarId": 6,
+            "isHost": false
+          },
+          {
+            "id": "184f8b54-b5b3-475a-bc06-3566424424cb",
+            "name": "Ludmila",
+            "avatarId": 3,
+            "isHost": false
+          }
+        ],
+        "status": "waiting",
+        "selectedGame": {
+          "slug": "imposter",
+          "name": "Imposter",
+          "description": "Find the hidden player before they blend in.",
+          "minPlayers": 2,
+          "maxPlayers": 12
+        }
+      }
+    ],
+    [
+      "4680",
+      {
+        "code": "4680",
+        "name": "Navid's Room",
+        "players": [
+          {
+            "id": "4394b502-fdf7-4f08-97b8-937657022ba6",
+            "name": "Navid",
+            "avatarId": 2,
+            "isHost": true
+          }
+        ],
+        "status": "waiting"
       }
     ]
   ]

@@ -8,11 +8,17 @@ type AvatarProps = {
   avatarId: number;
   name?: string;
   size?: "sm" | "md" | "lg";
+  tone?: "black" | "white" | "blue";
   className?: string;
 };
 
-export function Avatar({ avatarId, name = "", size = "md", className = "" }: AvatarProps) {
+export function Avatar({ avatarId, name = "", size = "md", tone = "black", className = "" }: AvatarProps) {
   const dimension = size === "sm" ? 32 : size === "lg" ? 72 : 40;
+  const toneClass = {
+    black: "brightness-0",
+    white: "brightness-0 invert",
+    blue: "[filter:brightness(0)_saturate(100%)_invert(58%)_sepia(54%)_saturate(1224%)_hue-rotate(172deg)_brightness(94%)_contrast(89%)]"
+  }[tone];
 
   return (
     <Image
@@ -20,7 +26,7 @@ export function Avatar({ avatarId, name = "", size = "md", className = "" }: Ava
       alt={name ? `${name}'s avatar` : ""}
       width={dimension}
       height={dimension}
-      className={`shrink-0 object-contain brightness-0 ${className}`}
+      className={`shrink-0 object-contain ${toneClass} ${className}`}
     />
   );
 }

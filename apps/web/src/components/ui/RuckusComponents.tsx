@@ -34,7 +34,7 @@ export function SmallButton(props: ComponentProps<typeof Button>) {
 }
 
 export function LogoFull({ tone = "light" }: { tone?: "light" | "dark" }) {
-  return <Image src="/logo-full.svg" alt="Ruckus Games" width={129} height={22} className={tone === "dark" ? "brightness-0 invert" : ""} />;
+  return <Image src={tone === "dark" ? "/logo-main-light.svg" : "/logo-main.svg"} alt="Ruckus Games" width={129} height={20} />;
 }
 
 export function RoomCard({

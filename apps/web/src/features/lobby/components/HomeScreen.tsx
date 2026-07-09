@@ -25,7 +25,7 @@ export function HomeScreen({
     <main className="min-h-screen overflow-x-hidden bg-[var(--surface-primary)] px-4 pb-8 pt-12 text-[var(--text-primary)]">
       <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-6xl flex-col">
         <section className="flex flex-col items-center gap-5 text-center">
-          <Image src="/logo-full.svg" alt="Ruckus Games" width={132} height={24} priority className="h-auto w-[132px] brightness-0 invert" />
+          <Image src="/logo-main-light.svg" alt="Ruckus Games" width={129} height={20} priority className="h-auto w-[129px]" />
           <h1 className="max-w-[22.5rem] text-title-lg-semibold">
             Play party games with friends
           </h1>
@@ -42,6 +42,7 @@ export function HomeScreen({
               key={game.slug}
               game={game}
               disabled={game.slug !== "imposter"}
+              comingSoon={game.slug !== "imposter"}
               className="w-[269px] shrink-0 snap-start md:w-full"
               onClick={() => onGameClick(game.slug)}
             />

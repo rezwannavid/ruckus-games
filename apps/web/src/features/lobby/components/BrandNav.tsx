@@ -1,6 +1,6 @@
 "use client";
 
-import { LogoMark } from "@/features/lobby/components/icons";
+import Image from "next/image";
 import { ArrowLeft } from "lucide-react";
 
 type BrandNavProps = {
@@ -32,10 +32,14 @@ export function BrandNav({ title, tone = "dark", onBack }: BrandNavProps) {
           </button>
         )}
 
-        <div className="flex items-center gap-1">
-          <LogoMark className={`size-5 ${isLight ? "" : "brightness-0 invert"}`} />
-          <span className="text-body-semibold">ruckus games</span>
-        </div>
+        <Image
+          src={isLight ? "/logo-main.svg" : "/logo-main-light.svg"}
+          alt="Ruckus Games"
+          width={129}
+          height={20}
+          priority
+          className="h-5 w-auto"
+        />
       </div>
 
       {title && (

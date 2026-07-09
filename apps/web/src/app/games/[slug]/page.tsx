@@ -29,9 +29,9 @@ export default function GameDetailPage({
   }
 
   return (
-    <main className="min-h-screen bg-[var(--surface-inverted)] px-4 py-8 text-[var(--text-inverted)]">
+    <main className="min-h-screen bg-[var(--surface-primary)] px-4 py-8 text-[var(--text-primary)]">
       <div className="mx-auto max-w-[25rem]">
-        <BrandNav title={game.name} tone="light" onBack={() => router.push("/games")} />
+        <BrandNav title={game.name} tone="dark" onBack={() => router.push("/games")} />
 
         <section className="mt-10">
           <div className="h-[18rem]">
@@ -46,7 +46,7 @@ export default function GameDetailPage({
             {game.summary ?? game.description}
           </p>
 
-          <div className="mt-6 rounded-[1.5rem] bg-[var(--surface-inverted-light)] p-5">
+          <div className="mt-6 rounded-[1.5rem] bg-[var(--surface-primary-light)] p-5">
             <p className="text-title-sm-semibold">Ways to play</p>
             <div className="mt-3 grid gap-2 text-body-regular">
               {game.supportsMultiplayer && (

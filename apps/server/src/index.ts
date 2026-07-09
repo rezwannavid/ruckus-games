@@ -83,6 +83,7 @@ type ImposterGameState = {
   votes: Record<string, string>;
   round: number;
   numberOfImposters: number;
+  answerRevealed: boolean;
 };
 
 type GameState = ImposterGameState;
@@ -132,6 +133,7 @@ function loadRooms() {
         legacyState.votes ??= {};
         legacyState.round ??= 1;
         legacyState.numberOfImposters ??= legacyState.imposterPlayerIds?.length || 1;
+        legacyState.answerRevealed ??= legacyPhase === "revealed";
       }
 
       loadedRooms.set(code, room);
@@ -321,20 +323,33 @@ function getImposterReveal(room: Room, state: ImposterGameState) {
   };
 }
 
+function getVoteOutcome(state: ImposterGameState) {
+  const totals: Record<string, number> = {};
+  Object.values(state.votes).forEach((targetId) => {
+    totals[targetId] = (totals[targetId] ?? 0) + 1;
+  });
+  const highestVoteCount = Math.max(0, ...Object.values(totals));
+  const topVotedPlayerIds = Object.entries(totals)
+    .filter(([, count]) => count === highestVoteCount)
+    .map(([playerId]) => playerId);
+  const caughtImposter =
+    highestVoteCount > 0 &&
+    topVotedPlayerIds.length === 1 &&
+    state.imposterPlayerIds.includes(topVotedPlayerIds[0]);
+
+  return { totals, highestVoteCount, topVotedPlayerIds, caughtImposter };
+}
+
 function resetImposterRound(state: ImposterGameState) {
-  const { words } = getImposterWordList(state.wordCategory);
-  const imposters = pickRandomItems(state.players, state.numberOfImposters);
   const startedAt = new Date();
   const endsAt = new Date(startedAt.getTime() + state.roundTimerSeconds * 1000);
 
-  state.phase = "role_reveal";
-  state.word = pickRandomItem(words);
+  state.phase = "discussion";
   state.startedAt = startedAt.toISOString();
   state.endsAt = endsAt.toISOString();
-  state.imposterPlayerId = imposters[0].id;
-  state.imposterPlayerIds = imposters.map((player) => player.id);
-  state.readyPlayerIds = [];
+  state.readyPlayerIds = state.players.map((player) => player.id);
   state.votes = {};
+  state.answerRevealed = false;
   state.round += 1;
 }
 
@@ -497,6 +512,35 @@ app.post("/rooms/:code/leave", (req, res) => {
     message: "Left room.",
     room
   });
+});
+
+app.delete("/rooms/:code/players/:targetPlayerId", (req, res) => {
+  const code = req.params.code.toUpperCase();
+  const targetPlayerId = req.params.targetPlayerId;
+  const { playerId } = req.body as { playerId?: string };
+  const room = rooms.get(code);
+
+  if (!room) return res.status(404).json({ message: "Room not found." });
+  const requester = room.players.find((player) => player.id === playerId);
+  if (!requester?.isHost) {
+    return res.status(403).json({ message: "Only the room owner can remove players." });
+  }
+
+  const target = room.players.find((player) => player.id === targetPlayerId);
+  if (!target) return res.status(404).json({ message: "Player not found." });
+  if (target.isHost) {
+    return res.status(400).json({ message: "The room owner cannot be removed." });
+  }
+
+  room.players = room.players.filter((player) => player.id !== targetPlayerId);
+  rooms.set(code, room);
+  saveRooms();
+  io.to(code).emit("room:removed", {
+    playerId: targetPlayerId,
+    message: "The room owner removed you."
+  });
+  io.to(code).emit("room:state", room);
+  return res.json({ room });
 });
 
 app.post("/rooms/:code/games/select", (req, res) => {
@@ -667,7 +711,8 @@ app.post("/rooms/:code/games/start", (req, res) => {
       readyPlayerIds: [],
       votes: {},
       round: 1,
-      numberOfImposters
+      numberOfImposters,
+      answerRevealed: false
     };
   } else {
     room.gameState = undefined;
@@ -911,21 +956,41 @@ app.post("/rooms/:code/games/imposter/reveal", (req, res) => {
     return res.status(400).json({ message: "Imposter game state not available." });
   }
 
+  const outcome = getVoteOutcome(room.gameState);
   room.gameState.phase = "results";
+  room.gameState.answerRevealed = outcome.caughtImposter;
 
   rooms.set(code, room);
   saveRooms();
 
-  const reveal = getImposterReveal(room, room.gameState);
-
-  io.to(code).emit("imposter:revealed", reveal);
   io.to(code).emit("room:state", room);
 
   return res.json({
-    message: "Imposter revealed.",
+    message: outcome.caughtImposter ? "The imposter was voted out." : "The vote missed the imposter.",
     room,
-    reveal
+    outcome
   });
+});
+
+app.post("/rooms/:code/games/imposter/reveal-answer", (req, res) => {
+  const code = req.params.code.toUpperCase();
+  const { playerId } = req.body as { playerId?: string };
+  const room = rooms.get(code);
+  const player = room?.players.find((roomPlayer) => roomPlayer.id === playerId);
+
+  if (!room) return res.status(404).json({ message: "Room not found." });
+  if (!player?.isHost) return res.status(403).json({ message: "Only the host can reveal the imposter." });
+  if (!room.gameState || room.gameState.type !== "imposter" || room.gameState.phase !== "results") {
+    return res.status(400).json({ message: "Results are not available." });
+  }
+
+  room.gameState.answerRevealed = true;
+  rooms.set(code, room);
+  saveRooms();
+  const reveal = getImposterReveal(room, room.gameState);
+  io.to(code).emit("imposter:revealed", reveal);
+  io.to(code).emit("room:state", room);
+  return res.json({ room, reveal });
 });
 
 app.get("/rooms/:code/game-state/:playerId", (req, res) => {
@@ -969,25 +1034,30 @@ app.get("/rooms/:code/game-state/:playerId", (req, res) => {
     const sharedState = {
       readyPlayerIds: room.gameState.readyPlayerIds,
       votes: room.gameState.votes,
-      round: room.gameState.round
+      round: room.gameState.round,
+      answerRevealed: room.gameState.answerRevealed ?? false
     };
 
     if (room.gameState.phase === "results") {
+      const outcome = getVoteOutcome(room.gameState);
+      const mayRevealAnswer = room.gameState.answerRevealed || outcome.caughtImposter;
       return res.json({
         gameSlug: room.selectedGame.slug,
         playMode: room.gameState.playMode,
         players: gameParticipants,
         phase: room.gameState.phase,
         role: isImposter ? "imposter" : "player",
-        word: room.gameState.word,
+        word: mayRevealAnswer || !isImposter ? room.gameState.word : null,
         wordCategory: room.gameState.wordCategory,
         roundTimerSeconds: room.gameState.roundTimerSeconds,
         startedAt: room.gameState.startedAt,
         endsAt: room.gameState.endsAt,
-        imposterPlayerId: imposter?.id ?? room.gameState.imposterPlayerId,
-        imposterPlayerName: imposter?.name ?? "Unknown Player",
-        imposterPlayerIds: imposterIds,
-        imposterPlayerNames: imposters.map((imposterPlayer) => imposterPlayer.name),
+        imposterPlayerId: mayRevealAnswer ? imposter?.id ?? room.gameState.imposterPlayerId : null,
+        imposterPlayerName: mayRevealAnswer ? imposter?.name ?? "Unknown Player" : null,
+        imposterPlayerIds: mayRevealAnswer ? imposterIds : null,
+        imposterPlayerNames: mayRevealAnswer ? imposters.map((imposterPlayer) => imposterPlayer.name) : null,
+        caughtImposter: outcome.caughtImposter,
+        topVotedPlayerIds: outcome.topVotedPlayerIds,
         ...sharedState
       });
     }

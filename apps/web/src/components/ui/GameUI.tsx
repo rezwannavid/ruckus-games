@@ -172,3 +172,60 @@ export function GameStatus({
     </div>
   );
 }
+
+export function PlayerStatusPill({
+  players,
+  completedIds,
+  label
+}: {
+  players: Array<{ id: string; name: string; avatarId?: number }>;
+  completedIds: string[];
+  label: string;
+}) {
+  return (
+    <div className="fixed bottom-[7.5rem] left-1/2 z-30 flex -translate-x-1/2 items-center rounded-full bg-[var(--surface-primary-light)] px-3 py-2 text-[var(--text-primary)] shadow-lg">
+      <div className="flex -space-x-2">
+        {players.slice(0, 7).map((player) => (
+          <span key={player.id} className={`grid size-7 place-items-center rounded-full border border-[var(--surface-primary-light)] bg-[var(--surface-primary)] transition-opacity ${completedIds.includes(player.id) ? "opacity-100" : "opacity-20"}`}>
+            <Avatar avatarId={player.avatarId ?? 1} name={player.name} size="sm" tone="white" />
+          </span>
+        ))}
+      </div>
+      <span className="ml-2 whitespace-nowrap text-caption-semibold">{label}</span>
+    </div>
+  );
+}
+
+export function WaitingOrbit({
+  players,
+  completedIds,
+  title,
+  subtitle
+}: {
+  players: Array<{ id: string; name: string; avatarId?: number }>;
+  completedIds: string[];
+  title: string;
+  subtitle: string;
+}) {
+  const positions = [
+    "left-[8%] top-[12%]",
+    "right-[8%] top-[8%]",
+    "left-[2%] top-[48%]",
+    "right-[2%] top-[52%]",
+    "left-[18%] bottom-[7%]",
+    "right-[18%] bottom-[5%]"
+  ];
+
+  return (
+    <div className="relative mx-auto h-[420px] w-full max-w-[25rem]">
+      {players.slice(0, 6).map((player, index) => (
+        <div key={player.id} className={`absolute ${positions[index]} animate-[pulse_2.4s_ease-in-out_infinite] ${completedIds.includes(player.id) ? "opacity-100" : "opacity-20"}`} style={{ animationDelay: `${index * 180}ms` }}>
+          <Avatar avatarId={player.avatarId ?? 1} name={player.name} size="lg" tone="blue" />
+        </div>
+      ))}
+      <div className="absolute inset-0 grid place-items-center text-center">
+        <div><h2 className="text-title-md-extrabold">{title}</h2><p className="mt-2 text-body-medium opacity-60">{subtitle}</p></div>
+      </div>
+    </div>
+  );
+}

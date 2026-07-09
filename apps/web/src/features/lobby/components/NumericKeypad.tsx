@@ -1,5 +1,7 @@
 "use client";
 
+import { Delete } from "lucide-react";
+
 type NumericKeypadProps = {
   onDigit: (digit: string) => void;
   onDelete: () => void;
@@ -24,24 +26,19 @@ export function NumericKeypad({
   disabled = false
 }: NumericKeypadProps) {
   return (
-    <div className="rounded-t-[1.6875rem] border border-white/70 bg-white/45 px-1.5 pb-20 pt-2 backdrop-blur">
-      <div className="grid grid-cols-3 gap-1.5">
+    <div className="mx-auto w-full max-w-[18rem] px-3 pb-8">
+      <div className="grid grid-cols-3 gap-2">
         {keys.map((key) => (
           <button
             key={key.digit}
             type="button"
             disabled={disabled}
             onClick={() => onDigit(key.digit)}
-            className="flex h-[3.125rem] flex-col items-center justify-center rounded-[0.53125rem] bg-white/90 text-[rgba(0,0,0,0.65)] disabled:opacity-50"
+            className="flex aspect-square w-full flex-col items-center justify-center rounded-full bg-[var(--surface-inverted-light)] text-[var(--text-inverted-plus)] transition active:scale-95 disabled:opacity-50"
           >
-            <span className="font-sans text-[1.4375rem] leading-none">
+            <span className="text-title-lg-semibold leading-none">
               {key.digit}
             </span>
-            {key.letters && (
-              <span className="mt-1 text-[0.625rem] font-bold leading-none tracking-[0.2em]">
-                {key.letters}
-              </span>
-            )}
           </button>
         ))}
 
@@ -51,7 +48,7 @@ export function NumericKeypad({
           type="button"
           disabled={disabled}
           onClick={() => onDigit("0")}
-          className="flex h-[3.125rem] items-center justify-center rounded-[0.53125rem] bg-white/90 text-[1.4375rem] leading-none text-[rgba(0,0,0,0.65)] disabled:opacity-50"
+          className="flex aspect-square w-full items-center justify-center rounded-full bg-[var(--surface-inverted-light)] text-title-lg-semibold text-[var(--text-inverted-plus)] transition active:scale-95 disabled:opacity-50"
         >
           0
         </button>
@@ -61,22 +58,9 @@ export function NumericKeypad({
           disabled={disabled}
           onClick={onDelete}
           aria-label="Delete digit"
-          className="flex h-[3.125rem] items-center justify-center rounded-[0.53125rem] text-[var(--text-inverted)] disabled:opacity-50"
+          className="flex aspect-square w-full items-center justify-center rounded-full bg-[var(--surface-primary-light)] text-[var(--text-primary)] transition active:scale-95 disabled:opacity-50"
         >
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="size-6">
-            <path
-              d="M10 6h9v12h-9l-6-6 6-6Z"
-              stroke="currentColor"
-              strokeLinejoin="round"
-              strokeWidth="2"
-            />
-            <path
-              d="m12 10 4 4m0-4-4 4"
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeWidth="2"
-            />
-          </svg>
+          <Delete aria-hidden className="size-8" />
         </button>
       </div>
     </div>

@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/Button";
 import { AvatarPicker } from "@/components/ui/AvatarPicker";
 import { FormField } from "@/components/ui/FormField";
 import { RoomLobbyView } from "@/features/lobby/components/RoomLobbyView";
-import { games } from "@/features/lobby/data/games";
 import type { Game, Room } from "@/features/lobby/types/room";
 import { serverUrl } from "@/lib/config";
 import { joinRoom as joinExistingRoom } from "@/lib/rooms";
@@ -56,7 +55,6 @@ export default function RoomPage({
 
   const hasJoinedRoom = Boolean(currentPlayer);
   const currentPlayerIsHost = Boolean(currentPlayer?.isHost);
-  const selectedGame = room?.selectedGame;
 
   useEffect(() => {
     const nextSocket = io(serverUrl);
@@ -85,6 +83,14 @@ export default function RoomPage({
       router.push("/");
     });
 
+    nextSocket.on("room:removed", (payload: { playerId: string; message: string }) => {
+      if (payload.playerId !== currentPlayerId) return;
+      clearRoomSession();
+      setCurrentPlayerId(null);
+      setError(payload.message);
+      router.push("/");
+    });
+
     nextSocket.on("game:started", (payload: { game: Game }) => {
       router.push(`/room/${roomCode}/play/${payload.game.slug}`);
     });
@@ -93,7 +99,7 @@ export default function RoomPage({
       socketRef.current = null;
       nextSocket.disconnect();
     };
-  }, [roomCode, router]);
+  }, [currentPlayerId, roomCode, router]);
 
   async function joinRoom() {
     setError("");
@@ -175,74 +181,25 @@ export default function RoomPage({
     }
   }
 
-  async function selectGame(gameSlug: string) {
-    if (!currentPlayerId) return false;
-
+  async function removePlayer(playerId: string) {
+    if (!currentPlayerId || !currentPlayerIsHost) return;
     setError("");
-
     try {
-      const response = await fetch(`${serverUrl}/rooms/${roomCode}/games/select`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          playerId: currentPlayerId,
-          gameSlug
-        })
+      const response = await fetch(`${serverUrl}/rooms/${roomCode}/players/${playerId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playerId: currentPlayerId })
       });
-
       const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.message ?? "Could not select game.");
-        return false;
-      }
-
+      if (!response.ok) throw new Error(data.message ?? "Could not remove player.");
       setRoom(data.room);
-      return true;
-    } catch {
-      setError("Could not connect to the server.");
-      return false;
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not remove player.");
     }
   }
 
-  function goToGameSetup() {
-    if (!selectedGame) return;
-
-    router.push(`/room/${roomCode}/setup/${selectedGame.slug}`);
-  }
-
-  async function chooseGame(gameSlug: string) {
-    if (!currentPlayerIsHost) {
-      setError("Only the room owner can choose a game.");
-      return;
-    }
-
-    if (gameSlug !== "imposter") {
-      setError("That game is coming soon.");
-      return;
-    }
-
-    await selectGame(gameSlug);
-  }
-
-  async function continueToSetup() {
-    if (!currentPlayerIsHost) {
-      setError("Only the room owner can start setup.");
-      return;
-    }
-
-    if (selectedGame) {
-      goToGameSetup();
-      return;
-    }
-
-    const didSelectGame = await selectGame("imposter");
-
-    if (didSelectGame) {
-      router.push(`/room/${roomCode}/setup/imposter`);
-    }
+  function continueToSetup() {
+    router.push(`/room/${roomCode}/games`);
   }
 
   function goHome() {
@@ -327,14 +284,12 @@ export default function RoomPage({
       players={room.players}
       currentPlayerId={currentPlayerId}
       isHost={currentPlayerIsHost}
-      games={games}
-      selectedGame={selectedGame}
       copyMessage={error || copyMessage}
       onBack={goHome}
       onCopyLink={copyInviteLink}
       onEndRoom={leaveRoom}
-      onSelectGame={chooseGame}
       onContinueSetup={continueToSetup}
+      onRemovePlayer={removePlayer}
     />
   );
 }
