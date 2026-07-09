@@ -90,10 +90,10 @@ export function Button({
       type={type}
       disabled={disabled}
       className={cx(
-        "inline-flex items-center justify-center overflow-hidden whitespace-nowrap transition duration-[var(--motion-fast)]",
+        "inline-flex items-center justify-center overflow-hidden whitespace-nowrap transition duration-[var(--motion-fast)] will-change-transform",
         "focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-[var(--focus-ring)]",
         "disabled:pointer-events-none disabled:opacity-50",
-        "hover:brightness-110 active:translate-y-px active:brightness-90",
+        "hover:brightness-110 active:translate-y-px active:scale-[0.985] active:brightness-90",
         variantClasses[resolvedVariant],
         sizeClasses[resolvedSize],
         className

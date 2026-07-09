@@ -3,7 +3,7 @@
 import { use, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { io } from "socket.io-client";
-import { ArrowLeft, Eye, Flag, Play, Skull, Vote } from "lucide-react";
+import { ArrowLeft, Braces, Eye, EyeOff, Flag, Play, RadioTower, Send, Skull, Vote } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/AvatarPicker";
 import { AppScreen, ErrorState, LoadingState, PlayerStatusPill, WaitingOrbit } from "@/components/ui/GameUI";
@@ -13,18 +13,30 @@ import { clearRoomSession, getStoredSession } from "@/lib/session";
 
 type Player = { id: string; name: string; avatarId?: number; isHost?: boolean };
 type GameState = {
-  type: "imposter";
+  type: "imposter" | "imposter-code" | "wavelength";
   playMode: "multiplayer" | "single_device";
-  phase: "role_reveal" | "discussion" | "voting" | "results";
+  phase: string;
   players: Player[];
-  wordCategory: string;
-  roundTimerSeconds: number;
-  startedAt: string;
-  endsAt: string;
-  readyPlayerIds: string[];
-  votes: Record<string, string>;
+  wordCategory?: string;
+  roundTimerSeconds?: number;
+  startedAt?: string;
+  endsAt?: string;
+  readyPlayerIds?: string[];
+  votes?: Record<string, string>;
   round: number;
-  answerRevealed: boolean;
+  answerRevealed?: boolean;
+  answers?: Record<string, string>;
+  question?: string | null;
+  prompt?: string | null;
+  imposterQuestion?: string | null;
+  clueGiverId?: string;
+  clueGiverName?: string;
+  scaleLeft?: string;
+  scaleRight?: string;
+  secretNumber?: number | null;
+  clue?: string | null;
+  guess?: number | null;
+  score?: number;
 };
 type Room = {
   code: string;
@@ -35,13 +47,18 @@ type Room = {
   gameState?: GameState;
 };
 type PersonalState = GameState & {
-  role: "player" | "imposter";
-  word: string | null;
-  imposterPlayerIds: string[] | null;
-  imposterPlayerNames: string[] | null;
+  role?: "player" | "imposter";
+  word?: string | null;
+  prompt?: string | null;
+  question?: string | null;
+  answers?: Record<string, string>;
+  imposterQuestion?: string | null;
+  imposterPlayerIds?: string[] | null;
+  imposterPlayerNames?: string[] | null;
   caughtImposter?: boolean;
   topVotedPlayerIds?: string[];
-  answerRevealed: boolean;
+  answerRevealed?: boolean;
+  isClueGiver?: boolean;
 };
 
 export default function PlayGamePage({ params }: { params: Promise<{ code: string; gameSlug: string }> }) {
@@ -54,6 +71,10 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
   const [holdingReveal, setHoldingReveal] = useState(false);
   const [hasSeenRole, setHasSeenRole] = useState(false);
   const [selectedVote, setSelectedVote] = useState("");
+  const [answerText, setAnswerText] = useState("");
+  const [clueText, setClueText] = useState("");
+  const [guess, setGuess] = useState(50);
+  const [secretVisible, setSecretVisible] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
   const [error, setError] = useState("");
   const [ended, setEnded] = useState(false);
@@ -61,10 +82,10 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
   const gameState = room?.gameState;
   const currentPlayer = room?.players.find((player) => player.id === currentPlayerId);
   const isHost = Boolean(currentPlayer?.isHost);
-  const hasVoted = Boolean(currentPlayerId && gameState?.votes[currentPlayerId]);
-  const readyCount = gameState?.readyPlayerIds.length ?? 0;
+  const hasVoted = Boolean(currentPlayerId && gameState?.votes?.[currentPlayerId]);
+  const readyCount = gameState?.readyPlayerIds?.length ?? 0;
   const playerCount = gameState?.players.length ?? 0;
-  const voteCount = gameState ? Object.keys(gameState.votes).length : 0;
+  const voteCount = gameState ? Object.keys(gameState.votes ?? {}).length : 0;
   const allReady = playerCount > 0 && readyCount === playerCount;
   const allVoted = playerCount > 0 && voteCount === playerCount;
 
@@ -97,7 +118,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
   }, [roomCode, router]);
 
   useEffect(() => {
-    if (!currentPlayerId || !gameState || gameSlug !== "imposter") return;
+    if (!currentPlayerId || !gameState) return;
     fetch(`${serverUrl}/rooms/${roomCode}/game-state/${currentPlayerId}`)
       .then(async (response) => {
         const data = await response.json();
@@ -108,8 +129,8 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
   }, [currentPlayerId, gameSlug, gameState, roomCode]);
 
   useEffect(() => {
-    if (!gameState?.endsAt || !["discussion", "voting"].includes(gameState.phase)) return;
-    const update = () => setTimeLeft(Math.max(0, Math.ceil((new Date(gameState.endsAt).getTime() - Date.now()) / 1000)));
+    if (!gameState?.endsAt || !["discussion", "voting", "answers"].includes(gameState.phase)) return;
+    const update = () => setTimeLeft(Math.max(0, Math.ceil((new Date(gameState.endsAt ?? "").getTime() - Date.now()) / 1000)));
     update();
     const timer = window.setInterval(update, 1000);
     return () => window.clearInterval(timer);
@@ -118,7 +139,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
   async function post(action: string, body: Record<string, unknown> = {}) {
     if (!currentPlayerId) return;
     setError("");
-    const response = await fetch(`${serverUrl}/rooms/${roomCode}/games/imposter/${action}`, {
+    const response = await fetch(`${serverUrl}/rooms/${roomCode}/games/${gameSlug}/${action}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ playerId: currentPlayerId, ...body })
@@ -171,8 +192,285 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
   if (!room || !gameState || !personal) return <LoadingState title="Joining Game..." subtitle={`as ${currentPlayer?.name ?? "player"}`} />;
 
   const formattedTime = `${Math.floor(timeLeft / 60)}m ${String(timeLeft % 60).padStart(2, "0")}s`;
-  const ready = Boolean(currentPlayerId && gameState.readyPlayerIds.includes(currentPlayerId));
+  const ready = Boolean(currentPlayerId && gameState.readyPlayerIds?.includes(currentPlayerId));
   const firstPlayer = gameState.players[gameState.round % gameState.players.length]?.name ?? gameState.players[0]?.name;
+
+  if (gameState.type === "imposter-code") {
+    const answers = personal.answers ?? {};
+    const submittedAnswer = Boolean(currentPlayerId && answers[currentPlayerId]);
+    const answerCount = Object.keys(answers).length;
+    const answerVisible = Boolean(personal.answerRevealed || personal.caughtImposter);
+    const topVotedPlayer = gameState.players.find((player) => personal.topVotedPlayerIds?.includes(player.id));
+    const revealedNames = personal.imposterPlayerNames ?? [];
+    const sortedPlayers = [...gameState.players].sort((a, b) => (voteTotals[b.id] ?? 0) - (voteTotals[a.id] ?? 0));
+
+    if (gameState.phase === "answering" && submittedAnswer) {
+      return (
+        <AppScreen tone="dark" className="!p-0">
+          <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-20 text-center">
+            <BrandNav tone="dark" />
+            <div className="flex flex-1 items-center">
+              <WaitingOrbit players={gameState.players} completedIds={Object.keys(answers)} title="Waiting for answers" subtitle={`${answerCount}/${playerCount} Players Answered`} />
+            </div>
+            <Button disabled variant="primary" size="lg" showLeftIcon={false} className="w-full">Answers locked</Button>
+          </section>
+        </AppScreen>
+      );
+    }
+
+    if (gameState.phase === "answering") {
+      return (
+        <AppScreen tone="dark" className="!p-0">
+          <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-20">
+            <BrandNav title="Answer Privately" tone="dark" />
+            <div className="mt-16 text-center">
+              <Braces className="mx-auto text-[var(--surface-secondary)]" size={58} />
+              <p className="mt-6 text-title-md-extrabold text-[var(--text-highlight)]">{personal.prompt}</p>
+            </div>
+            <label className="mt-10 block">
+              <span className="sr-only">Your answer</span>
+              <textarea
+                value={answerText}
+                onChange={(event) => setAnswerText(event.target.value)}
+                placeholder="Type your answer..."
+                maxLength={120}
+                className="min-h-36 w-full resize-none rounded-[28px] bg-[var(--surface-primary-light)] px-5 py-4 text-title-sm-semibold outline-none placeholder:text-white/20 focus-visible:outline-3 focus-visible:outline-[var(--surface-secondary)]"
+              />
+            </label>
+            <div className="mt-auto">
+              <Button onClick={() => { perform("submit-answer", { answer: answerText }); setAnswerText(""); }} disabled={!answerText.trim()} variant="tertiary" size="lg" showLeftIcon={false} rightIcon={<Send />} className="w-full">Submit Answer</Button>
+            </div>
+          </section>
+        </AppScreen>
+      );
+    }
+
+    if (gameState.phase === "answers") {
+      return (
+        <AppScreen tone="blue" className="!p-0">
+          <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-16 text-center">
+            <BrandNav title="Answers" tone="light" />
+            <h1 className="mt-8 text-title-sm-bold">{personal.question}</h1>
+            <div className="mt-7 space-y-2 text-left">
+              {gameState.players.map((player) => (
+                <div key={player.id} className="animate-pop rounded-[24px] bg-[var(--surface-inverted-light)] p-5 text-[var(--text-inverted)]">
+                  <div className="flex items-center gap-3">
+                    <Avatar avatarId={player.avatarId ?? 1} name={player.name} tone="black" />
+                    <p className="text-headline-md-bold">{player.name}</p>
+                  </div>
+                  <p className="mt-3 text-body-semibold">{answers[player.id]}</p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-auto pt-6">
+              {isHost ? (
+                <Button onClick={() => perform("start-voting")} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Vote />} className="w-full">Start Voting</Button>
+              ) : (
+                <p className="pb-6 text-body-semibold opacity-60">Waiting for the room owner</p>
+              )}
+            </div>
+          </section>
+        </AppScreen>
+      );
+    }
+
+    if (gameState.phase === "voting" && hasVoted && allVoted) {
+      return (
+        <AppScreen tone="blue" className="!p-0">
+          <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-20 text-center">
+            <BrandNav tone="light" />
+            <h1 className="my-auto text-title-md-extrabold">All Players<br />Voted</h1>
+            {isHost ? (
+              <Button onClick={() => perform("reveal")} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Eye />} className="w-full">See Result</Button>
+            ) : (
+              <Button disabled variant="inverted" size="lg" showLeftIcon={false} className="w-full">Waiting for Host</Button>
+            )}
+          </section>
+        </AppScreen>
+      );
+    }
+
+    if (gameState.phase === "voting" && hasVoted) {
+      return (
+        <AppScreen tone="dark" className="!p-0">
+          <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-20 text-center">
+            <BrandNav tone="dark" />
+            <div className="flex flex-1 items-center">
+              <WaitingOrbit players={gameState.players} completedIds={Object.keys(gameState.votes ?? {})} title="Waiting for others" subtitle={`${voteCount}/${playerCount} Players Voted`} />
+            </div>
+            <Button disabled variant="primary" size="lg" showLeftIcon={false} className="w-full">Vote locked</Button>
+          </section>
+        </AppScreen>
+      );
+    }
+
+    if (gameState.phase === "voting") {
+      return (
+        <AppScreen tone="dark" className="!p-0">
+          <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-20">
+            <BrandNav title="Cast your Vote" tone="dark" />
+            <p className="mt-8 text-center text-body-semibold opacity-60">Who had the odd answer?</p>
+            <div className="mt-10 space-y-2">
+              {gameState.players.map((player) => (
+                <button key={player.id} type="button" onClick={() => setSelectedVote(player.id)} aria-pressed={selectedVote === player.id} className="flex h-[68px] w-full items-center justify-center gap-4 rounded-[24px] border-2 border-transparent bg-[var(--surface-primary-light)] text-headline-md-semibold transition aria-pressed:border-[var(--surface-secondary)] aria-pressed:scale-[0.99]">
+                  <Avatar avatarId={player.avatarId ?? 1} name={player.name} tone="white" />
+                  <span>{player.name}</span>
+                </button>
+              ))}
+            </div>
+            <div className="mt-auto">
+              <PlayerStatusPill players={gameState.players} completedIds={Object.keys(gameState.votes ?? {})} label={`${voteCount}/${playerCount} players voted`} />
+              <Button onClick={() => perform("vote", { targetPlayerId: selectedVote })} disabled={!selectedVote} variant="primary" size="lg" showLeftIcon={false} className="w-full">Cast Vote</Button>
+            </div>
+          </section>
+        </AppScreen>
+      );
+    }
+
+    return (
+      <AppScreen tone={answerVisible ? "blue" : "light"} className="!p-0">
+        <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-16 text-center">
+          <BrandNav title="Results" tone="light" />
+          <div className="mt-10">
+            <Avatar avatarId={(answerVisible ? gameState.players.find((player) => personal.imposterPlayerIds?.includes(player.id)) : topVotedPlayer)?.avatarId ?? 1} name={answerVisible ? revealedNames[0] : topVotedPlayer?.name} size="lg" tone={answerVisible ? "black" : "blue"} className="mx-auto !size-[132px]" />
+            {answerVisible ? (
+              <>
+                <h1 className="mt-5 text-title-lg-bold">{revealedNames.join(", ")} {revealedNames.length === 1 ? "had" : "had"} the <span className="text-[var(--surface-inverted-light)]">imposter code</span></h1>
+                <p className="mt-3 text-body-bold">Real prompt: {personal.question}</p>
+                <p className="mt-1 text-body-semibold opacity-70">Imposter prompt: {personal.imposterQuestion}</p>
+              </>
+            ) : (
+              <h1 className="mt-5 text-title-lg-bold">{topVotedPlayer?.name ?? "That player"} is <span className="text-[var(--text-highlight)]">not</span><br />the imposter</h1>
+            )}
+          </div>
+          <div className="mt-8 space-y-2">
+            {sortedPlayers.map((player) => {
+              const votes = voteTotals[player.id] ?? 0;
+              return (
+                <div key={player.id} className={`rounded-[24px] p-4 text-left ${answerVisible ? "bg-[var(--primitive-blue-800)] text-[var(--text-primary)]" : "bg-[var(--surface-inverted-light)]"} ${votes === 0 ? "opacity-40" : ""}`}>
+                  <div className="flex items-center gap-3">
+                    <Avatar avatarId={player.avatarId ?? 1} name={player.name} tone={answerVisible ? "white" : "black"} />
+                    <div>
+                      <p className="text-headline-md-semibold">{player.name}</p>
+                      <p className="text-caption-semibold text-[var(--text-highlight)]">{votes} Vote{votes === 1 ? "" : "s"}</p>
+                    </div>
+                  </div>
+                  <p className="mt-3 text-body-semibold">{answers[player.id]}</p>
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-auto grid grid-cols-2 gap-2 pt-8">
+            {isHost ? (
+              <>
+                <Button onClick={() => { setSelectedVote(""); perform("next-round"); }} variant={answerVisible ? "primary" : "inverted"} size="lg" showLeftIcon={false} showRightIcon={false}>Another Round</Button>
+                {answerVisible ? (
+                  <Button onClick={endGame} variant={answerVisible ? "primary" : "inverted"} size="lg" showLeftIcon={false} rightIcon={<Flag />}>End Game</Button>
+                ) : (
+                  <Button onClick={() => perform("reveal-answer")} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Eye />}>Reveal</Button>
+                )}
+              </>
+            ) : (
+              <Button onClick={() => router.push(`/room/${roomCode}`)} variant="inverted" size="lg" showLeftIcon={false} className="col-span-2 w-full">Leave Game</Button>
+            )}
+          </div>
+        </section>
+      </AppScreen>
+    );
+  }
+
+  if (gameState.type === "wavelength") {
+    const secretNumber = personal.secretNumber ?? gameState.secretNumber ?? 50;
+    const roundScore = gameState.guess === null || gameState.guess === undefined ? 0 : Math.max(0, 10 - Math.floor(Math.abs(secretNumber - gameState.guess) / 5));
+
+    if (gameState.phase === "clue") {
+      return (
+        <AppScreen tone="dark" className="!p-0">
+          <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-20 text-center">
+            <BrandNav title="Wavelength" tone="dark" />
+            <RadioTower className="mx-auto mt-10 text-[var(--surface-secondary)]" size={62} />
+            <p className="mt-8 text-body-semibold opacity-60">Scale</p>
+            <h1 className="mt-2 text-title-lg-bold text-[var(--text-highlight)]">{gameState.scaleLeft} ↔ {gameState.scaleRight}</h1>
+            {personal.isClueGiver ? (
+              <>
+                <div className="mt-8 rounded-[30px] bg-[var(--surface-primary-light)] p-5">
+                  <div className="flex justify-between text-footnote-semibold opacity-70"><span>{gameState.scaleLeft}</span><span>{gameState.scaleRight}</span></div>
+                  <div className="relative mt-6 h-12 rounded-full bg-[var(--surface-primary)]">
+                    {secretVisible && <div className="absolute top-1/2 h-14 w-2 -translate-y-1/2 rounded-full bg-[var(--surface-secondary)] transition-all duration-500" style={{ left: `calc(${secretNumber}% - 4px)` }} />}
+                  </div>
+                  <output className="mt-5 block text-display-md-semibold">{secretVisible ? secretNumber : "??"}</output>
+                </div>
+                <Button onClick={() => setSecretVisible((value) => !value)} variant="inverted" size="md" showLeftIcon={false} rightIcon={secretVisible ? <EyeOff /> : <Eye />} className="mx-auto mt-4">{secretVisible ? "Hide" : "Reveal"}</Button>
+                <input value={clueText} onChange={(event) => setClueText(event.target.value)} placeholder="Give a clue..." maxLength={80} className="mt-8 h-16 w-full rounded-[24px] bg-[var(--surface-primary-light)] px-5 text-center text-headline-md-bold outline-none placeholder:text-white/20 focus-visible:outline-3 focus-visible:outline-[var(--surface-secondary)]" />
+                <Button onClick={() => { perform("submit-clue", { clue: clueText }); setClueText(""); setSecretVisible(false); }} disabled={!clueText.trim()} variant="tertiary" size="lg" showLeftIcon={false} rightIcon={<Send />} className="mt-auto w-full">Send Clue</Button>
+              </>
+            ) : (
+              <>
+                <p className="mt-8 text-title-sm-bold">Waiting for {gameState.clueGiverName}</p>
+                <div className="mt-auto"><Button disabled variant="primary" size="lg" showLeftIcon={false} className="w-full">Waiting for clue</Button></div>
+              </>
+            )}
+          </section>
+        </AppScreen>
+      );
+    }
+
+    if (gameState.phase === "guess") {
+      return (
+        <AppScreen tone="blue" className="!p-0">
+          <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-16 text-center">
+            <BrandNav title="Make a Guess" tone="light" />
+            <p className="mt-10 text-body-semibold opacity-60">Clue</p>
+            <h1 className="mt-2 text-title-lg-bold">{gameState.clue}</h1>
+            <div className="mt-12 rounded-[32px] bg-[var(--surface-inverted-light)] p-5 text-[var(--text-inverted)]">
+              <div className="flex justify-between text-footnote-semibold"><span>{gameState.scaleLeft}</span><span>{gameState.scaleRight}</span></div>
+              <input type="range" min={0} max={100} value={guess} onChange={(event) => setGuess(Number(event.target.value))} className="mt-8 w-full accent-[var(--surface-secondary)]" disabled={!isHost} />
+              <output className="mt-5 block text-display-md-semibold">{guess}</output>
+            </div>
+            <div className="mt-auto">
+              {isHost ? (
+                <Button onClick={() => perform("submit-guess", { guess })} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Flag />} className="w-full">Lock Guess</Button>
+              ) : (
+                <p className="pb-6 text-body-semibold opacity-60">Room owner locks the room guess</p>
+              )}
+            </div>
+          </section>
+        </AppScreen>
+      );
+    }
+
+    return (
+      <AppScreen tone="blue" className="!p-0">
+        <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-16 text-center">
+          <BrandNav title="Results" tone="light" />
+          <h1 className="mt-12 text-title-lg-bold">{gameState.scaleLeft} ↔ {gameState.scaleRight}</h1>
+          <p className="mt-3 text-headline-md-bold">Clue: {gameState.clue}</p>
+          <div className="mt-12 rounded-[32px] bg-[var(--surface-inverted-light)] p-5 text-[var(--text-inverted)]">
+            <div className="relative h-16 rounded-full bg-[var(--surface-primary)]">
+              <div className="absolute top-1/2 h-14 w-2 -translate-y-1/2 rounded-full bg-[var(--surface-secondary)] transition-all duration-500" style={{ left: `calc(${secretNumber}% - 4px)` }} />
+              <div className="absolute top-1/2 h-10 w-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--surface-inverted)] transition-all duration-500" style={{ left: `${gameState.guess ?? 50}%` }} />
+            </div>
+            <div className="mt-5 grid grid-cols-3 gap-2 text-center">
+              <div><p className="text-caption-semibold opacity-60">Guess</p><p className="text-title-sm-bold">{gameState.guess}</p></div>
+              <div><p className="text-caption-semibold opacity-60">Answer</p><p className="text-title-sm-bold">{secretNumber}</p></div>
+              <div><p className="text-caption-semibold opacity-60">Points</p><p className="text-title-sm-bold">{roundScore}</p></div>
+            </div>
+          </div>
+          <p className="mt-8 text-title-sm-bold">Total Score: {gameState.score}</p>
+          <div className="mt-auto grid grid-cols-2 gap-2">
+            {isHost ? (
+              <>
+                <Button onClick={() => perform("next-round")} variant="primary" size="lg" showLeftIcon={false} showRightIcon={false}>Next Round</Button>
+                <Button onClick={endGame} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Flag />}>End Game</Button>
+              </>
+            ) : (
+              <Button onClick={() => router.push(`/room/${roomCode}`)} variant="inverted" size="lg" showLeftIcon={false} className="col-span-2 w-full">Leave Game</Button>
+            )}
+          </div>
+        </section>
+      </AppScreen>
+    );
+  }
 
   if (gameState.phase === "role_reveal") {
     const roleText = personal.role === "imposter" ? "IMPOSTER" : personal.word;
@@ -200,7 +498,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
             )}
             <div className="absolute left-1/2 top-[144px] flex -translate-x-1/2 items-center rounded-full bg-[var(--surface-inverted)] px-3 py-2 text-[var(--text-inverted)]">
               <div className="flex -space-x-2">
-                {gameState.players.map((player) => <span key={player.id} className={`grid size-7 place-items-center rounded-full bg-[var(--surface-inverted-light)] ${gameState.readyPlayerIds.includes(player.id) ? "opacity-100" : "opacity-20"}`}><Avatar avatarId={player.avatarId ?? 1} size="sm" /></span>)}
+                {gameState.players.map((player) => <span key={player.id} className={`grid size-7 place-items-center rounded-full bg-[var(--surface-inverted-light)] ${gameState.readyPlayerIds?.includes(player.id) ? "opacity-100" : "opacity-20"}`}><Avatar avatarId={player.avatarId ?? 1} size="sm" /></span>)}
               </div>
               <span className="ml-2 whitespace-nowrap text-caption-semibold">{readyCount}/{playerCount} players ready</span>
             </div>
@@ -276,7 +574,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
             <p className="text-title-lg-semibold tabular-nums">{formattedTime}</p>
           </div>
           <div className="flex flex-1 items-center">
-            <WaitingOrbit players={gameState.players} completedIds={Object.keys(gameState.votes)} title="Waiting for others" subtitle={`${voteCount}/${playerCount} Players Voted`} />
+            <WaitingOrbit players={gameState.players} completedIds={Object.keys(gameState.votes ?? {})} title="Waiting for others" subtitle={`${voteCount}/${playerCount} Players Voted`} />
           </div>
           <Button disabled variant="primary" size="lg" showLeftIcon={false} className="w-full">See Imposter</Button>
         </section>
@@ -308,7 +606,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
             ))}
           </div>
           <div className="mt-auto">
-            <PlayerStatusPill players={gameState.players} completedIds={Object.keys(gameState.votes)} label={`${voteCount}/${playerCount} players voted`} />
+            <PlayerStatusPill players={gameState.players} completedIds={Object.keys(gameState.votes ?? {})} label={`${voteCount}/${playerCount} players voted`} />
             <Button onClick={() => perform("vote", { targetPlayerId: selectedVote })} disabled={!selectedVote} variant="primary" size="lg" showLeftIcon={false} className="w-full">Cast Vote</Button>
           </div>
         </section>

@@ -31,8 +31,8 @@ function RoomRequiredContent() {
       onCreateRoom={() => router.push(`/create?game=${game.slug}`)}
       onJoinRoom={() => router.push(`/join?game=${game.slug}`)}
       onSingleDevice={
-        game.slug === "imposter"
-          ? () => router.push("/games/imposter/local")
+        game.supportsSingleDevice
+          ? () => router.push(`/games/${game.slug}/local`)
           : undefined
       }
     />

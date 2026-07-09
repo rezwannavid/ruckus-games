@@ -20,7 +20,7 @@ export function AppScreen({
     blue: "bg-[var(--surface-secondary)] text-[var(--text-inverted-plus)]"
   };
 
-  return <main className={`min-h-screen px-4 py-8 ${tones[tone]} ${className}`}>{children}</main>;
+  return <main className={`min-screen-safe animate-page-in px-4 pb-safe pt-safe ${tones[tone]} ${className}`}>{children}</main>;
 }
 
 export function LoadingState({ title, subtitle }: { title: string; subtitle?: string }) {
@@ -183,7 +183,7 @@ export function PlayerStatusPill({
   label: string;
 }) {
   return (
-    <div className="fixed bottom-[7.5rem] left-1/2 z-30 flex -translate-x-1/2 items-center rounded-full bg-[var(--surface-primary-light)] px-3 py-2 text-[var(--text-primary)] shadow-lg">
+    <div className="fixed bottom-[calc(var(--sticky-bottom)+6.5rem)] left-1/2 z-30 flex -translate-x-1/2 items-center rounded-full bg-[var(--surface-primary-light)] px-3 py-2 text-[var(--text-primary)] shadow-lg">
       <div className="flex -space-x-2">
         {players.slice(0, 7).map((player) => (
           <span key={player.id} className={`grid size-7 place-items-center rounded-full border border-[var(--surface-primary-light)] bg-[var(--surface-primary)] transition-opacity ${completedIds.includes(player.id) ? "opacity-100" : "opacity-20"}`}>
@@ -219,7 +219,7 @@ export function WaitingOrbit({
   return (
     <div className="relative mx-auto h-[420px] w-full max-w-[25rem]">
       {players.slice(0, 6).map((player, index) => (
-        <div key={player.id} className={`absolute ${positions[index]} animate-[pulse_2.4s_ease-in-out_infinite] ${completedIds.includes(player.id) ? "opacity-100" : "opacity-20"}`} style={{ animationDelay: `${index * 180}ms` }}>
+        <div key={player.id} className={`absolute ${positions[index]} animate-float ${completedIds.includes(player.id) ? "opacity-100" : "opacity-20"}`} style={{ animationDelay: `${index * 180}ms` }}>
           <Avatar avatarId={player.avatarId ?? 1} name={player.name} size="lg" tone="blue" />
         </div>
       ))}

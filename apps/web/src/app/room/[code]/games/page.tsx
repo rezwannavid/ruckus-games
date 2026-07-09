@@ -8,7 +8,7 @@ import { AppScreen, ErrorState, LoadingState } from "@/components/ui/GameUI";
 import { Button } from "@/components/ui/Button";
 import { BrandNav } from "@/features/lobby/components/BrandNav";
 import { GameCard } from "@/features/lobby/components/GameCard";
-import { games } from "@/features/lobby/data/games";
+import { games, playableGameSlugs } from "@/features/lobby/data/games";
 import type { Room } from "@/features/lobby/types/room";
 import { serverUrl } from "@/lib/config";
 import { getStoredSession } from "@/lib/session";
@@ -35,7 +35,7 @@ export default function RoomGamesPage({ params }: { params: Promise<{ code: stri
   }, [roomCode]);
 
   async function chooseGame(gameSlug: string) {
-    if (!currentPlayerId || !isHost || gameSlug !== "imposter") return;
+    if (!currentPlayerId || !isHost || !playableGameSlugs.has(gameSlug)) return;
     setError("");
     try {
       const response = await fetch(`${serverUrl}/rooms/${roomCode}/games/select`, {
@@ -65,7 +65,8 @@ export default function RoomGamesPage({ params }: { params: Promise<{ code: stri
             <GameCard
               key={game.slug}
               game={game}
-              disabled={!isHost || game.slug !== "imposter" || room.players.length > game.maxPlayers}
+              disabled={!isHost || !playableGameSlugs.has(game.slug) || room.players.length > game.maxPlayers}
+              comingSoon={!playableGameSlugs.has(game.slug)}
               onClick={() => chooseGame(game.slug)}
               className="w-[269px] shrink-0 snap-start md:w-full"
             />

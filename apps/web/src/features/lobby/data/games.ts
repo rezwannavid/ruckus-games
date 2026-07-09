@@ -12,56 +12,28 @@ export const games: Game[] = [
     supportsSingleDevice: true
   },
   {
-    slug: "codenames",
-    name: "Codenames",
-    description: "Give clues and guess the right words with your team.",
-    summary: "Team clue-giving for a full room.",
-    minPlayers: 4,
-    maxPlayers: 10,
-    supportsMultiplayer: true,
-    supportsSingleDevice: false
-  },
-  {
-    slug: "name-3",
-    name: "Name 3",
-    description: "Name three things before time runs out.",
-    summary: "Fast prompt rounds that work well passed around.",
+    slug: "imposter-code",
+    name: "Imposter Code",
+    description: "Question Bluffing",
+    summary: "Answer secret prompts, reveal every answer, then find the player who does not fit.",
     minPlayers: 3,
     maxPlayers: 12,
-    supportsMultiplayer: true,
-    supportsSingleDevice: true
-  },
-  {
-    slug: "passwords",
-    name: "Passwords",
-    description: "Guess the secret word from clever clues.",
-    summary: "Clue and guess word play for groups.",
-    minPlayers: 4,
-    maxPlayers: 10,
-    supportsMultiplayer: true,
-    supportsSingleDevice: false
-  },
-  {
-    slug: "fibbage",
-    name: "Fibbage",
-    description: "Make up convincing lies and spot the truth.",
-    summary: "Write lies and vote for the truth.",
-    minPlayers: 3,
-    maxPlayers: 8,
     supportsMultiplayer: true,
     supportsSingleDevice: true
   },
   {
     slug: "wavelength",
     name: "Wavelength",
-    description: "Read the room and guess where the answer lands.",
-    summary: "A shared guessing game for the whole room.",
+    description: "Clue Guessing",
+    summary: "Give a clue for a hidden number and see how close the group can land.",
     minPlayers: 2,
     maxPlayers: 12,
     supportsMultiplayer: true,
     supportsSingleDevice: true
   }
 ];
+
+export const playableGameSlugs = new Set(["imposter", "imposter-code", "wavelength"]);
 
 export function getGameBySlug(slug: string) {
   return games.find((game) => game.slug === slug);

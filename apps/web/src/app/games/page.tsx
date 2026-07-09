@@ -3,13 +3,13 @@
 import { useRouter } from "next/navigation";
 import { BrandNav } from "@/features/lobby/components/BrandNav";
 import { GameCard } from "@/features/lobby/components/GameCard";
-import { games } from "@/features/lobby/data/games";
+import { games, playableGameSlugs } from "@/features/lobby/data/games";
 
 export default function GamesListPage() {
   const router = useRouter();
 
   return (
-    <main className="min-h-screen bg-[var(--surface-primary)] px-4 py-8 text-[var(--text-primary)]">
+    <main className="min-screen-safe bg-[var(--surface-primary)] px-4 pb-safe pt-safe text-[var(--text-primary)]">
       <div className="mx-auto max-w-5xl">
         <BrandNav title="Games" onBack={() => router.push("/")} />
 
@@ -18,7 +18,8 @@ export default function GamesListPage() {
             <GameCard
               key={game.slug}
               game={game}
-              disabled={game.slug !== "imposter"}
+              disabled={!playableGameSlugs.has(game.slug)}
+              comingSoon={!playableGameSlugs.has(game.slug)}
               onClick={() => router.push(`/games/${game.slug}`)}
             />
           ))}

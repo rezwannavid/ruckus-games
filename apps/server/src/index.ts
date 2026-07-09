@@ -86,7 +86,44 @@ type ImposterGameState = {
   answerRevealed: boolean;
 };
 
-type GameState = ImposterGameState;
+type ImposterCodeGameState = {
+  type: "imposter-code";
+  playMode: "multiplayer" | "single_device";
+  phase: "answering" | "answers" | "voting" | "results";
+  players: GameParticipant[];
+  question: string;
+  imposterQuestion: string;
+  questionPack: string;
+  roundTimerSeconds: number;
+  startedAt: string;
+  endsAt: string;
+  imposterPlayerId: string;
+  imposterPlayerIds: string[];
+  numberOfImposters: number;
+  answers: Record<string, string>;
+  votes: Record<string, string>;
+  round: number;
+  answerRevealed: boolean;
+};
+
+type WavelengthGameState = {
+  type: "wavelength";
+  playMode: "multiplayer" | "single_device";
+  phase: "clue" | "guess" | "results";
+  players: GameParticipant[];
+  clueGiverId: string;
+  clueGiverName: string;
+  scaleLeft: string;
+  scaleRight: string;
+  scalePack: string;
+  secretNumber: number;
+  clue: string | null;
+  guess: number | null;
+  score: number;
+  round: number;
+};
+
+type GameState = ImposterGameState | ImposterCodeGameState | WavelengthGameState;
 
 type Room = {
   code: string;
@@ -174,37 +211,16 @@ const games: Game[] = [
     maxPlayers: 12
   },
   {
-    slug: "codenames",
-    name: "Codenames",
-    description: "Give clues and guess the right words with your team.",
-    minPlayers: 4,
-    maxPlayers: 10
-  },
-  {
-    slug: "name-3",
-    name: "Name 3",
-    description: "Name three things before time runs out.",
+    slug: "imposter-code",
+    name: "Imposter Code",
+    description: "Answer prompts, reveal responses, and find the odd one out.",
     minPlayers: 3,
     maxPlayers: 12
   },
   {
-    slug: "passwords",
-    name: "Passwords",
-    description: "Guess the secret word from clever clues.",
-    minPlayers: 4,
-    maxPlayers: 10
-  },
-  {
-    slug: "fibbage",
-    name: "Fibbage",
-    description: "Make up convincing lies and spot the truth.",
-    minPlayers: 3,
-    maxPlayers: 8
-  },
-  {
     slug: "wavelength",
     name: "Wavelength",
-    description: "Read the room and guess where the answer lands.",
+    description: "Give a clue and land closest to the secret number.",
     minPlayers: 2,
     maxPlayers: 12
   }
@@ -223,7 +239,73 @@ const imposterWordCategories: Record<string, string[]> = {
   random: ["Rainbow", "Birthday", "Thunder", "Selfie", "Dream", "Elevator", "Karaoke", "Treasure", "Wi-Fi", "Vacation", "Secret", "Magic", "Festival", "Robot", "Midnight"]
 };
 
-function pickRandomItem<T>(items: T[]) {
+const imposterCodePromptPacks: Record<string, Array<{ question: string; imposterQuestion: string }>> = {
+  casual: [
+    { question: "What would you bring to a beach day?", imposterQuestion: "What would you bring to a snowstorm?" },
+    { question: "What app do you open when you are bored?", imposterQuestion: "What app do you open when you are lost?" },
+    { question: "What object would survive a power cut?", imposterQuestion: "What object would make a power cut worse?" }
+  ],
+  food: [
+    { question: "What food belongs at a birthday party?", imposterQuestion: "What food belongs in a lunchbox?" },
+    { question: "What snack disappears first at a hangout?", imposterQuestion: "What snack survives until the end?" },
+    { question: "What drink feels refreshing in summer?", imposterQuestion: "What drink feels cozy in winter?" }
+  ],
+  school: [
+    { question: "What subject creates the most homework?", imposterQuestion: "What subject creates the least homework?" },
+    { question: "What item saves you before an exam?", imposterQuestion: "What item distracts you before an exam?" },
+    { question: "What excuse sounds believable to a teacher?", imposterQuestion: "What excuse sounds suspicious to a teacher?" }
+  ],
+  work: [
+    { question: "What meeting should have been an email?", imposterQuestion: "What email should have been a meeting?" },
+    { question: "What tool makes work faster?", imposterQuestion: "What tool makes work slower?" },
+    { question: "What office habit is quietly annoying?", imposterQuestion: "What office habit is secretly helpful?" }
+  ],
+  relationships: [
+    { question: "What is a green flag in a friend?", imposterQuestion: "What is a red flag in a friend?" },
+    { question: "What gift feels thoughtful?", imposterQuestion: "What gift feels lazy?" },
+    { question: "What message is nice to wake up to?", imposterQuestion: "What message is stressful to wake up to?" }
+  ],
+  travel: [
+    { question: "What belongs in a carry-on bag?", imposterQuestion: "What belongs in checked luggage?" },
+    { question: "What city activity is worth the money?", imposterQuestion: "What city activity is overrated?" },
+    { question: "What makes a road trip better?", imposterQuestion: "What ruins a road trip?" }
+  ],
+  party: [
+    { question: "What game starts a party quickly?", imposterQuestion: "What game slows a party down?" },
+    { question: "What song gets everyone moving?", imposterQuestion: "What song clears the room?" },
+    { question: "What item should every party have?", imposterQuestion: "What item makes a party awkward?" }
+  ],
+  deep: [
+    { question: "What do people pretend not to care about?", imposterQuestion: "What do people care about too much?" },
+    { question: "What makes someone trustworthy?", imposterQuestion: "What makes someone hard to trust?" },
+    { question: "What memory would you replay?", imposterQuestion: "What memory would you erase?" }
+  ],
+  funny: [
+    { question: "What animal would be a chaotic roommate?", imposterQuestion: "What animal would be a calm roommate?" },
+    { question: "What object would be funniest if it talked?", imposterQuestion: "What object would be terrifying if it talked?" },
+    { question: "What job would be hardest to fake?", imposterQuestion: "What job sounds easiest to fake?" }
+  ],
+  desi: [
+    { question: "What snack belongs with cha?", imposterQuestion: "What snack belongs with a cold drink?" },
+    { question: "What Eid plan sounds fun?", imposterQuestion: "What Eid plan sounds exhausting?" },
+    { question: "What Dhaka traffic survival item helps most?", imposterQuestion: "What item is useless in Dhaka traffic?" }
+  ]
+};
+
+const wavelengthScalePacks: Record<string, Array<readonly [string, string]>> = {
+  casual: [["Cold", "Hot"], ["Safe", "Risky"], ["Cheap", "Expensive"], ["Quiet", "Loud"], ["Boring", "Exciting"]],
+  food: [["Street Food", "Fine Dining"], ["Bland", "Spicy"], ["Snack", "Full Meal"], ["Healthy", "Junk Food"], ["Dry", "Saucy"]],
+  movies: [["Realistic", "Fantasy"], ["Slow", "Fast"], ["Funny", "Serious"], ["Underrated", "Overrated"], ["Comfort Watch", "Stress Watch"]],
+  music: [["Soft", "Loud"], ["Old", "New"], ["Chill", "Hype"], ["Solo Song", "Party Song"], ["Simple", "Dramatic"]],
+  school: [["Easy", "Hard"], ["Useful", "Useless"], ["Strict", "Relaxed"], ["Quiet Class", "Chaotic Class"], ["Memorize", "Understand"]],
+  work: [["Focused", "Distracting"], ["Quick Task", "Long Task"], ["Helpful", "Annoying"], ["Casual", "Formal"], ["Clear", "Confusing"]],
+  relationships: [["Green Flag", "Red Flag"], ["Introvert", "Extrovert"], ["Low Effort", "High Effort"], ["Honest", "Tactful"], ["Relaxing", "Chaotic"]],
+  party: [["Awkward", "Fun"], ["Chill", "Wild"], ["Small Group", "Big Crowd"], ["Early Night", "Late Night"], ["Background Song", "Main Character Song"]],
+  desi: [["Rickshaw", "Uber"], ["Cha", "Coffee"], ["Calm Bazaar", "Chaotic Bazaar"], ["Home Food", "Restaurant Food"], ["Relaxing Adda", "Loud Adda"]],
+  weird: [["Normal", "Weird"], ["Tiny", "Huge"], ["Useful", "Cursed"], ["Cute", "Terrifying"], ["Reasonable", "Unhinged"]]
+};
+
+function pickRandomItem<T>(items: readonly T[]) {
   return items[Math.floor(Math.random() * items.length)];
 }
 
@@ -262,6 +344,22 @@ function getImposterWordList(category: unknown) {
   return {
     category,
     words
+  };
+}
+
+function getImposterCodePromptList(pack: unknown) {
+  const packName = typeof pack === "string" && imposterCodePromptPacks[pack] ? pack : "casual";
+  return {
+    pack: packName,
+    prompts: imposterCodePromptPacks[packName]
+  };
+}
+
+function getWavelengthScaleList(pack: unknown) {
+  const packName = typeof pack === "string" && wavelengthScalePacks[pack] ? pack : "casual";
+  return {
+    pack: packName,
+    scales: wavelengthScalePacks[packName]
   };
 }
 
@@ -351,6 +449,95 @@ function resetImposterRound(state: ImposterGameState) {
   state.votes = {};
   state.answerRevealed = false;
   state.round += 1;
+}
+
+function createImposterCodeState(
+  gameParticipants: GameParticipant[],
+  playMode: "multiplayer" | "single_device",
+  round = 1,
+  numberOfImposters = 1,
+  questionPack: unknown = "casual"
+): ImposterCodeGameState {
+  const { pack, prompts } = getImposterCodePromptList(questionPack);
+  const prompt = pickRandomItem(prompts);
+  const imposters = pickRandomItems(
+    gameParticipants,
+    getNumberSetting(numberOfImposters, 1, 1, Math.max(1, gameParticipants.length - 1))
+  );
+  const startedAt = new Date();
+  const roundTimerSeconds = 90;
+
+  return {
+    type: "imposter-code",
+    playMode,
+    phase: "answering",
+    players: gameParticipants,
+    question: prompt.question,
+    imposterQuestion: prompt.imposterQuestion,
+    questionPack: pack,
+    roundTimerSeconds,
+    startedAt: startedAt.toISOString(),
+    endsAt: new Date(startedAt.getTime() + roundTimerSeconds * 1000).toISOString(),
+    imposterPlayerId: imposters[0].id,
+    imposterPlayerIds: imposters.map((imposter) => imposter.id),
+    numberOfImposters: imposters.length,
+    answers: {},
+    votes: {},
+    round,
+    answerRevealed: false
+  };
+}
+
+function createWavelengthState(
+  gameParticipants: GameParticipant[],
+  playMode: "multiplayer" | "single_device",
+  round = 1,
+  score = 0,
+  scalePack: unknown = "casual"
+): WavelengthGameState {
+  const clueGiver = gameParticipants[(round - 1) % gameParticipants.length];
+  const { pack, scales } = getWavelengthScaleList(scalePack);
+  const [scaleLeft, scaleRight] = pickRandomItem(scales);
+
+  return {
+    type: "wavelength",
+    playMode,
+    phase: "clue",
+    players: gameParticipants,
+    clueGiverId: clueGiver.id,
+    clueGiverName: clueGiver.name,
+    scaleLeft,
+    scaleRight,
+    scalePack: pack,
+    secretNumber: Math.floor(Math.random() * 101),
+    clue: null,
+    guess: null,
+    score,
+    round
+  };
+}
+
+function getImposterCodeOutcome(state: ImposterCodeGameState) {
+  const totals: Record<string, number> = {};
+  Object.values(state.votes).forEach((targetId) => {
+    totals[targetId] = (totals[targetId] ?? 0) + 1;
+  });
+  const highestVoteCount = Math.max(0, ...Object.values(totals));
+  const topVotedPlayerIds = Object.entries(totals)
+    .filter(([, count]) => count === highestVoteCount)
+    .map(([playerId]) => playerId);
+  const caughtImposter =
+    highestVoteCount > 0 &&
+    topVotedPlayerIds.length === 1 &&
+    state.imposterPlayerIds.includes(topVotedPlayerIds[0]);
+
+  return { totals, highestVoteCount, topVotedPlayerIds, caughtImposter };
+}
+
+function getWavelengthRoundScore(secretNumber: number, guess: number | null) {
+  if (guess === null) return 0;
+  const distance = Math.abs(secretNumber - guess);
+  return Math.max(0, 10 - Math.floor(distance / 5));
 }
 
 function generateRoomCode() {
@@ -656,7 +843,7 @@ app.post("/rooms/:code/games/start", (req, res) => {
   const playMode = getPlayModeSetting(settings?.playMode);
   const manualParticipants = getManualParticipants(settings?.manualPlayers);
   const gameParticipants: GameParticipant[] =
-    room.selectedGame.slug === "imposter" && playMode === "single_device"
+    ["imposter", "imposter-code", "wavelength"].includes(room.selectedGame.slug) && playMode === "single_device"
       ? manualParticipants
       : getRoomParticipants(room);
 
@@ -714,6 +901,29 @@ app.post("/rooms/:code/games/start", (req, res) => {
       numberOfImposters,
       answerRevealed: false
     };
+  } else if (room.selectedGame.slug === "imposter-code") {
+    const maxImposters = Math.max(1, gameParticipants.length - 1);
+    const numberOfImposters = getNumberSetting(
+      settings?.numberOfImposters,
+      1,
+      1,
+      maxImposters
+    );
+    room.gameState = createImposterCodeState(
+      gameParticipants,
+      playMode,
+      1,
+      numberOfImposters,
+      settings?.questionPack
+    );
+  } else if (room.selectedGame.slug === "wavelength") {
+    room.gameState = createWavelengthState(
+      gameParticipants,
+      playMode,
+      1,
+      0,
+      settings?.scalePack
+    );
   } else {
     room.gameState = undefined;
   }
@@ -993,6 +1203,212 @@ app.post("/rooms/:code/games/imposter/reveal-answer", (req, res) => {
   return res.json({ room, reveal });
 });
 
+app.post("/rooms/:code/games/imposter-code/submit-answer", (req, res) => {
+  const code = req.params.code.toUpperCase();
+  const { playerId, answer } = req.body as { playerId?: string; answer?: string };
+  const room = rooms.get(code);
+
+  if (!room) return res.status(404).json({ message: "Room not found." });
+  if (!playerId || !answer?.trim()) return res.status(400).json({ message: "Answer is required." });
+  if (!room.gameState || room.gameState.type !== "imposter-code" || room.gameState.phase !== "answering") {
+    return res.status(400).json({ message: "Answers are not being collected." });
+  }
+  if (!room.gameState.players.some((player) => player.id === playerId)) {
+    return res.status(404).json({ message: "Player not found in this game." });
+  }
+
+  room.gameState.answers[playerId] = answer.trim().slice(0, 120);
+  if (Object.keys(room.gameState.answers).length >= room.gameState.players.length) {
+    room.gameState.phase = "answers";
+  }
+  rooms.set(code, room);
+  saveRooms();
+  io.to(code).emit("room:state", room);
+  return res.json({ room });
+});
+
+app.post("/rooms/:code/games/imposter-code/start-voting", (req, res) => {
+  const code = req.params.code.toUpperCase();
+  const { playerId } = req.body as { playerId?: string };
+  const room = rooms.get(code);
+  const player = room?.players.find((roomPlayer) => roomPlayer.id === playerId);
+
+  if (!room) return res.status(404).json({ message: "Room not found." });
+  if (!player?.isHost) return res.status(403).json({ message: "Only the host can start voting." });
+  if (!room.gameState || room.gameState.type !== "imposter-code" || room.gameState.phase !== "answers") {
+    return res.status(400).json({ message: "Answers are not ready." });
+  }
+
+  room.gameState.phase = "voting";
+  room.gameState.votes = {};
+  rooms.set(code, room);
+  saveRooms();
+  io.to(code).emit("room:state", room);
+  return res.json({ room });
+});
+
+app.post("/rooms/:code/games/imposter-code/vote", (req, res) => {
+  const code = req.params.code.toUpperCase();
+  const { playerId, targetPlayerId } = req.body as { playerId?: string; targetPlayerId?: string };
+  const room = rooms.get(code);
+
+  if (!room) return res.status(404).json({ message: "Room not found." });
+  if (!playerId || !targetPlayerId) return res.status(400).json({ message: "Player and vote target are required." });
+  if (!room.gameState || room.gameState.type !== "imposter-code" || room.gameState.phase !== "voting") {
+    return res.status(400).json({ message: "Voting is not active." });
+  }
+  if (!room.gameState.players.some((player) => player.id === playerId)) {
+    return res.status(404).json({ message: "Player not found in this game." });
+  }
+  if (!room.gameState.players.some((player) => player.id === targetPlayerId)) {
+    return res.status(404).json({ message: "Vote target not found." });
+  }
+
+  room.gameState.votes[playerId] = targetPlayerId;
+  rooms.set(code, room);
+  saveRooms();
+  io.to(code).emit("room:state", room);
+  return res.json({ room });
+});
+
+app.post("/rooms/:code/games/imposter-code/reveal", (req, res) => {
+  const code = req.params.code.toUpperCase();
+  const { playerId } = req.body as { playerId?: string };
+  const room = rooms.get(code);
+  const player = room?.players.find((roomPlayer) => roomPlayer.id === playerId);
+
+  if (!room) return res.status(404).json({ message: "Room not found." });
+  if (!player?.isHost) return res.status(403).json({ message: "Only the host can reveal results." });
+  if (!room.gameState || room.gameState.type !== "imposter-code" || room.gameState.phase !== "voting") {
+    return res.status(400).json({ message: "Voting is not active." });
+  }
+  if (Object.keys(room.gameState.votes).length < room.gameState.players.length) {
+    return res.status(400).json({ message: "Wait until every player votes." });
+  }
+
+  const outcome = getImposterCodeOutcome(room.gameState);
+  room.gameState.phase = "results";
+  room.gameState.answerRevealed = outcome.caughtImposter;
+  rooms.set(code, room);
+  saveRooms();
+  io.to(code).emit("room:state", room);
+  return res.json({ room, outcome });
+});
+
+app.post("/rooms/:code/games/imposter-code/reveal-answer", (req, res) => {
+  const code = req.params.code.toUpperCase();
+  const { playerId } = req.body as { playerId?: string };
+  const room = rooms.get(code);
+  const player = room?.players.find((roomPlayer) => roomPlayer.id === playerId);
+
+  if (!room) return res.status(404).json({ message: "Room not found." });
+  if (!player?.isHost) return res.status(403).json({ message: "Only the host can reveal the answer." });
+  if (!room.gameState || room.gameState.type !== "imposter-code" || room.gameState.phase !== "results") {
+    return res.status(400).json({ message: "Results are not available." });
+  }
+
+  room.gameState.answerRevealed = true;
+  rooms.set(code, room);
+  saveRooms();
+  io.to(code).emit("room:state", room);
+  return res.json({ room });
+});
+
+app.post("/rooms/:code/games/imposter-code/next-round", (req, res) => {
+  const code = req.params.code.toUpperCase();
+  const { playerId } = req.body as { playerId?: string };
+  const room = rooms.get(code);
+  const player = room?.players.find((roomPlayer) => roomPlayer.id === playerId);
+
+  if (!room) return res.status(404).json({ message: "Room not found." });
+  if (!player?.isHost) return res.status(403).json({ message: "Only the host can start another round." });
+  if (!room.gameState || room.gameState.type !== "imposter-code") {
+    return res.status(400).json({ message: "Imposter Code state not available." });
+  }
+
+  room.gameState = createImposterCodeState(
+    room.gameState.players,
+    room.gameState.playMode,
+    room.gameState.round + 1,
+    room.gameState.numberOfImposters,
+    room.gameState.questionPack
+  );
+  rooms.set(code, room);
+  saveRooms();
+  io.to(code).emit("room:state", room);
+  return res.json({ room });
+});
+
+app.post("/rooms/:code/games/wavelength/submit-clue", (req, res) => {
+  const code = req.params.code.toUpperCase();
+  const { playerId, clue } = req.body as { playerId?: string; clue?: string };
+  const room = rooms.get(code);
+
+  if (!room) return res.status(404).json({ message: "Room not found." });
+  if (!playerId || !clue?.trim()) return res.status(400).json({ message: "Clue is required." });
+  if (!room.gameState || room.gameState.type !== "wavelength" || room.gameState.phase !== "clue") {
+    return res.status(400).json({ message: "Clues are not being collected." });
+  }
+  if (room.gameState.clueGiverId !== playerId) {
+    return res.status(403).json({ message: "Only the clue-giver can submit the clue." });
+  }
+
+  room.gameState.clue = clue.trim().slice(0, 80);
+  room.gameState.phase = "guess";
+  rooms.set(code, room);
+  saveRooms();
+  io.to(code).emit("room:state", room);
+  return res.json({ room });
+});
+
+app.post("/rooms/:code/games/wavelength/submit-guess", (req, res) => {
+  const code = req.params.code.toUpperCase();
+  const { playerId, guess } = req.body as { playerId?: string; guess?: number };
+  const room = rooms.get(code);
+  const player = room?.players.find((roomPlayer) => roomPlayer.id === playerId);
+
+  if (!room) return res.status(404).json({ message: "Room not found." });
+  if (!player?.isHost) return res.status(403).json({ message: "Only the host can lock the guess." });
+  if (!room.gameState || room.gameState.type !== "wavelength" || room.gameState.phase !== "guess") {
+    return res.status(400).json({ message: "Guessing is not active." });
+  }
+
+  const nextGuess = getNumberSetting(guess, 50, 0, 100);
+  const roundScore = getWavelengthRoundScore(room.gameState.secretNumber, nextGuess);
+  room.gameState.guess = nextGuess;
+  room.gameState.score += roundScore;
+  room.gameState.phase = "results";
+  rooms.set(code, room);
+  saveRooms();
+  io.to(code).emit("room:state", room);
+  return res.json({ room, roundScore });
+});
+
+app.post("/rooms/:code/games/wavelength/next-round", (req, res) => {
+  const code = req.params.code.toUpperCase();
+  const { playerId } = req.body as { playerId?: string };
+  const room = rooms.get(code);
+  const player = room?.players.find((roomPlayer) => roomPlayer.id === playerId);
+
+  if (!room) return res.status(404).json({ message: "Room not found." });
+  if (!player?.isHost) return res.status(403).json({ message: "Only the host can start another round." });
+  if (!room.gameState || room.gameState.type !== "wavelength") {
+    return res.status(400).json({ message: "Wavelength state not available." });
+  }
+
+  room.gameState = createWavelengthState(
+    room.gameState.players,
+    room.gameState.playMode,
+    room.gameState.round + 1,
+    room.gameState.score,
+    room.gameState.scalePack
+  );
+  rooms.set(code, room);
+  saveRooms();
+  io.to(code).emit("room:state", room);
+  return res.json({ room });
+});
+
 app.get("/rooms/:code/game-state/:playerId", (req, res) => {
   const code = req.params.code.toUpperCase();
   const { playerId } = req.params;
@@ -1078,6 +1494,83 @@ app.get("/rooms/:code/game-state/:playerId", (req, res) => {
       imposterPlayerIds: null,
       imposterPlayerNames: null,
       ...sharedState
+    });
+  }
+
+  if (room.gameState.type === "imposter-code") {
+    const gameParticipants = room.gameState.players ?? getRoomParticipants(room);
+    const player =
+      room.gameState.playMode === "single_device"
+        ? gameParticipants.find((gameParticipant) => gameParticipant.id === playerId)
+        : roomPlayer;
+
+    if (!player) {
+      return res.status(404).json({ message: "Player not found in this game." });
+    }
+
+    const imposterIds = room.gameState.imposterPlayerIds ?? [room.gameState.imposterPlayerId];
+    const isImposter = imposterIds.includes(player.id);
+    const outcome = room.gameState.phase === "results" ? getImposterCodeOutcome(room.gameState) : null;
+    const answerVisible = Boolean(room.gameState.answerRevealed || outcome?.caughtImposter);
+    const imposters = gameParticipants.filter((gameParticipant) =>
+      imposterIds.includes(gameParticipant.id)
+    );
+
+    return res.json({
+      gameSlug: room.selectedGame.slug,
+      playMode: room.gameState.playMode,
+      type: room.gameState.type,
+      players: gameParticipants,
+      phase: room.gameState.phase,
+      role: isImposter ? "imposter" : "player",
+      prompt: isImposter ? room.gameState.imposterQuestion : room.gameState.question,
+      question: room.gameState.phase === "answering" ? null : room.gameState.question,
+      imposterQuestion: answerVisible ? room.gameState.imposterQuestion : null,
+      questionPack: room.gameState.questionPack,
+      numberOfImposters: room.gameState.numberOfImposters,
+      roundTimerSeconds: room.gameState.roundTimerSeconds,
+      startedAt: room.gameState.startedAt,
+      endsAt: room.gameState.endsAt,
+      answers: room.gameState.phase === "answering" ? {} : room.gameState.answers,
+      votes: room.gameState.votes,
+      round: room.gameState.round,
+      answerRevealed: room.gameState.answerRevealed,
+      imposterPlayerIds: answerVisible ? imposterIds : null,
+      imposterPlayerNames: answerVisible ? imposters.map((imposterPlayer) => imposterPlayer.name) : null,
+      caughtImposter: outcome?.caughtImposter ?? false,
+      topVotedPlayerIds: outcome?.topVotedPlayerIds ?? []
+    });
+  }
+
+  if (room.gameState.type === "wavelength") {
+    const gameParticipants = room.gameState.players ?? getRoomParticipants(room);
+    const player =
+      room.gameState.playMode === "single_device"
+        ? gameParticipants.find((gameParticipant) => gameParticipant.id === playerId)
+        : roomPlayer;
+
+    if (!player) {
+      return res.status(404).json({ message: "Player not found in this game." });
+    }
+
+    const isClueGiver = room.gameState.clueGiverId === player.id;
+    return res.json({
+      gameSlug: room.selectedGame.slug,
+      playMode: room.gameState.playMode,
+      type: room.gameState.type,
+      players: gameParticipants,
+      phase: room.gameState.phase,
+      clueGiverId: room.gameState.clueGiverId,
+      clueGiverName: room.gameState.clueGiverName,
+      isClueGiver,
+      scaleLeft: room.gameState.scaleLeft,
+      scaleRight: room.gameState.scaleRight,
+      scalePack: room.gameState.scalePack,
+      secretNumber: isClueGiver || room.gameState.phase === "results" ? room.gameState.secretNumber : null,
+      clue: room.gameState.clue,
+      guess: room.gameState.guess,
+      score: room.gameState.score,
+      round: room.gameState.round
     });
   }
 

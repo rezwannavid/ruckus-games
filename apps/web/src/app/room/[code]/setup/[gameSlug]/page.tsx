@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { io } from "socket.io-client";
-import { BriefcaseBusiness, MapPin, Minus, Play, Plus, Shapes, Shuffle, Skull, Utensils } from "lucide-react";
+import { BriefcaseBusiness, Braces, MapPin, Minus, Play, Plus, RadioTower, Shapes, Shuffle, Skull, Utensils } from "lucide-react";
 import { Avatar } from "@/components/ui/AvatarPicker";
 import { Button } from "@/components/ui/Button";
 import { ErrorState, LoadingState, AppScreen } from "@/components/ui/GameUI";
@@ -11,6 +11,40 @@ import { BrandNav } from "@/features/lobby/components/BrandNav";
 import type { Room } from "@/features/lobby/types/room";
 import { serverUrl } from "@/lib/config";
 import { clearRoomSession, getStoredSession } from "@/lib/session";
+
+const imposterPacks = [
+  ["random", "Random", Shuffle],
+  ["objects", "Things", Shapes],
+  ["food", "Food", Utensils],
+  ["places", "Places", MapPin],
+  ["jobs", "Jobs", BriefcaseBusiness]
+] as const;
+
+const imposterCodePacks = [
+  ["casual", "Casual", Shuffle],
+  ["food", "Food", Utensils],
+  ["school", "School", Shapes],
+  ["work", "Work", BriefcaseBusiness],
+  ["relationships", "Friends", Shapes],
+  ["travel", "Travel", MapPin],
+  ["party", "Party", Play],
+  ["deep", "Deep", Braces],
+  ["funny", "Funny", Shuffle],
+  ["desi", "Desi", MapPin]
+] as const;
+
+const wavelengthPacks = [
+  ["casual", "Casual", Shuffle],
+  ["food", "Food", Utensils],
+  ["movies", "Movies", Play],
+  ["music", "Music", RadioTower],
+  ["school", "School", Shapes],
+  ["work", "Work", BriefcaseBusiness],
+  ["relationships", "Friends", Shapes],
+  ["party", "Party", Play],
+  ["desi", "Desi", MapPin],
+  ["weird", "Weird", Shuffle]
+] as const;
 
 export default function GameSetupPage({ params }: { params: Promise<{ code: string; gameSlug: string }> }) {
   const router = useRouter();
@@ -21,6 +55,8 @@ export default function GameSetupPage({ params }: { params: Promise<{ code: stri
   const [numberOfImposters, setNumberOfImposters] = useState(1);
   const [roundTimer] = useState(90);
   const [wordCategory, setWordCategory] = useState("random");
+  const [questionPack, setQuestionPack] = useState("casual");
+  const [scalePack, setScalePack] = useState("casual");
   const [hintsEnabled, setHintsEnabled] = useState(true);
   const [error, setError] = useState("");
   const [isStarting, setIsStarting] = useState(false);
@@ -29,6 +65,9 @@ export default function GameSetupPage({ params }: { params: Promise<{ code: stri
   const isHost = Boolean(currentPlayer?.isHost);
   const selectedGame = room?.selectedGame;
   const enoughPlayers = Boolean(selectedGame && room && room.players.length >= selectedGame.minPlayers);
+  const isImposterSetup = selectedGame?.slug === "imposter";
+  const isImposterFamily = selectedGame?.slug === "imposter" || selectedGame?.slug === "imposter-code";
+  const maxImposters = Math.max(1, (room?.players.length ?? 2) - 1);
 
   useEffect(() => {
     if (!currentPlayerId) router.replace(`/room/${roomCode}`);
@@ -71,6 +110,8 @@ export default function GameSetupPage({ params }: { params: Promise<{ code: stri
             numberOfImposters,
             roundTimer,
             wordCategory,
+            questionPack,
+            scalePack,
             hintsEnabled
           }
         })
@@ -97,9 +138,9 @@ export default function GameSetupPage({ params }: { params: Promise<{ code: stri
 
   return (
     <AppScreen tone="dark" className="overflow-hidden pb-4">
-      <div className="mx-auto flex min-h-[calc(100vh-3rem)] max-w-[25rem] flex-col">
+      <div className="mx-auto flex min-h-[calc(100dvh-3rem-var(--safe-bottom)-var(--safe-top))] max-w-[25rem] flex-col">
         <div className="flex items-start justify-between gap-3">
-          <BrandNav title="Imposter Game Rules" tone="dark" onBack={() => router.push(`/room/${roomCode}`)} />
+          <BrandNav title={`${selectedGame.name} Setup`} tone="dark" onBack={() => router.push(`/room/${roomCode}`)} />
           <Button onClick={() => router.push(`/room/${roomCode}`)} variant="inverted" size="md" showLeftIcon={false} rightIcon={<Skull size={17} />}>End Room</Button>
         </div>
 
@@ -109,32 +150,57 @@ export default function GameSetupPage({ params }: { params: Promise<{ code: stri
             <span className="text-title-sm-bold">{room.players.length}</span>
             <span className="ml-3 text-title-sm-bold">→</span>
           </button>
-          <div className="flex h-[60px] items-center rounded-[24px] bg-[var(--surface-primary-light)] px-5">
-            <span className="flex-1 text-body-bold">Imposters</span>
-            <button type="button" aria-label="Decrease imposters" onClick={() => setNumberOfImposters((value) => Math.max(1, value - 1))} disabled={numberOfImposters <= 1} className="grid size-10 place-items-center rounded-full bg-[var(--surface-primary)] disabled:opacity-30"><Minus size={19} /></button>
-            <output className="w-12 text-center text-title-sm-bold">{numberOfImposters}</output>
-            <button type="button" aria-label="Increase imposters" onClick={() => setNumberOfImposters((value) => Math.min(room.players.length - 1, value + 1))} disabled={numberOfImposters >= room.players.length - 1} className="grid size-10 place-items-center rounded-full bg-[var(--surface-primary)] disabled:opacity-30"><Plus size={19} /></button>
-          </div>
-          <label className="flex h-[60px] items-center rounded-[24px] bg-[var(--surface-primary-light)] px-5">
-            <span className="flex-1 text-body-bold">Hint for Imposters</span>
-            <input type="checkbox" checked={hintsEnabled} onChange={(event) => setHintsEnabled(event.target.checked)} className="peer sr-only" />
-            <span className="relative h-10 w-[74px] rounded-full bg-[var(--surface-primary)] peer-focus-visible:outline-2 peer-focus-visible:outline-[var(--surface-secondary)] after:absolute after:left-3 after:top-[17px] after:h-2 after:w-6 after:rounded-full after:bg-white/25 peer-checked:after:left-[38px] peer-checked:after:bg-[var(--surface-secondary)]" />
-          </label>
+          {isImposterFamily ? (
+            <>
+              <div className="flex h-[60px] items-center rounded-[24px] bg-[var(--surface-primary-light)] px-5">
+                <span className="flex-1 text-body-bold">Imposter{numberOfImposters === 1 ? "" : "s"}</span>
+                <button type="button" aria-label="Decrease imposters" onClick={() => setNumberOfImposters((value) => Math.max(1, value - 1))} disabled={numberOfImposters <= 1} className="grid size-10 place-items-center rounded-full bg-[var(--surface-primary)] disabled:opacity-30"><Minus size={19} /></button>
+                <output className="w-12 text-center text-title-sm-bold">{numberOfImposters}</output>
+                <button type="button" aria-label="Increase imposters" onClick={() => setNumberOfImposters((value) => Math.min(maxImposters, value + 1))} disabled={numberOfImposters >= maxImposters} className="grid size-10 place-items-center rounded-full bg-[var(--surface-primary)] disabled:opacity-30"><Plus size={19} /></button>
+              </div>
+              {isImposterSetup && (
+                <label className="flex h-[60px] items-center rounded-[24px] bg-[var(--surface-primary-light)] px-5">
+                  <span className="flex-1 text-body-bold">Hint for Imposters</span>
+                  <input type="checkbox" checked={hintsEnabled} onChange={(event) => setHintsEnabled(event.target.checked)} className="peer sr-only" />
+                  <span className="relative h-10 w-[74px] rounded-full bg-[var(--surface-primary)] peer-focus-visible:outline-2 peer-focus-visible:outline-[var(--surface-secondary)] after:absolute after:left-3 after:top-[17px] after:h-2 after:w-6 after:rounded-full after:bg-white/25 peer-checked:after:left-[38px] peer-checked:after:bg-[var(--surface-secondary)]" />
+                </label>
+              )}
+            </>
+          ) : (
+            <div className="rounded-[32px] bg-[var(--surface-primary-light)] p-6 text-center">
+              {selectedGame.slug === "imposter-code" ? <Braces className="mx-auto text-[var(--surface-secondary)]" size={58} /> : <RadioTower className="mx-auto text-[var(--surface-secondary)]" size={58} />}
+              <h2 className="mt-4 text-title-sm-bold">{selectedGame.name}</h2>
+              <p className="mt-2 text-body-medium opacity-70">
+                {selectedGame.slug === "imposter-code"
+                  ? "Players privately answer prompts, reveal every answer together, then vote for the odd response."
+                  : "One clue-giver sees a secret number, gives a clue, and the room lands a guess on the scale."}
+              </p>
+            </div>
+          )}
         </section>
 
         <section className="mt-6">
           <h2 className="text-center text-body-regular">Game Pack</h2>
           <div className="-mx-4 mt-4 flex snap-x gap-3 overflow-x-auto px-[112px] pb-3 [scrollbar-width:none]">
-            {[
-              ["random", "Random", Shuffle],
-              ["objects", "Things", Shapes],
-              ["food", "Food", Utensils],
-              ["places", "Places", MapPin],
-              ["jobs", "Jobs", BriefcaseBusiness]
-            ].map(([value, label, Icon]) => {
-              const selected = wordCategory === value;
+            {(selectedGame.slug === "imposter" ? imposterPacks : selectedGame.slug === "imposter-code" ? imposterCodePacks : wavelengthPacks).map(([value, label, Icon]) => {
+              const selected =
+                selectedGame.slug === "imposter"
+                  ? wordCategory === value
+                  : selectedGame.slug === "imposter-code"
+                    ? questionPack === value
+                    : scalePack === value;
               return (
-                <button key={String(value)} type="button" onClick={() => setWordCategory(String(value))} aria-pressed={selected} className={`flex h-[182px] w-[180px] shrink-0 snap-center flex-col items-center justify-center rounded-[40px] border-2 border-transparent ${selected ? "bg-[var(--surface-inverted)] text-[var(--text-inverted)]" : "bg-[var(--surface-primary-light)] text-[var(--text-primary)]"}`}>
+                <button
+                  key={String(value)}
+                  type="button"
+                  onClick={() => {
+                    if (selectedGame.slug === "imposter") setWordCategory(String(value));
+                    else if (selectedGame.slug === "imposter-code") setQuestionPack(String(value));
+                    else setScalePack(String(value));
+                  }}
+                  aria-pressed={selected}
+                  className={`flex h-[182px] w-[180px] shrink-0 snap-center flex-col items-center justify-center rounded-[40px] border-2 border-transparent transition aria-pressed:scale-[1.02] ${selected ? "bg-[var(--surface-inverted)] text-[var(--text-inverted)]" : "bg-[var(--surface-primary-light)] text-[var(--text-primary)]"}`}
+                >
                   <Icon size={62} strokeWidth={2.5} className={selected ? "text-[var(--surface-secondary)]" : ""} />
                   <span className="mt-4 text-headline-md-bold">{String(label)}</span>
                 </button>

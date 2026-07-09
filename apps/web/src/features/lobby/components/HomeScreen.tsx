@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/Button";
 import { GameCard } from "@/features/lobby/components/GameCard";
 import { DoorOpen, LogIn } from "lucide-react";
 import Image from "next/image";
-import { games } from "@/features/lobby/data/games";
+import { games, playableGameSlugs } from "@/features/lobby/data/games";
 
 type HomeScreenProps = {
   onCreateRoom: () => void;
@@ -22,8 +22,8 @@ export function HomeScreen({
   error
 }: HomeScreenProps) {
   return (
-    <main className="min-h-screen overflow-x-hidden bg-[var(--surface-primary)] px-4 pb-8 pt-12 text-[var(--text-primary)]">
-      <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-6xl flex-col">
+    <main className="min-screen-safe overflow-x-hidden bg-[var(--surface-primary)] px-4 pb-safe pt-safe text-[var(--text-primary)]">
+      <div className="mx-auto flex min-h-[calc(100dvh-5rem-var(--safe-bottom)-var(--safe-top))] max-w-6xl flex-col">
         <section className="flex flex-col items-center gap-5 text-center">
           <Image src="/logo-main-light.svg" alt="Ruckus Games" width={129} height={20} priority className="h-auto w-[129px]" />
           <h1 className="max-w-[22.5rem] text-title-lg-semibold">
@@ -41,8 +41,8 @@ export function HomeScreen({
             <GameCard
               key={game.slug}
               game={game}
-              disabled={game.slug !== "imposter"}
-              comingSoon={game.slug !== "imposter"}
+              disabled={!playableGameSlugs.has(game.slug)}
+              comingSoon={!playableGameSlugs.has(game.slug)}
               className="w-[269px] shrink-0 snap-start md:w-full"
               onClick={() => onGameClick(game.slug)}
             />
