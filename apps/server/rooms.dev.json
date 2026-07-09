@@ -1132,22 +1132,85 @@
         "name": "Navid's Room",
         "players": [
           {
-            "id": "b25cb342-d79c-4a7e-afa8-7c04d0f426b0",
-            "name": "Navid",
-            "avatarId": 12,
-            "isHost": true
-          },
-          {
             "id": "c10778c6-aa6d-4dc4-901b-e9cce3970b89",
             "name": "Player 3",
             "avatarId": 5,
-            "isHost": false
+            "isHost": true
           },
           {
             "id": "92134dfa-56ce-4cc7-bcc0-f483bf70b55b",
             "name": "Soha",
             "avatarId": 1,
             "isHost": false
+          }
+        ],
+        "status": "waiting",
+        "selectedGame": {
+          "slug": "imposter",
+          "name": "Imposter",
+          "description": "Find the hidden player before they blend in.",
+          "minPlayers": 2,
+          "maxPlayers": 12
+        }
+      }
+    ],
+    [
+      "3682",
+      {
+        "code": "3682",
+        "name": "jkhkjh's Room",
+        "players": [
+          {
+            "id": "0a0e7540-3b48-4536-a8ab-faf19ee99ff4",
+            "name": "jkhkjh",
+            "avatarId": 4,
+            "isHost": true
+          }
+        ],
+        "status": "waiting",
+        "selectedGame": {
+          "slug": "imposter",
+          "name": "Imposter",
+          "description": "Find the hidden player before they blend in.",
+          "minPlayers": 2,
+          "maxPlayers": 12
+        }
+      }
+    ],
+    [
+      "3559",
+      {
+        "code": "3559",
+        "name": "jkhkjh's Room",
+        "players": [
+          {
+            "id": "300a0f6c-0929-44bf-90a7-b621e165e6c4",
+            "name": "jkhkjh",
+            "avatarId": 3,
+            "isHost": true
+          }
+        ],
+        "status": "waiting",
+        "selectedGame": {
+          "slug": "imposter",
+          "name": "Imposter",
+          "description": "Find the hidden player before they blend in.",
+          "minPlayers": 2,
+          "maxPlayers": 12
+        }
+      }
+    ],
+    [
+      "2884",
+      {
+        "code": "2884",
+        "name": "jkhkjh's Room",
+        "players": [
+          {
+            "id": "891ef0cf-1052-47b9-a498-e7cf5d266ad8",
+            "name": "jkhkjh",
+            "avatarId": 3,
+            "isHost": true
           }
         ],
         "status": "waiting",

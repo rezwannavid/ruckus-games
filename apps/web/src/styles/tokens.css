@@ -1,11 +1,11 @@
 :root {
   /* Primitive colors from Figma */
-  --primitive-white-500: #f6ebe1;
-  --primitive-white-800: #e2d8d1;
-  --primitive-blue-500: #41a0e5;
-  --primitive-blue-800: #155c90;
-  --primitive-black-500: #1b1f22;
-  --primitive-black-800: #16191c;
+  --primitive-white-500: #f7f7f7;
+  --primitive-white-800: #eeeeee;
+  --primitive-blue-500: #ADC84B;
+  --primitive-blue-800: #75892E;
+  --primitive-black-500: #1C1C1C;
+  --primitive-black-800: #101010;
 
   /* Semantic surfaces */
   --surface-primary: var(--primitive-black-800);
