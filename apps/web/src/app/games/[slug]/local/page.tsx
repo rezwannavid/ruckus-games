@@ -3,13 +3,12 @@
 import { type Dispatch, type ReactNode, type SetStateAction, use, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Braces, Eye, EyeOff, Flag, Minus, Play, Plus, RadioTower, Send, Shuffle, Utensils, Vote } from "lucide-react";
-import { Avatar } from "@/components/ui/AvatarPicker";
 import { Button } from "@/components/ui/Button";
 import { AppScreen } from "@/components/ui/GameUI";
 import { BrandNav } from "@/features/lobby/components/BrandNav";
 import { getGameBySlug, playableGameSlugs } from "@/features/lobby/data/games";
 
-type LocalPlayer = { id: string; name: string; avatarId: number };
+type LocalPlayer = { id: string; name: string };
 type CodePhase = "setup" | "pass" | "private" | "answers" | "vote" | "result";
 type WavePhase = "setup" | "pass" | "private" | "guess" | "result";
 type PromptPair = readonly [string, string];
@@ -80,7 +79,7 @@ export default function LocalGamePage({ params }: { params: Promise<{ slug: stri
   function addPlayer() {
     const name = newName.trim();
     if (!name || players.some((player) => player.name.toLowerCase() === name.toLowerCase()) || players.length >= maxPlayers) return;
-    setPlayers((list) => [...list, { id: crypto.randomUUID(), name, avatarId: list.length % 14 + 1 }]);
+    setPlayers((list) => [...list, { id: crypto.randomUUID(), name }]);
     setNewName("");
   }
 
@@ -293,7 +292,7 @@ function LocalImposterCode(props: {
         <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col px-4 pb-safe pt-20">
           <BrandNav title="Cast your Vote" tone="dark" />
           <div className="mt-16 space-y-2">
-            {props.players.map((player) => <button key={player.id} type="button" onClick={() => setVote(player.id)} aria-pressed={vote === player.id} className="flex h-[68px] w-full items-center justify-center gap-4 rounded-[24px] border-2 border-transparent bg-[var(--surface-primary-light)] text-headline-md-semibold transition aria-pressed:border-[var(--surface-secondary)] aria-pressed:scale-[0.99]"><Avatar avatarId={player.avatarId} tone="white" /><span>{player.name}</span></button>)}
+            {props.players.map((player) => <button key={player.id} type="button" onClick={() => setVote(player.id)} aria-pressed={vote === player.id} className="flex h-[68px] w-full items-center justify-center rounded-[24px] border-2 border-transparent bg-[var(--surface-primary-light)] text-headline-md-semibold transition aria-pressed:border-[var(--surface-secondary)] aria-pressed:scale-[0.99]"><span>{player.name}</span></button>)}
           </div>
           <Button onClick={() => setPhase("result")} disabled={!vote} variant="primary" size="lg" showLeftIcon={false} className="mt-auto w-full">Cast Vote</Button>
         </section>

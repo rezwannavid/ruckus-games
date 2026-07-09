@@ -737,6 +737,428 @@
           "maxPlayers": 12
         }
       }
+    ],
+    [
+      "8801",
+      {
+        "code": "8801",
+        "name": "Host's Room",
+        "players": [
+          {
+            "id": "b9f35e83-cb95-446d-9381-81a8cea288f8",
+            "name": "Host",
+            "avatarId": 1,
+            "isHost": true
+          },
+          {
+            "id": "2dde52bc-2b24-402f-8c3c-58a8f1b34185",
+            "name": "A",
+            "avatarId": 2,
+            "isHost": false
+          },
+          {
+            "id": "f01fe1a5-23b6-43ef-bc2a-4f42f1ad2a23",
+            "name": "B",
+            "avatarId": 3,
+            "isHost": false
+          },
+          {
+            "id": "6167243e-14c2-4797-8ee7-e74d5e632d8f",
+            "name": "C",
+            "avatarId": 4,
+            "isHost": false
+          }
+        ],
+        "status": "waiting",
+        "selectedGame": {
+          "slug": "imposter-code",
+          "name": "Imposter Code",
+          "description": "Answer prompts, reveal responses, and find the odd one out.",
+          "minPlayers": 3,
+          "maxPlayers": 12
+        }
+      }
+    ],
+    [
+      "6366",
+      {
+        "code": "6366",
+        "name": "Host's Room",
+        "players": [
+          {
+            "id": "8ecd0c8a-b257-40b7-9516-aabbef0d9080",
+            "name": "Host",
+            "avatarId": 1,
+            "isHost": true
+          },
+          {
+            "id": "0b1dc294-5304-421d-9f09-0c3253bcb5bf",
+            "name": "A",
+            "avatarId": 2,
+            "isHost": false
+          },
+          {
+            "id": "5cd11123-d446-4697-9445-64a635762e36",
+            "name": "B",
+            "avatarId": 3,
+            "isHost": false
+          }
+        ],
+        "status": "waiting",
+        "selectedGame": {
+          "slug": "wavelength",
+          "name": "Wavelength",
+          "description": "Give a clue and land closest to the secret number.",
+          "minPlayers": 2,
+          "maxPlayers": 12
+        }
+      }
+    ],
+    [
+      "7070",
+      {
+        "code": "7070",
+        "name": "Host's Room",
+        "players": [
+          {
+            "id": "b47d5b6f-899c-4010-b8ff-eeac70a391d9",
+            "name": "Host",
+            "avatarId": 1,
+            "isHost": true
+          },
+          {
+            "id": "537755b2-821c-4904-a00e-28d1539fceec",
+            "name": "A",
+            "avatarId": 2,
+            "isHost": false
+          },
+          {
+            "id": "61dd7cba-7ba1-4fe1-87b1-9dc4a82be77d",
+            "name": "B",
+            "avatarId": 3,
+            "isHost": false
+          },
+          {
+            "id": "4dc32749-d70a-4fe5-8414-e7633b5a9435",
+            "name": "C",
+            "avatarId": 4,
+            "isHost": false
+          }
+        ],
+        "status": "waiting",
+        "selectedGame": {
+          "slug": "wavelength",
+          "name": "Wavelength",
+          "description": "Give a clue and land closest to the secret number.",
+          "minPlayers": 2,
+          "maxPlayers": 12
+        }
+      }
+    ],
+    [
+      "5726",
+      {
+        "code": "5726",
+        "name": "Host's Room",
+        "players": [
+          {
+            "id": "17f14881-e4c4-4a76-8ccb-bb0a391a0871",
+            "name": "Host",
+            "avatarId": 1,
+            "isHost": true
+          },
+          {
+            "id": "1cbb5676-ddaf-4ffe-a24b-1677c81b85c8",
+            "name": "A",
+            "avatarId": 2,
+            "isHost": false
+          },
+          {
+            "id": "080c85ff-1e96-41a2-975c-52b3797adb51",
+            "name": "B",
+            "avatarId": 3,
+            "isHost": false
+          }
+        ],
+        "status": "waiting",
+        "selectedGame": {
+          "slug": "imposter",
+          "name": "Imposter",
+          "description": "Find the hidden player before they blend in.",
+          "minPlayers": 2,
+          "maxPlayers": 12
+        }
+      }
+    ],
+    [
+      "1308",
+      {
+        "code": "1308",
+        "name": "Host's Room",
+        "players": [
+          {
+            "id": "50993752-151a-46d4-942c-e362d258631c",
+            "name": "Host",
+            "avatarId": 1,
+            "isHost": true
+          },
+          {
+            "id": "6b14af64-3e23-430d-865f-f5cd1136c833",
+            "name": "A",
+            "avatarId": 2,
+            "isHost": false
+          },
+          {
+            "id": "ab430be2-c470-4aa4-8ab8-1959da9b4a98",
+            "name": "B",
+            "avatarId": 3,
+            "isHost": false
+          }
+        ],
+        "status": "waiting",
+        "selectedGame": {
+          "slug": "imposter-code",
+          "name": "Imposter Code",
+          "description": "Answer prompts, reveal responses, and find the odd one out.",
+          "minPlayers": 3,
+          "maxPlayers": 12
+        }
+      }
+    ],
+    [
+      "2591",
+      {
+        "code": "2591",
+        "name": "Host's Room",
+        "players": [
+          {
+            "id": "94666c35-a377-47e8-9d4e-9ecb4e07e1dc",
+            "name": "Host",
+            "avatarId": 1,
+            "isHost": true
+          },
+          {
+            "id": "f8ab099d-176a-43b2-b14f-cfd96b2e8e87",
+            "name": "A",
+            "avatarId": 2,
+            "isHost": false
+          },
+          {
+            "id": "47d24e2d-68d0-478a-ab1e-6c6fd3fe35f3",
+            "name": "B",
+            "avatarId": 3,
+            "isHost": false
+          }
+        ],
+        "status": "in_game",
+        "selectedGame": {
+          "slug": "wavelength",
+          "name": "Wavelength",
+          "description": "Give a clue and land closest to the secret number.",
+          "minPlayers": 2,
+          "maxPlayers": 12
+        },
+        "gameState": {
+          "type": "wavelength",
+          "playMode": "multiplayer",
+          "phase": "results",
+          "players": [
+            {
+              "id": "94666c35-a377-47e8-9d4e-9ecb4e07e1dc",
+              "name": "Host",
+              "avatarId": 1
+            },
+            {
+              "id": "f8ab099d-176a-43b2-b14f-cfd96b2e8e87",
+              "name": "A",
+              "avatarId": 2
+            },
+            {
+              "id": "47d24e2d-68d0-478a-ab1e-6c6fd3fe35f3",
+              "name": "B",
+              "avatarId": 3
+            }
+          ],
+          "mode": "everyone",
+          "clueGiverId": "94666c35-a377-47e8-9d4e-9ecb4e07e1dc",
+          "clueGiverName": "Host",
+          "activeTeamId": null,
+          "teams": {
+            "team-1": [
+              "94666c35-a377-47e8-9d4e-9ecb4e07e1dc",
+              "47d24e2d-68d0-478a-ab1e-6c6fd3fe35f3"
+            ],
+            "team-2": [
+              "f8ab099d-176a-43b2-b14f-cfd96b2e8e87"
+            ]
+          },
+          "scaleLeft": "Old Dhaka",
+          "scaleRight": "Gulshan",
+          "scalePack": "desi:dhaka",
+          "secretNumber": 87,
+          "clue": "ride",
+          "guess": 75,
+          "guesses": {
+            "f8ab099d-176a-43b2-b14f-cfd96b2e8e87": 25,
+            "47d24e2d-68d0-478a-ab1e-6c6fd3fe35f3": 75
+          },
+          "roundTimerSeconds": 30,
+          "startedAt": "2026-07-09T17:33:47.566Z",
+          "endsAt": "2026-07-09T17:34:17.566Z",
+          "score": 16,
+          "teamScores": {
+            "team-1": 0,
+            "team-2": 0
+          },
+          "playerScores": {
+            "94666c35-a377-47e8-9d4e-9ecb4e07e1dc": 8,
+            "f8ab099d-176a-43b2-b14f-cfd96b2e8e87": 0,
+            "47d24e2d-68d0-478a-ab1e-6c6fd3fe35f3": 8
+          },
+          "maxRounds": 2,
+          "round": 1
+        }
+      }
+    ],
+    [
+      "8276",
+      {
+        "code": "8276",
+        "name": "Host's Room",
+        "players": [
+          {
+            "id": "fce94bcc-9e55-4d94-8b0d-6b05db755dbe",
+            "name": "Host",
+            "avatarId": 1,
+            "isHost": true
+          },
+          {
+            "id": "020d1068-06b8-4175-8580-ec2045363ffe",
+            "name": "A",
+            "avatarId": 2,
+            "isHost": false
+          },
+          {
+            "id": "2d4989be-33d1-4e12-9096-d2f6aea97d28",
+            "name": "B",
+            "avatarId": 3,
+            "isHost": false
+          }
+        ],
+        "status": "waiting",
+        "selectedGame": {
+          "slug": "imposter",
+          "name": "Imposter",
+          "description": "Find the hidden player before they blend in.",
+          "minPlayers": 2,
+          "maxPlayers": 12
+        }
+      }
+    ],
+    [
+      "3515",
+      {
+        "code": "3515",
+        "name": "Host's Room",
+        "players": [
+          {
+            "id": "49079f03-12b0-4ab9-b654-2dce404695e6",
+            "name": "Host",
+            "avatarId": 1,
+            "isHost": true
+          },
+          {
+            "id": "c8fdfe38-2e8a-4cec-9839-d84e305569d0",
+            "name": "A",
+            "avatarId": 2,
+            "isHost": false
+          },
+          {
+            "id": "ad02630c-55ce-4301-b4bd-97ec7dc32203",
+            "name": "B",
+            "avatarId": 3,
+            "isHost": false
+          }
+        ],
+        "status": "waiting",
+        "selectedGame": {
+          "slug": "imposter-code",
+          "name": "Imposter Code",
+          "description": "Answer prompts, reveal responses, and find the odd one out.",
+          "minPlayers": 3,
+          "maxPlayers": 12
+        }
+      }
+    ],
+    [
+      "3136",
+      {
+        "code": "3136",
+        "name": "Host's Room",
+        "players": [
+          {
+            "id": "121ae230-b945-4a4b-b3d8-8c2678e3d7fd",
+            "name": "Host",
+            "avatarId": 1,
+            "isHost": true
+          },
+          {
+            "id": "4a6cceed-3126-425a-a762-0680e1893e7a",
+            "name": "A",
+            "avatarId": 2,
+            "isHost": false
+          },
+          {
+            "id": "589cffd1-646b-4eae-90ff-258eb898e9cd",
+            "name": "B",
+            "avatarId": 3,
+            "isHost": false
+          }
+        ],
+        "status": "waiting",
+        "selectedGame": {
+          "slug": "wavelength",
+          "name": "Wavelength",
+          "description": "Give a clue and land closest to the secret number.",
+          "minPlayers": 2,
+          "maxPlayers": 12
+        }
+      }
+    ],
+    [
+      "9313",
+      {
+        "code": "9313",
+        "name": "Navid's Room",
+        "players": [
+          {
+            "id": "b25cb342-d79c-4a7e-afa8-7c04d0f426b0",
+            "name": "Navid",
+            "avatarId": 12,
+            "isHost": true
+          },
+          {
+            "id": "c10778c6-aa6d-4dc4-901b-e9cce3970b89",
+            "name": "Player 3",
+            "avatarId": 5,
+            "isHost": false
+          },
+          {
+            "id": "92134dfa-56ce-4cc7-bcc0-f483bf70b55b",
+            "name": "Soha",
+            "avatarId": 1,
+            "isHost": false
+          }
+        ],
+        "status": "waiting",
+        "selectedGame": {
+          "slug": "imposter",
+          "name": "Imposter",
+          "description": "Find the hidden player before they blend in.",
+          "minPlayers": 2,
+          "maxPlayers": 12
+        }
+      }
     ]
   ]
 }

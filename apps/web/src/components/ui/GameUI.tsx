@@ -224,7 +224,7 @@ export function WaitingOrbit({
         </div>
       ))}
       <div className="absolute inset-0 grid place-items-center text-center">
-        <div><h2 className="text-title-md-extrabold">{title}</h2><p className="mt-2 text-body-medium opacity-60">{subtitle}</p></div>
+        <div><h2 className="animate-pulse-soft text-title-md-extrabold">{title}</h2><p className="mt-2 text-body-medium opacity-60">{subtitle}</p></div>
       </div>
     </div>
   );

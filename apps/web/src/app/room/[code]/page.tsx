@@ -67,6 +67,9 @@ export default function RoomPage({
     nextSocket.on("room:state", (roomState: Room) => {
       setRoom(roomState);
       setError("");
+      if (roomState.status === "in_game" && roomState.selectedGame?.slug) {
+        router.push(`/room/${roomCode}/play/${roomState.selectedGame.slug}`);
+      }
     });
 
     nextSocket.on("room:error", (err: { message: string }) => {

@@ -20,13 +20,13 @@ export function BrandNav({ title, tone = "dark", onBack }: BrandNavProps) {
           : "text-[var(--text-primary)]"
       }
     >
-      <div className="flex items-center gap-5 px-4">
+      <div className="flex min-w-0 items-center gap-4 px-4">
         {onBack && (
           <button
             type="button"
             onClick={onBack}
             aria-label="Go back"
-            className="flex size-6 items-center justify-center"
+            className="flex size-8 shrink-0 items-center justify-center rounded-full transition active:scale-90"
           >
             <ArrowLeft aria-hidden className="size-6" />
           </button>
@@ -38,12 +38,12 @@ export function BrandNav({ title, tone = "dark", onBack }: BrandNavProps) {
           width={129}
           height={20}
           priority
-          className="h-5 w-auto"
+          className="h-5 w-auto max-w-[9.5rem] shrink-0"
         />
       </div>
 
       {title && (
-        <h1 className="mt-px w-full pl-[4rem] pr-4 text-title-sm-extrabold">
+        <h1 className={`${onBack ? "pl-[4rem]" : "pl-4"} mt-1 w-full pr-4 text-title-sm-extrabold leading-tight`}>
           {title}
         </h1>
       )}

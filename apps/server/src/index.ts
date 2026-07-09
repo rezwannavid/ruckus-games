@@ -111,19 +111,34 @@ type WavelengthGameState = {
   playMode: "multiplayer" | "single_device";
   phase: "clue" | "guess" | "results";
   players: GameParticipant[];
+  mode: "teams" | "everyone";
   clueGiverId: string;
   clueGiverName: string;
+  activeTeamId: "team-1" | "team-2" | null;
+  teams: Record<"team-1" | "team-2", string[]>;
   scaleLeft: string;
   scaleRight: string;
   scalePack: string;
   secretNumber: number;
   clue: string | null;
   guess: number | null;
+  guesses: Record<string, number>;
+  roundTimerSeconds: number;
+  startedAt: string;
+  endsAt: string;
   score: number;
+  teamScores: Record<"team-1" | "team-2", number>;
+  playerScores: Record<string, number>;
+  maxRounds: number;
   round: number;
 };
 
 type GameState = ImposterGameState | ImposterCodeGameState | WavelengthGameState;
+
+type PromptPack<T> = {
+  name: string;
+  subcategories: Record<string, { name: string; items: T[] }>;
+};
 
 type Room = {
   code: string;
@@ -227,82 +242,145 @@ const games: Game[] = [
 ];
 
 const imposterWordCategories: Record<string, string[]> = {
-  places: ["Airport", "Beach", "Cinema", "Hospital", "Library", "Restaurant", "School", "Stadium", "Train Station", "Museum", "Hotel", "Playground", "Supermarket", "Office", "Zoo"],
-  food: ["Pizza", "Sushi", "Burger", "Tacos", "Pasta", "Biryani", "Ice Cream", "Pancakes", "Dumplings", "Curry", "Sandwich", "Ramen", "Chocolate", "Salad", "Popcorn"],
-  movies: ["Titanic", "Avatar", "Jaws", "The Matrix", "Jurassic Park", "The Lion King", "Frozen", "Spider-Man", "Batman", "Harry Potter", "Shrek", "Toy Story", "Inception", "Gladiator", "Home Alone"],
-  objects: ["Backpack", "Camera", "Chair", "Clock", "Headphones", "Laptop", "Phone", "Sunglasses", "Umbrella", "Wallet", "Key", "Mirror", "Pillow", "Toothbrush", "Flashlight"],
-  animals: ["Elephant", "Penguin", "Tiger", "Dolphin", "Giraffe", "Kangaroo", "Owl", "Shark", "Panda", "Crocodile", "Rabbit", "Monkey", "Octopus", "Camel", "Wolf"],
-  sports: ["Football", "Cricket", "Basketball", "Tennis", "Swimming", "Boxing", "Golf", "Volleyball", "Cycling", "Baseball", "Badminton", "Hockey", "Rugby", "Surfing", "Skiing"],
-  jobs: ["Doctor", "Teacher", "Chef", "Pilot", "Designer", "Engineer", "Lawyer", "Photographer", "Firefighter", "Musician", "Actor", "Farmer", "Journalist", "Dentist", "Architect"],
-  countries: ["Bangladesh", "Japan", "Brazil", "Canada", "Egypt", "France", "India", "Italy", "Mexico", "Norway", "Spain", "Thailand", "Turkey", "Australia", "South Korea"],
-  brands: ["Apple", "Nike", "Samsung", "Lego", "Netflix", "Adidas", "Coca-Cola", "IKEA", "Toyota", "Spotify", "Nintendo", "Google", "Sony", "Rolex", "Tesla"],
+  places: ["Airport", "Beach", "Cinema", "Hospital", "Library", "Restaurant", "School", "Stadium", "Train Station", "Museum", "Hotel", "Playground", "Supermarket", "Office", "Zoo", "Mosque", "Rooftop", "Shopping Mall", "Wedding Hall", "Bus Stop", "Dhaka University", "Cox's Bazar", "Old Dhaka", "Banani", "Gulshan"],
+  food: ["Pizza", "Sushi", "Burger", "Tacos", "Pasta", "Biryani", "Ice Cream", "Pancakes", "Dumplings", "Curry", "Sandwich", "Ramen", "Chocolate", "Salad", "Popcorn", "Fuchka", "Chotpoti", "Kacchi", "Tehari", "Haleem", "Singara", "Samosa", "Jhalmuri", "Rasgulla", "Mishti Doi"],
+  movies: ["Titanic", "Avatar", "Jaws", "The Matrix", "Jurassic Park", "The Lion King", "Frozen", "Spider-Man", "Batman", "Harry Potter", "Shrek", "Toy Story", "Inception", "Gladiator", "Home Alone", "3 Idiots", "Pathaan", "Coco", "Finding Nemo", "Inside Out"],
+  objects: ["Backpack", "Camera", "Chair", "Clock", "Headphones", "Laptop", "Phone", "Sunglasses", "Umbrella", "Wallet", "Key", "Mirror", "Pillow", "Toothbrush", "Flashlight", "Charger", "Remote", "Water Bottle", "Notebook", "Power Bank", "Tiffin Box", "Prayer Mat", "Rickshaw Bell", "Cricket Bat", "Ceiling Fan"],
+  animals: ["Elephant", "Penguin", "Tiger", "Dolphin", "Giraffe", "Kangaroo", "Owl", "Shark", "Panda", "Crocodile", "Rabbit", "Monkey", "Octopus", "Camel", "Wolf", "Cat", "Dog", "Cow", "Goat", "Kingfisher", "Hilsa"],
+  sports: ["Football", "Cricket", "Basketball", "Tennis", "Swimming", "Boxing", "Golf", "Volleyball", "Cycling", "Baseball", "Badminton", "Hockey", "Rugby", "Surfing", "Skiing", "Table Tennis", "Kabaddi", "Carrom", "Chess", "Futsal"],
+  jobs: ["Doctor", "Teacher", "Chef", "Pilot", "Designer", "Engineer", "Lawyer", "Photographer", "Firefighter", "Musician", "Actor", "Farmer", "Journalist", "Dentist", "Architect", "YouTuber", "Shopkeeper", "Driver", "Banker", "Developer", "Cricketer"],
+  countries: ["Bangladesh", "Japan", "Brazil", "Canada", "Egypt", "France", "India", "Italy", "Mexico", "Norway", "Spain", "Thailand", "Turkey", "Australia", "South Korea", "Malaysia", "Nepal", "Indonesia", "Germany", "Argentina"],
+  brands: ["Apple", "Nike", "Samsung", "Lego", "Netflix", "Adidas", "Coca-Cola", "IKEA", "Toyota", "Spotify", "Nintendo", "Google", "Sony", "Rolex", "Tesla", "bKash", "Pathao", "Foodpanda", "Aarong", "Bata"],
+  actions: ["Cooking", "Dancing", "Sleeping", "Arguing", "Singing", "Pranking", "Studying", "Shopping", "Scrolling", "Gaming", "Cleaning", "Running", "Texting", "Daydreaming", "Negotiating"],
+  vibes: ["Awkward", "Chaotic", "Cozy", "Suspicious", "Fancy", "Lazy", "Dramatic", "Confident", "Nervous", "Annoyed", "Romantic", "Competitive", "Sleepy", "Lucky", "Embarrassed"],
+  social: ["First Date", "Group Chat", "Family Dinner", "Class Presentation", "Office Meeting", "Wedding Invite", "Birthday Surprise", "Exam Hall", "Traffic Jam", "Elevator Silence", "Friend's Secret", "Missed Call", "Late Reply", "Adda", "Iftar Plan"],
   random: ["Rainbow", "Birthday", "Thunder", "Selfie", "Dream", "Elevator", "Karaoke", "Treasure", "Wi-Fi", "Vacation", "Secret", "Magic", "Festival", "Robot", "Midnight"]
 };
 
-const imposterCodePromptPacks: Record<string, Array<{ question: string; imposterQuestion: string }>> = {
-  casual: [
-    { question: "What would you bring to a beach day?", imposterQuestion: "What would you bring to a snowstorm?" },
-    { question: "What app do you open when you are bored?", imposterQuestion: "What app do you open when you are lost?" },
-    { question: "What object would survive a power cut?", imposterQuestion: "What object would make a power cut worse?" }
-  ],
-  food: [
-    { question: "What food belongs at a birthday party?", imposterQuestion: "What food belongs in a lunchbox?" },
-    { question: "What snack disappears first at a hangout?", imposterQuestion: "What snack survives until the end?" },
-    { question: "What drink feels refreshing in summer?", imposterQuestion: "What drink feels cozy in winter?" }
-  ],
-  school: [
-    { question: "What subject creates the most homework?", imposterQuestion: "What subject creates the least homework?" },
-    { question: "What item saves you before an exam?", imposterQuestion: "What item distracts you before an exam?" },
-    { question: "What excuse sounds believable to a teacher?", imposterQuestion: "What excuse sounds suspicious to a teacher?" }
-  ],
-  work: [
-    { question: "What meeting should have been an email?", imposterQuestion: "What email should have been a meeting?" },
-    { question: "What tool makes work faster?", imposterQuestion: "What tool makes work slower?" },
-    { question: "What office habit is quietly annoying?", imposterQuestion: "What office habit is secretly helpful?" }
-  ],
-  relationships: [
-    { question: "What is a green flag in a friend?", imposterQuestion: "What is a red flag in a friend?" },
-    { question: "What gift feels thoughtful?", imposterQuestion: "What gift feels lazy?" },
-    { question: "What message is nice to wake up to?", imposterQuestion: "What message is stressful to wake up to?" }
-  ],
-  travel: [
-    { question: "What belongs in a carry-on bag?", imposterQuestion: "What belongs in checked luggage?" },
-    { question: "What city activity is worth the money?", imposterQuestion: "What city activity is overrated?" },
-    { question: "What makes a road trip better?", imposterQuestion: "What ruins a road trip?" }
-  ],
-  party: [
-    { question: "What game starts a party quickly?", imposterQuestion: "What game slows a party down?" },
-    { question: "What song gets everyone moving?", imposterQuestion: "What song clears the room?" },
-    { question: "What item should every party have?", imposterQuestion: "What item makes a party awkward?" }
-  ],
-  deep: [
-    { question: "What do people pretend not to care about?", imposterQuestion: "What do people care about too much?" },
-    { question: "What makes someone trustworthy?", imposterQuestion: "What makes someone hard to trust?" },
-    { question: "What memory would you replay?", imposterQuestion: "What memory would you erase?" }
-  ],
-  funny: [
-    { question: "What animal would be a chaotic roommate?", imposterQuestion: "What animal would be a calm roommate?" },
-    { question: "What object would be funniest if it talked?", imposterQuestion: "What object would be terrifying if it talked?" },
-    { question: "What job would be hardest to fake?", imposterQuestion: "What job sounds easiest to fake?" }
-  ],
-  desi: [
-    { question: "What snack belongs with cha?", imposterQuestion: "What snack belongs with a cold drink?" },
-    { question: "What Eid plan sounds fun?", imposterQuestion: "What Eid plan sounds exhausting?" },
-    { question: "What Dhaka traffic survival item helps most?", imposterQuestion: "What item is useless in Dhaka traffic?" }
-  ]
+const imposterWordPacks: Record<string, PromptPack<string>> = {
+  classic: {
+    name: "Classic",
+    subcategories: {
+      objects: { name: "Things", items: imposterWordCategories.objects },
+      places: { name: "Places", items: imposterWordCategories.places.filter((word) => !["Dhaka University", "Cox's Bazar", "Old Dhaka", "Banani", "Gulshan"].includes(word)) },
+      food: { name: "Food", items: imposterWordCategories.food.filter((word) => !["Fuchka", "Chotpoti", "Kacchi", "Tehari", "Haleem", "Singara", "Samosa", "Jhalmuri", "Rasgulla", "Mishti Doi"].includes(word)) },
+      animals: { name: "Animals", items: imposterWordCategories.animals },
+      actions: { name: "Actions", items: imposterWordCategories.actions },
+      social: { name: "Social", items: imposterWordCategories.social.filter((word) => !["Adda", "Iftar Plan"].includes(word)) }
+    }
+  },
+  desi: {
+    name: "Desi",
+    subcategories: {
+      dhaka: { name: "Dhaka", items: ["Old Dhaka", "Dhanmondi", "Gulshan", "Banani", "Bashundhara", "Jamuna Future Park", "New Market", "Farmgate", "Mirpur", "Hatirjheel", "CNG", "Rickshaw", "Traffic Jam", "Metro Rail", "Foodpanda Rider"] },
+      food: { name: "Bangladeshi Food", items: ["Fuchka", "Chotpoti", "Kacchi", "Tehari", "Haleem", "Singara", "Samosa", "Jhalmuri", "Rasgulla", "Mishti Doi", "Panta Bhat", "Hilsa Fry", "Cha", "Naan", "Borhani"] },
+      eid: { name: "Eid", items: ["Eid Salami", "Panjabi", "Mehendi", "Eid Namaz", "Shemai", "Cow Haat", "Family Photo", "New Clothes", "Iftar Plan", "Eid Traffic"] },
+      school: { name: "School", items: ["Tiffin Box", "Coaching Center", "Exam Hall", "Class Captain", "Private Tutor", "School Van", "Report Card", "Assembly", "Dhaka University", "Campus Adda"] },
+      family: { name: "Family", items: ["Aunty", "Cousin", "Family Dinner", "Wedding Invite", "Biye Bari", "Gaye Holud", "Nosy Relative", "Family WhatsApp", "Village House", "Rooftop Adda"] },
+      cricket: { name: "Cricket", items: ["Cricket Bat", "Tape Tennis", "Sakib", "Mirpur Stadium", "Six", "Run Out", "Street Cricket", "Powerplay", "World Cup Match", "Tea Break"] }
+    }
+  }
 };
 
-const wavelengthScalePacks: Record<string, Array<readonly [string, string]>> = {
-  casual: [["Cold", "Hot"], ["Safe", "Risky"], ["Cheap", "Expensive"], ["Quiet", "Loud"], ["Boring", "Exciting"]],
-  food: [["Street Food", "Fine Dining"], ["Bland", "Spicy"], ["Snack", "Full Meal"], ["Healthy", "Junk Food"], ["Dry", "Saucy"]],
-  movies: [["Realistic", "Fantasy"], ["Slow", "Fast"], ["Funny", "Serious"], ["Underrated", "Overrated"], ["Comfort Watch", "Stress Watch"]],
-  music: [["Soft", "Loud"], ["Old", "New"], ["Chill", "Hype"], ["Solo Song", "Party Song"], ["Simple", "Dramatic"]],
-  school: [["Easy", "Hard"], ["Useful", "Useless"], ["Strict", "Relaxed"], ["Quiet Class", "Chaotic Class"], ["Memorize", "Understand"]],
-  work: [["Focused", "Distracting"], ["Quick Task", "Long Task"], ["Helpful", "Annoying"], ["Casual", "Formal"], ["Clear", "Confusing"]],
-  relationships: [["Green Flag", "Red Flag"], ["Introvert", "Extrovert"], ["Low Effort", "High Effort"], ["Honest", "Tactful"], ["Relaxing", "Chaotic"]],
-  party: [["Awkward", "Fun"], ["Chill", "Wild"], ["Small Group", "Big Crowd"], ["Early Night", "Late Night"], ["Background Song", "Main Character Song"]],
-  desi: [["Rickshaw", "Uber"], ["Cha", "Coffee"], ["Calm Bazaar", "Chaotic Bazaar"], ["Home Food", "Restaurant Food"], ["Relaxing Adda", "Loud Adda"]],
-  weird: [["Normal", "Weird"], ["Tiny", "Huge"], ["Useful", "Cursed"], ["Cute", "Terrifying"], ["Reasonable", "Unhinged"]]
+const imposterCodePromptPacks: Record<string, PromptPack<{ question: string; imposterQuestion: string }>> = {
+  casual: {
+    name: "Casual",
+    subcategories: {
+      objects: { name: "Objects", items: [
+        { question: "What would you bring to a beach day?", imposterQuestion: "What would you bring to a snowstorm?" },
+        { question: "What object would survive a power cut?", imposterQuestion: "What object would make a power cut worse?" },
+        { question: "What item belongs in every backpack?", imposterQuestion: "What item should never be in a backpack?" }
+      ] },
+      internet: { name: "Internet", items: [
+        { question: "What app do you open when you are bored?", imposterQuestion: "What app do you open when you are lost?" },
+        { question: "What meme format always works?", imposterQuestion: "What meme format is overused?" },
+        { question: "What online habit is harmless?", imposterQuestion: "What online habit is suspicious?" }
+      ] },
+      funny: { name: "Funny", items: [
+        { question: "What animal would be a chaotic roommate?", imposterQuestion: "What animal would be a calm roommate?" },
+        { question: "What object would be funniest if it talked?", imposterQuestion: "What object would be terrifying if it talked?" },
+        { question: "What job would be hardest to fake?", imposterQuestion: "What job sounds easiest to fake?" }
+      ] }
+    }
+  },
+  life: {
+    name: "Life",
+    subcategories: {
+      food: { name: "Food", items: [
+        { question: "What food belongs at a birthday party?", imposterQuestion: "What food belongs in a lunchbox?" },
+        { question: "What snack disappears first at a hangout?", imposterQuestion: "What snack survives until the end?" },
+        { question: "What drink feels refreshing in summer?", imposterQuestion: "What drink feels cozy in winter?" }
+      ] },
+      school: { name: "School", items: [
+        { question: "What subject creates the most homework?", imposterQuestion: "What subject creates the least homework?" },
+        { question: "What item saves you before an exam?", imposterQuestion: "What item distracts you before an exam?" },
+        { question: "What excuse sounds believable to a teacher?", imposterQuestion: "What excuse sounds suspicious to a teacher?" }
+      ] },
+      work: { name: "Work", items: [
+        { question: "What meeting should have been an email?", imposterQuestion: "What email should have been a meeting?" },
+        { question: "What tool makes work faster?", imposterQuestion: "What tool makes work slower?" },
+        { question: "What office habit is quietly annoying?", imposterQuestion: "What office habit is secretly helpful?" }
+      ] },
+      relationships: { name: "Friends", items: [
+        { question: "What is a green flag in a friend?", imposterQuestion: "What is a red flag in a friend?" },
+        { question: "What gift feels thoughtful?", imposterQuestion: "What gift feels lazy?" },
+        { question: "What message is nice to wake up to?", imposterQuestion: "What message is stressful to wake up to?" }
+      ] }
+    }
+  },
+  desi: {
+    name: "Desi",
+    subcategories: {
+      food: { name: "Food", items: [
+        { question: "What snack belongs with cha?", imposterQuestion: "What snack belongs with a cold drink?" },
+        { question: "What food disappears first at a dawath?", imposterQuestion: "What food is always left over at a dawath?" },
+        { question: "What street food is worth waiting for?", imposterQuestion: "What street food is risky before a long ride?" }
+      ] },
+      dhaka: { name: "Dhaka", items: [
+        { question: "What Dhaka traffic survival item helps most?", imposterQuestion: "What item is useless in Dhaka traffic?" },
+        { question: "Where would you meet friends in Dhaka?", imposterQuestion: "Where would you avoid during rush hour?" },
+        { question: "What makes a rickshaw ride better?", imposterQuestion: "What makes a CNG ride worse?" }
+      ] },
+      eid: { name: "Eid", items: [
+        { question: "What Eid plan sounds fun?", imposterQuestion: "What Eid plan sounds exhausting?" },
+        { question: "What should you wear on Eid morning?", imposterQuestion: "What should you never wear to Eid dawath?" },
+        { question: "What is the best Eid snack?", imposterQuestion: "What is the most overrated Eid snack?" }
+      ] },
+      family: { name: "Family", items: [
+        { question: "What question do relatives always ask?", imposterQuestion: "What question do relatives avoid asking?" },
+        { question: "What makes a family wedding fun?", imposterQuestion: "What makes a family wedding stressful?" },
+        { question: "What childhood memory feels very Bangladeshi?", imposterQuestion: "What childhood memory feels very foreign?" }
+      ] }
+    }
+  }
+};
+
+const wavelengthScalePacks: Record<string, PromptPack<readonly [string, string]>> = {
+  casual: {
+    name: "Casual",
+    subcategories: {
+      simple: { name: "Simple", items: [["Cold", "Hot"], ["Safe", "Risky"], ["Cheap", "Expensive"], ["Quiet", "Loud"], ["Boring", "Exciting"]] },
+      people: { name: "People", items: [["Introvert", "Extrovert"], ["Trustworthy", "Suspicious"], ["Low Effort", "High Effort"], ["Honest", "Tactful"], ["Relaxing", "Chaotic"]] },
+      weird: { name: "Weird", items: [["Normal", "Weird"], ["Tiny", "Huge"], ["Useful", "Cursed"], ["Cute", "Terrifying"], ["Reasonable", "Unhinged"]] }
+    }
+  },
+  culture: {
+    name: "Culture",
+    subcategories: {
+      food: { name: "Food", items: [["Street Food", "Fine Dining"], ["Bland", "Spicy"], ["Snack", "Full Meal"], ["Healthy", "Junk Food"], ["Dry", "Saucy"]] },
+      movies: { name: "Movies", items: [["Realistic", "Fantasy"], ["Slow", "Fast"], ["Funny", "Serious"], ["Underrated", "Overrated"], ["Comfort Watch", "Stress Watch"]] },
+      music: { name: "Music", items: [["Soft", "Loud"], ["Old", "New"], ["Chill", "Hype"], ["Solo Song", "Party Song"], ["Simple", "Dramatic"]] }
+    }
+  },
+  desi: {
+    name: "Desi",
+    subcategories: {
+      dhaka: { name: "Dhaka", items: [["Rickshaw", "Uber"], ["Calm Road", "Traffic Jam"], ["Old Dhaka", "Gulshan"], ["Cheap Ride", "Expensive Ride"], ["Peaceful Bazaar", "Chaotic Bazaar"]] },
+      food: { name: "Food", items: [["Cha", "Coffee"], ["Fuchka", "Fine Dining"], ["Mild", "Jhal"], ["Home Food", "Restaurant Food"], ["Dry Snack", "Messy Snack"]] },
+      social: { name: "Social", items: [["Relaxing Adda", "Loud Adda"], ["Small Dawath", "Huge Wedding"], ["Polite Relative", "Nosy Relative"], ["Village", "City"], ["Childhood Nostalgia", "Adult Stress"]] },
+      student: { name: "Student", items: [["Easy Exam", "Impossible Exam"], ["Helpful Coaching", "Useless Coaching"], ["Quiet Class", "Chaotic Class"], ["Good Tiffin", "Bad Tiffin"], ["Campus Adda", "Library Study"]] }
+    }
+  }
 };
 
 function pickRandomItem<T>(items: readonly T[]) {
@@ -327,44 +405,65 @@ function getNumberSetting(
   return Math.min(Math.max(Math.floor(parsedValue), minimum), maximum);
 }
 
-function getImposterWordList(category: unknown) {
-  if (typeof category !== "string") {
-    return {
-      category: "random",
-      words: imposterWordCategories.random
-    };
-  }
-  const words = imposterWordCategories[category];
-  if (!words) {
-    return {
-      category: "random",
-      words: imposterWordCategories.random
-    };
-  }
+function getPackItems<T>(
+  selection: unknown,
+  packs: Record<string, PromptPack<T>>,
+  fallbackPack: string
+) {
+  const rawSelection = typeof selection === "string" && selection.trim() ? selection.trim() : fallbackPack;
+  const [requestedPack, requestedSubcategory] = rawSelection.split(":");
+  const packId = packs[requestedPack] ? requestedPack : fallbackPack;
+  const pack = packs[packId];
+  const subcategory = requestedSubcategory ? pack.subcategories[requestedSubcategory] : undefined;
+  const items = subcategory
+    ? subcategory.items
+    : Object.values(pack.subcategories).flatMap((entry) => entry.items);
+
   return {
-    category,
-    words
+    selection: subcategory ? `${packId}:${requestedSubcategory}` : packId,
+    pack: packId,
+    subcategory: subcategory ? requestedSubcategory : null,
+    items
+  };
+}
+
+function getImposterWordList(category: unknown) {
+  const { selection, items } = getPackItems(category, imposterWordPacks, "classic");
+  return {
+    category: selection,
+    words: items
   };
 }
 
 function getImposterCodePromptList(pack: unknown) {
-  const packName = typeof pack === "string" && imposterCodePromptPacks[pack] ? pack : "casual";
+  const result = getPackItems(pack, imposterCodePromptPacks, "casual");
   return {
-    pack: packName,
-    prompts: imposterCodePromptPacks[packName]
+    pack: result.selection,
+    prompts: result.items
   };
 }
 
 function getWavelengthScaleList(pack: unknown) {
-  const packName = typeof pack === "string" && wavelengthScalePacks[pack] ? pack : "casual";
+  const result = getPackItems(pack, wavelengthScalePacks, "casual");
   return {
-    pack: packName,
-    scales: wavelengthScalePacks[packName]
+    pack: result.selection,
+    scales: result.items
   };
 }
 
 function getPlayModeSetting(value: unknown) {
   return value === "single_device" ? "single_device" : "multiplayer";
+}
+
+function getTimerSetting(value: unknown, fallback = 90) {
+  if (value === "none" || value === 0 || value === "0") {
+    return 0;
+  }
+  return getNumberSetting(value, fallback, 30, 300);
+}
+
+function getWavelengthMode(value: unknown) {
+  return value === "teams" ? "teams" : "everyone";
 }
 
 function getManualParticipants(value: unknown) {
@@ -400,6 +499,60 @@ function getRoomParticipants(room: Room) {
     name: player.name,
     avatarId: player.avatarId
   }));
+}
+
+function getBalancedTeams(players: GameParticipant[]) {
+  return players.reduce<Record<"team-1" | "team-2", string[]>>(
+    (teams, player, index) => {
+      teams[index % 2 === 0 ? "team-1" : "team-2"].push(player.id);
+      return teams;
+    },
+    { "team-1": [], "team-2": [] }
+  );
+}
+
+function getPlayerTeamId(state: WavelengthGameState, playerId: string) {
+  if (state.teams["team-1"].includes(playerId)) return "team-1";
+  if (state.teams["team-2"].includes(playerId)) return "team-2";
+  return null;
+}
+
+function getWavelengthEligibleGuesserIds(state: WavelengthGameState) {
+  if (state.mode === "teams") {
+    const activeTeamIds = state.activeTeamId ? state.teams[state.activeTeamId] : [];
+    return activeTeamIds.filter((playerId) => playerId !== state.clueGiverId);
+  }
+  return state.players
+    .map((player) => player.id)
+    .filter((playerId) => playerId !== state.clueGiverId);
+}
+
+function getWavelengthGuessSummary(state: WavelengthGameState) {
+  return Object.entries(state.guesses).map(([playerId, guess]) => ({
+    playerId,
+    guess,
+    distance: Math.abs(state.secretNumber - guess),
+    points: getWavelengthRoundScore(state.secretNumber, guess)
+  }));
+}
+
+function applyWavelengthScores(state: WavelengthGameState) {
+  const guessSummary = getWavelengthGuessSummary(state);
+
+  if (state.mode === "teams" && state.activeTeamId) {
+    const bestDistance = Math.min(...guessSummary.map((guess) => guess.distance));
+    const teamPoints = Number.isFinite(bestDistance) ? Math.max(0, 10 - Math.floor(bestDistance / 5)) : 0;
+    state.teamScores[state.activeTeamId] += teamPoints;
+    state.score = state.teamScores["team-1"] + state.teamScores["team-2"];
+    return;
+  }
+
+  guessSummary.forEach((guess) => {
+    state.playerScores[guess.playerId] = (state.playerScores[guess.playerId] ?? 0) + guess.points;
+  });
+  const bestPoints = Math.max(0, ...guessSummary.map((guess) => guess.points));
+  state.playerScores[state.clueGiverId] = (state.playerScores[state.clueGiverId] ?? 0) + bestPoints;
+  state.score = Object.values(state.playerScores).reduce((total, value) => total + value, 0);
 }
 
 function getImposterReveal(room: Room, state: ImposterGameState) {
@@ -456,7 +609,8 @@ function createImposterCodeState(
   playMode: "multiplayer" | "single_device",
   round = 1,
   numberOfImposters = 1,
-  questionPack: unknown = "casual"
+  questionPack: unknown = "casual",
+  roundTimerSeconds = 90
 ): ImposterCodeGameState {
   const { pack, prompts } = getImposterCodePromptList(questionPack);
   const prompt = pickRandomItem(prompts);
@@ -465,7 +619,6 @@ function createImposterCodeState(
     getNumberSetting(numberOfImposters, 1, 1, Math.max(1, gameParticipants.length - 1))
   );
   const startedAt = new Date();
-  const roundTimerSeconds = 90;
 
   return {
     type: "imposter-code",
@@ -493,26 +646,50 @@ function createWavelengthState(
   playMode: "multiplayer" | "single_device",
   round = 1,
   score = 0,
-  scalePack: unknown = "casual"
+  scalePack: unknown = "casual",
+  mode: "teams" | "everyone" = "everyone",
+  maxRounds = 6,
+  roundTimerSeconds = 90,
+  existingTeamScores: Record<"team-1" | "team-2", number> = { "team-1": 0, "team-2": 0 },
+  existingPlayerScores?: Record<string, number>,
+  existingTeams?: Record<"team-1" | "team-2", string[]>
 ): WavelengthGameState {
-  const clueGiver = gameParticipants[(round - 1) % gameParticipants.length];
+  const teams = existingTeams ?? getBalancedTeams(gameParticipants);
+  const activeTeamId = mode === "teams" ? (round % 2 === 1 ? "team-1" : "team-2") : null;
+  const cluePool =
+    mode === "teams" && activeTeamId
+      ? gameParticipants.filter((player) => teams[activeTeamId].includes(player.id))
+      : gameParticipants;
+  const clueGiver = cluePool[(Math.floor((round - 1) / (mode === "teams" ? 2 : 1))) % cluePool.length] ?? gameParticipants[0];
   const { pack, scales } = getWavelengthScaleList(scalePack);
   const [scaleLeft, scaleRight] = pickRandomItem(scales);
+  const startedAt = new Date();
+  const timer = roundTimerSeconds;
 
   return {
     type: "wavelength",
     playMode,
     phase: "clue",
     players: gameParticipants,
+    mode,
     clueGiverId: clueGiver.id,
     clueGiverName: clueGiver.name,
+    activeTeamId,
+    teams,
     scaleLeft,
     scaleRight,
     scalePack: pack,
     secretNumber: Math.floor(Math.random() * 101),
     clue: null,
     guess: null,
+    guesses: {},
+    roundTimerSeconds: timer,
+    startedAt: startedAt.toISOString(),
+    endsAt: timer > 0 ? new Date(startedAt.getTime() + timer * 1000).toISOString() : startedAt.toISOString(),
     score,
+    teamScores: existingTeamScores,
+    playerScores: existingPlayerScores ?? Object.fromEntries(gameParticipants.map((player) => [player.id, 0])),
+    maxRounds,
     round
   };
 }
@@ -869,11 +1046,9 @@ app.post("/rooms/:code/games/start", (req, res) => {
       1,
       maxImposters
     );
-    const roundTimerSeconds = getNumberSetting(
+    const roundTimerSeconds = getTimerSetting(
       settings?.roundTimer,
-      60,
-      30,
-      300
+      60
     );
     const { category: wordCategory, words } = getImposterWordList(
       settings?.wordCategory
@@ -914,15 +1089,23 @@ app.post("/rooms/:code/games/start", (req, res) => {
       playMode,
       1,
       numberOfImposters,
-      settings?.questionPack
+      settings?.questionPack,
+      getTimerSetting(settings?.roundTimer, 90)
     );
   } else if (room.selectedGame.slug === "wavelength") {
+    const wavelengthMode = getWavelengthMode(settings?.wavelengthMode);
+    if (wavelengthMode === "teams" && gameParticipants.length < 4) {
+      return res.status(400).json({ message: "Team Mode needs at least 4 players." });
+    }
     room.gameState = createWavelengthState(
       gameParticipants,
       playMode,
       1,
       0,
-      settings?.scalePack
+      settings?.scalePack,
+      wavelengthMode,
+      getNumberSetting(settings?.maxRounds, 6, 1, 20),
+      getTimerSetting(settings?.roundTimer, 90)
     );
   } else {
     room.gameState = undefined;
@@ -1216,6 +1399,9 @@ app.post("/rooms/:code/games/imposter-code/submit-answer", (req, res) => {
   if (!room.gameState.players.some((player) => player.id === playerId)) {
     return res.status(404).json({ message: "Player not found in this game." });
   }
+  if (room.gameState.answers[playerId] !== undefined) {
+    return res.status(409).json({ message: "Answer already submitted." });
+  }
 
   room.gameState.answers[playerId] = answer.trim().slice(0, 120);
   if (Object.keys(room.gameState.answers).length >= room.gameState.players.length) {
@@ -1331,7 +1517,8 @@ app.post("/rooms/:code/games/imposter-code/next-round", (req, res) => {
     room.gameState.playMode,
     room.gameState.round + 1,
     room.gameState.numberOfImposters,
-    room.gameState.questionPack
+    room.gameState.questionPack,
+    room.gameState.roundTimerSeconds
   );
   rooms.set(code, room);
   saveRooms();
@@ -1355,6 +1542,13 @@ app.post("/rooms/:code/games/wavelength/submit-clue", (req, res) => {
 
   room.gameState.clue = clue.trim().slice(0, 80);
   room.gameState.phase = "guess";
+  room.gameState.guesses = {};
+  const startedAt = new Date();
+  room.gameState.startedAt = startedAt.toISOString();
+  room.gameState.endsAt =
+    room.gameState.roundTimerSeconds > 0
+      ? new Date(startedAt.getTime() + room.gameState.roundTimerSeconds * 1000).toISOString()
+      : startedAt.toISOString();
   rooms.set(code, room);
   saveRooms();
   io.to(code).emit("room:state", room);
@@ -1365,23 +1559,34 @@ app.post("/rooms/:code/games/wavelength/submit-guess", (req, res) => {
   const code = req.params.code.toUpperCase();
   const { playerId, guess } = req.body as { playerId?: string; guess?: number };
   const room = rooms.get(code);
-  const player = room?.players.find((roomPlayer) => roomPlayer.id === playerId);
 
   if (!room) return res.status(404).json({ message: "Room not found." });
-  if (!player?.isHost) return res.status(403).json({ message: "Only the host can lock the guess." });
   if (!room.gameState || room.gameState.type !== "wavelength" || room.gameState.phase !== "guess") {
     return res.status(400).json({ message: "Guessing is not active." });
   }
+  if (!playerId || !room.gameState.players.some((player) => player.id === playerId)) {
+    return res.status(404).json({ message: "Player not found in this game." });
+  }
+
+  const eligibleGuesserIds = getWavelengthEligibleGuesserIds(room.gameState);
+  if (!eligibleGuesserIds.includes(playerId)) {
+    return res.status(403).json({ message: "You are not guessing this round." });
+  }
+  if (room.gameState.guesses[playerId] !== undefined) {
+    return res.status(400).json({ message: "Guess already submitted." });
+  }
 
   const nextGuess = getNumberSetting(guess, 50, 0, 100);
-  const roundScore = getWavelengthRoundScore(room.gameState.secretNumber, nextGuess);
   room.gameState.guess = nextGuess;
-  room.gameState.score += roundScore;
-  room.gameState.phase = "results";
+  room.gameState.guesses[playerId] = nextGuess;
+  if (eligibleGuesserIds.every((eligiblePlayerId) => room.gameState?.type === "wavelength" && room.gameState.guesses[eligiblePlayerId] !== undefined)) {
+    applyWavelengthScores(room.gameState);
+    room.gameState.phase = "results";
+  }
   rooms.set(code, room);
   saveRooms();
   io.to(code).emit("room:state", room);
-  return res.json({ room, roundScore });
+  return res.json({ room });
 });
 
 app.post("/rooms/:code/games/wavelength/next-round", (req, res) => {
@@ -1395,13 +1600,22 @@ app.post("/rooms/:code/games/wavelength/next-round", (req, res) => {
   if (!room.gameState || room.gameState.type !== "wavelength") {
     return res.status(400).json({ message: "Wavelength state not available." });
   }
+  if (room.gameState.round >= room.gameState.maxRounds) {
+    return res.status(400).json({ message: "Final round reached." });
+  }
 
   room.gameState = createWavelengthState(
     room.gameState.players,
     room.gameState.playMode,
     room.gameState.round + 1,
     room.gameState.score,
-    room.gameState.scalePack
+    room.gameState.scalePack,
+    room.gameState.mode,
+    room.gameState.maxRounds,
+    room.gameState.roundTimerSeconds,
+    room.gameState.teamScores,
+    room.gameState.playerScores,
+    room.gameState.teams
   );
   rooms.set(code, room);
   saveRooms();
@@ -1515,6 +1729,7 @@ app.get("/rooms/:code/game-state/:playerId", (req, res) => {
     const imposters = gameParticipants.filter((gameParticipant) =>
       imposterIds.includes(gameParticipant.id)
     );
+    const submittedAnswer = room.gameState.answers[player.id];
 
     return res.json({
       gameSlug: room.selectedGame.slug,
@@ -1531,7 +1746,9 @@ app.get("/rooms/:code/game-state/:playerId", (req, res) => {
       roundTimerSeconds: room.gameState.roundTimerSeconds,
       startedAt: room.gameState.startedAt,
       endsAt: room.gameState.endsAt,
-      answers: room.gameState.phase === "answering" ? {} : room.gameState.answers,
+      answers: room.gameState.phase === "answering" && submittedAnswer !== undefined ? { [player.id]: submittedAnswer } : room.gameState.phase === "answering" ? {} : room.gameState.answers,
+      answeredPlayerIds: Object.keys(room.gameState.answers),
+      submittedAnswer: submittedAnswer ?? null,
       votes: room.gameState.votes,
       round: room.gameState.round,
       answerRevealed: room.gameState.answerRevealed,
@@ -1554,22 +1771,40 @@ app.get("/rooms/:code/game-state/:playerId", (req, res) => {
     }
 
     const isClueGiver = room.gameState.clueGiverId === player.id;
+    const eligibleGuesserIds = getWavelengthEligibleGuesserIds(room.gameState);
+    const playerTeamId = getPlayerTeamId(room.gameState, player.id);
+    const guessSummary = getWavelengthGuessSummary(room.gameState);
     return res.json({
       gameSlug: room.selectedGame.slug,
       playMode: room.gameState.playMode,
       type: room.gameState.type,
       players: gameParticipants,
       phase: room.gameState.phase,
+      mode: room.gameState.mode,
       clueGiverId: room.gameState.clueGiverId,
       clueGiverName: room.gameState.clueGiverName,
       isClueGiver,
+      isEligibleGuesser: eligibleGuesserIds.includes(player.id),
+      hasSubmittedGuess: room.gameState.guesses[player.id] !== undefined,
+      activeTeamId: room.gameState.activeTeamId,
+      playerTeamId,
+      teams: room.gameState.teams,
       scaleLeft: room.gameState.scaleLeft,
       scaleRight: room.gameState.scaleRight,
       scalePack: room.gameState.scalePack,
       secretNumber: isClueGiver || room.gameState.phase === "results" ? room.gameState.secretNumber : null,
       clue: room.gameState.clue,
       guess: room.gameState.guess,
+      guesses: room.gameState.phase === "results" ? room.gameState.guesses : {},
+      guessSummary: room.gameState.phase === "results" ? guessSummary : [],
+      eligibleGuesserIds,
+      roundTimerSeconds: room.gameState.roundTimerSeconds,
+      startedAt: room.gameState.startedAt,
+      endsAt: room.gameState.endsAt,
       score: room.gameState.score,
+      teamScores: room.gameState.teamScores,
+      playerScores: room.gameState.playerScores,
+      maxRounds: room.gameState.maxRounds,
       round: room.gameState.round
     });
   }
@@ -1606,8 +1841,8 @@ app.get("/rooms/:code/single-device-game-state", (req, res) => {
     wordCategory: room.gameState.wordCategory,
     roundTimerSeconds: room.gameState.roundTimerSeconds,
     startedAt: room.gameState.startedAt,
-    endsAt: room.gameState.endsAt
-    ,readyPlayerIds: room.gameState.readyPlayerIds,
+    endsAt: room.gameState.endsAt,
+    readyPlayerIds: room.gameState.readyPlayerIds,
     votes: room.gameState.votes,
     round: room.gameState.round
   });

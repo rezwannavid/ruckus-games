@@ -26,17 +26,28 @@ type GameState = {
   round: number;
   answerRevealed?: boolean;
   answers?: Record<string, string>;
+  answeredPlayerIds?: string[];
+  submittedAnswer?: string | null;
   question?: string | null;
   prompt?: string | null;
   imposterQuestion?: string | null;
   clueGiverId?: string;
   clueGiverName?: string;
+  mode?: "teams" | "everyone";
+  activeTeamId?: "team-1" | "team-2" | null;
+  teams?: Record<"team-1" | "team-2", string[]>;
   scaleLeft?: string;
   scaleRight?: string;
   secretNumber?: number | null;
   clue?: string | null;
   guess?: number | null;
+  guesses?: Record<string, number>;
+  guessSummary?: Array<{ playerId: string; guess: number; distance: number; points: number }>;
+  eligibleGuesserIds?: string[];
   score?: number;
+  teamScores?: Record<"team-1" | "team-2", number>;
+  playerScores?: Record<string, number>;
+  maxRounds?: number;
 };
 type Room = {
   code: string;
@@ -59,7 +70,85 @@ type PersonalState = GameState & {
   topVotedPlayerIds?: string[];
   answerRevealed?: boolean;
   isClueGiver?: boolean;
+  isEligibleGuesser?: boolean;
+  hasSubmittedGuess?: boolean;
+  playerTeamId?: "team-1" | "team-2" | null;
 };
+
+function WavelengthScale({
+  left,
+  right,
+  value,
+  answer,
+  onChange,
+  disabled,
+  summaries = []
+}: {
+  left?: string;
+  right?: string;
+  value: number;
+  answer?: number | null;
+  onChange?: (value: number) => void;
+  disabled?: boolean;
+  summaries?: Array<{ playerId: string; guess: number; points: number }>;
+}) {
+  const showAnswer = answer !== null && answer !== undefined;
+  const distance = showAnswer ? Math.abs(answer - value) : 0;
+  const low = showAnswer ? Math.min(answer, value) : value;
+  const high = showAnswer ? Math.max(answer, value) : value;
+
+  return (
+    <div className="rounded-[32px] bg-[var(--surface-inverted-light)] p-5 text-[var(--text-inverted)]">
+      <div className="flex justify-between gap-4 text-footnote-semibold"><span>{left}</span><span>{right}</span></div>
+      <div className="relative mt-10 h-16 rounded-full bg-[var(--surface-primary)]">
+        {showAnswer && (
+          <div
+            className="absolute top-1/2 h-3 -translate-y-1/2 rounded-full bg-[var(--surface-secondary)]/45 transition-all duration-500"
+            style={{ left: `${low}%`, width: `${Math.max(2, high - low)}%` }}
+          />
+        )}
+        {summaries.map((summary, index) => (
+          <div
+            key={summary.playerId}
+            className="absolute top-1/2 grid size-8 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-[var(--surface-inverted)] text-caption-semibold text-[var(--text-inverted)] shadow-md transition-all duration-500"
+            style={{ left: `${summary.guess}%`, transform: `translate(-50%, calc(-50% + ${index * 4}px))` }}
+            title={`${summary.guess}`}
+          >
+            {summary.points}
+          </div>
+        ))}
+        {showAnswer && (
+          <div
+            className="absolute top-1/2 h-14 w-2 -translate-y-1/2 rounded-full bg-[var(--surface-secondary)] shadow-[0_0_18px_rgba(65,160,229,.7)] transition-all duration-500"
+            style={{ left: `calc(${answer}% - 4px)` }}
+          />
+        )}
+        <div
+          className="absolute top-1/2 grid size-12 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-4 border-[var(--surface-primary)] bg-[var(--surface-inverted-light)] text-caption-semibold shadow-xl transition-all duration-200"
+          style={{ left: `${value}%` }}
+        >
+          {value}
+        </div>
+        {onChange && (
+          <input
+            type="range"
+            min={0}
+            max={100}
+            value={value}
+            disabled={disabled}
+            onChange={(event) => onChange(Number(event.target.value))}
+            className="wavelength-slider absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+          />
+        )}
+      </div>
+      <div className={`mt-7 grid gap-2 text-center ${showAnswer ? "grid-cols-3" : "grid-cols-1"}`}>
+        <div><p className="text-caption-semibold opacity-60">Guess</p><p className="text-title-sm-bold">{value}</p></div>
+        {showAnswer && <div><p className="text-caption-semibold opacity-60">Answer</p><p className="text-title-sm-bold">{answer}</p></div>}
+        {showAnswer && <div><p className="text-caption-semibold opacity-60">Distance</p><p className="text-title-sm-bold">{distance}</p></div>}
+      </div>
+    </div>
+  );
+}
 
 export default function PlayGamePage({ params }: { params: Promise<{ code: string; gameSlug: string }> }) {
   const router = useRouter();
@@ -72,6 +161,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
   const [hasSeenRole, setHasSeenRole] = useState(false);
   const [selectedVote, setSelectedVote] = useState("");
   const [answerText, setAnswerText] = useState("");
+  const [isAnswerSubmitting, setIsAnswerSubmitting] = useState(false);
   const [clueText, setClueText] = useState("");
   const [guess, setGuess] = useState(50);
   const [secretVisible, setSecretVisible] = useState(false);
@@ -129,7 +219,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
   }, [currentPlayerId, gameSlug, gameState, roomCode]);
 
   useEffect(() => {
-    if (!gameState?.endsAt || !["discussion", "voting", "answers"].includes(gameState.phase)) return;
+    if (!gameState?.endsAt || !["discussion", "voting", "answers", "guess"].includes(gameState.phase)) return;
     const update = () => setTimeLeft(Math.max(0, Math.ceil((new Date(gameState.endsAt ?? "").getTime() - Date.now()) / 1000)));
     update();
     const timer = window.setInterval(update, 1000);
@@ -155,6 +245,19 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
       await post(action, body);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "That action failed.");
+    }
+  }
+
+  async function submitImposterCodeAnswer() {
+    if (!answerText.trim() || isAnswerSubmitting) return;
+    setIsAnswerSubmitting(true);
+    try {
+      await post("submit-answer", { answer: answerText });
+      setAnswerText("");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "That action failed.");
+    } finally {
+      setIsAnswerSubmitting(false);
     }
   }
 
@@ -197,8 +300,9 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
 
   if (gameState.type === "imposter-code") {
     const answers = personal.answers ?? {};
-    const submittedAnswer = Boolean(currentPlayerId && answers[currentPlayerId]);
-    const answerCount = Object.keys(answers).length;
+    const submittedAnswer = Boolean(personal.submittedAnswer || (currentPlayerId && answers[currentPlayerId]));
+    const answeredPlayerIds = personal.answeredPlayerIds ?? Object.keys(answers);
+    const answerCount = answeredPlayerIds.length;
     const answerVisible = Boolean(personal.answerRevealed || personal.caughtImposter);
     const topVotedPlayer = gameState.players.find((player) => personal.topVotedPlayerIds?.includes(player.id));
     const revealedNames = personal.imposterPlayerNames ?? [];
@@ -210,7 +314,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
           <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-20 text-center">
             <BrandNav tone="dark" />
             <div className="flex flex-1 items-center">
-              <WaitingOrbit players={gameState.players} completedIds={Object.keys(answers)} title="Waiting for answers" subtitle={`${answerCount}/${playerCount} Players Answered`} />
+              <WaitingOrbit players={gameState.players} completedIds={answeredPlayerIds} title="Answer submitted" subtitle={`${answerCount}/${playerCount} Players Answered`} />
             </div>
             <Button disabled variant="primary" size="lg" showLeftIcon={false} className="w-full">Answers locked</Button>
           </section>
@@ -232,13 +336,20 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
               <textarea
                 value={answerText}
                 onChange={(event) => setAnswerText(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    submitImposterCodeAnswer();
+                  }
+                }}
                 placeholder="Type your answer..."
                 maxLength={120}
+                disabled={isAnswerSubmitting}
                 className="min-h-36 w-full resize-none rounded-[28px] bg-[var(--surface-primary-light)] px-5 py-4 text-title-sm-semibold outline-none placeholder:text-white/20 focus-visible:outline-3 focus-visible:outline-[var(--surface-secondary)]"
               />
             </label>
             <div className="mt-auto">
-              <Button onClick={() => { perform("submit-answer", { answer: answerText }); setAnswerText(""); }} disabled={!answerText.trim()} variant="tertiary" size="lg" showLeftIcon={false} rightIcon={<Send />} className="w-full">Submit Answer</Button>
+              <Button onClick={submitImposterCodeAnswer} disabled={!answerText.trim() || isAnswerSubmitting} variant="tertiary" size="lg" showLeftIcon={false} rightIcon={<Send />} className="w-full">{isAnswerSubmitting ? "Submitting..." : "Submit Answer"}</Button>
             </div>
           </section>
         </AppScreen>
@@ -381,7 +492,18 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
 
   if (gameState.type === "wavelength") {
     const secretNumber = personal.secretNumber ?? gameState.secretNumber ?? 50;
-    const roundScore = gameState.guess === null || gameState.guess === undefined ? 0 : Math.max(0, 10 - Math.floor(Math.abs(secretNumber - gameState.guess) / 5));
+    const submittedGuessIds = Object.keys(gameState.guesses ?? {});
+    const eligibleGuesserIds = gameState.eligibleGuesserIds ?? [];
+    const activeTeamName = gameState.activeTeamId === "team-1" ? "Team 1" : "Team 2";
+    const finalRound = (gameState.round ?? 1) >= (gameState.maxRounds ?? 1);
+    const scoreRows = gameState.mode === "teams"
+      ? [
+          { id: "team-1", name: "Team 1", score: gameState.teamScores?.["team-1"] ?? 0 },
+          { id: "team-2", name: "Team 2", score: gameState.teamScores?.["team-2"] ?? 0 }
+        ]
+      : gameState.players
+          .map((player) => ({ id: player.id, name: player.name, score: gameState.playerScores?.[player.id] ?? 0, avatarId: player.avatarId }))
+          .sort((a, b) => b.score - a.score);
 
     if (gameState.phase === "clue") {
       return (
@@ -407,6 +529,9 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
             ) : (
               <>
                 <p className="mt-8 text-title-sm-bold">Waiting for {gameState.clueGiverName}</p>
+                <p className="mt-2 text-body-semibold opacity-60">
+                  {gameState.mode === "teams" ? `${activeTeamName} is giving this clue.` : "The clue-giver is preparing the scale."}
+                </p>
                 <div className="mt-auto"><Button disabled variant="primary" size="lg" showLeftIcon={false} className="w-full">Waiting for clue</Button></div>
               </>
             )}
@@ -416,23 +541,47 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
     }
 
     if (gameState.phase === "guess") {
+      if (!personal.isEligibleGuesser || personal.hasSubmittedGuess) {
+        return (
+          <AppScreen tone="dark" className="!p-0">
+            <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-20 text-center">
+              <BrandNav title="Wavelength" tone="dark" />
+              <div className="mt-16">
+                <p className="text-footnote-semibold opacity-40">Time</p>
+                <p className="text-title-lg-semibold tabular-nums">{formattedTime}</p>
+              </div>
+              <div className="flex flex-1 items-center">
+                <WaitingOrbit
+                  players={gameState.players}
+                  completedIds={submittedGuessIds}
+                  title={personal.hasSubmittedGuess ? "Waiting for others" : "Waiting for guessers"}
+                  subtitle={`${submittedGuessIds.length}/${eligibleGuesserIds.length} Players Guessed`}
+                />
+              </div>
+              <Button disabled variant="primary" size="lg" showLeftIcon={false} className="w-full">
+                {personal.hasSubmittedGuess ? "Guess locked" : "Waiting"}
+              </Button>
+            </section>
+          </AppScreen>
+        );
+      }
+
       return (
-        <AppScreen tone="blue" className="!p-0">
+        <AppScreen tone="dark" className="!p-0">
           <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-16 text-center">
-            <BrandNav title="Make a Guess" tone="light" />
+            <BrandNav title="Make a Guess" tone="dark" />
+            <div className="mt-10">
+              <p className="text-footnote-semibold opacity-40">Time</p>
+              <p className="text-title-lg-semibold tabular-nums">{formattedTime}</p>
+            </div>
             <p className="mt-10 text-body-semibold opacity-60">Clue</p>
-            <h1 className="mt-2 text-title-lg-bold">{gameState.clue}</h1>
-            <div className="mt-12 rounded-[32px] bg-[var(--surface-inverted-light)] p-5 text-[var(--text-inverted)]">
-              <div className="flex justify-between text-footnote-semibold"><span>{gameState.scaleLeft}</span><span>{gameState.scaleRight}</span></div>
-              <input type="range" min={0} max={100} value={guess} onChange={(event) => setGuess(Number(event.target.value))} className="mt-8 w-full accent-[var(--surface-secondary)]" disabled={!isHost} />
-              <output className="mt-5 block text-display-md-semibold">{guess}</output>
+            <h1 className="mt-2 text-title-lg-bold text-[var(--text-highlight)]">{gameState.clue}</h1>
+            <div className="mt-12 animate-pop">
+              <WavelengthScale left={gameState.scaleLeft} right={gameState.scaleRight} value={guess} onChange={setGuess} />
             </div>
             <div className="mt-auto">
-              {isHost ? (
-                <Button onClick={() => perform("submit-guess", { guess })} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Flag />} className="w-full">Lock Guess</Button>
-              ) : (
-                <p className="pb-6 text-body-semibold opacity-60">Room owner locks the room guess</p>
-              )}
+              <PlayerStatusPill players={gameState.players} completedIds={submittedGuessIds} label={`${submittedGuessIds.length}/${eligibleGuesserIds.length} guessed`} />
+              <Button onClick={() => perform("submit-guess", { guess })} variant="primary" size="lg" showLeftIcon={false} rightIcon={<Flag />} className="w-full">Submit Guess</Button>
             </div>
           </section>
         </AppScreen>
@@ -445,22 +594,29 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
           <BrandNav title="Results" tone="light" />
           <h1 className="mt-12 text-title-lg-bold">{gameState.scaleLeft} ↔ {gameState.scaleRight}</h1>
           <p className="mt-3 text-headline-md-bold">Clue: {gameState.clue}</p>
-          <div className="mt-12 rounded-[32px] bg-[var(--surface-inverted-light)] p-5 text-[var(--text-inverted)]">
-            <div className="relative h-16 rounded-full bg-[var(--surface-primary)]">
-              <div className="absolute top-1/2 h-14 w-2 -translate-y-1/2 rounded-full bg-[var(--surface-secondary)] transition-all duration-500" style={{ left: `calc(${secretNumber}% - 4px)` }} />
-              <div className="absolute top-1/2 h-10 w-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--surface-inverted)] transition-all duration-500" style={{ left: `${gameState.guess ?? 50}%` }} />
-            </div>
-            <div className="mt-5 grid grid-cols-3 gap-2 text-center">
-              <div><p className="text-caption-semibold opacity-60">Guess</p><p className="text-title-sm-bold">{gameState.guess}</p></div>
-              <div><p className="text-caption-semibold opacity-60">Answer</p><p className="text-title-sm-bold">{secretNumber}</p></div>
-              <div><p className="text-caption-semibold opacity-60">Points</p><p className="text-title-sm-bold">{roundScore}</p></div>
-            </div>
+          <div className="mt-12 animate-pop">
+            <WavelengthScale
+              left={gameState.scaleLeft}
+              right={gameState.scaleRight}
+              value={gameState.guess ?? gameState.guessSummary?.[0]?.guess ?? 50}
+              answer={secretNumber}
+              summaries={gameState.guessSummary ?? []}
+            />
           </div>
-          <p className="mt-8 text-title-sm-bold">Total Score: {gameState.score}</p>
-          <div className="mt-auto grid grid-cols-2 gap-2">
+          <p className="mt-3 text-footnote-semibold opacity-70">Round {gameState.round}/{gameState.maxRounds}</p>
+          <div className="mt-7 space-y-2">
+            {scoreRows.map((row) => (
+              <div key={row.id} className="flex h-[64px] items-center rounded-[24px] bg-[var(--surface-inverted-light)] px-4 text-[var(--text-inverted)]">
+                {"avatarId" in row && <Avatar avatarId={row.avatarId ?? 1} name={row.name} tone="black" />}
+                <span className="ml-3 flex-1 text-left text-headline-md-semibold">{row.name}</span>
+                <span className="text-title-sm-bold">{row.score}</span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-auto grid grid-cols-2 gap-2 pt-6">
             {isHost ? (
               <>
-                <Button onClick={() => perform("next-round")} variant="primary" size="lg" showLeftIcon={false} showRightIcon={false}>Next Round</Button>
+                <Button onClick={() => perform("next-round")} disabled={finalRound} variant="primary" size="lg" showLeftIcon={false} showRightIcon={false}>{finalRound ? "Final Round" : "Next Round"}</Button>
                 <Button onClick={endGame} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Flag />}>End Game</Button>
               </>
             ) : (

@@ -3,7 +3,8 @@
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { io } from "socket.io-client";
-import { BriefcaseBusiness, Braces, MapPin, Minus, Play, Plus, RadioTower, Shapes, Shuffle, Skull, Utensils } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { Braces, Building2, Coffee, Film, Laugh, MapPin, Minus, Play, Plus, RadioTower, Shuffle, Skull, Sparkles, UsersRound } from "lucide-react";
 import { Avatar } from "@/components/ui/AvatarPicker";
 import { Button } from "@/components/ui/Button";
 import { ErrorState, LoadingState, AppScreen } from "@/components/ui/GameUI";
@@ -12,39 +13,151 @@ import type { Room } from "@/features/lobby/types/room";
 import { serverUrl } from "@/lib/config";
 import { clearRoomSession, getStoredSession } from "@/lib/session";
 
-const imposterPacks = [
-  ["random", "Random", Shuffle],
-  ["objects", "Things", Shapes],
-  ["food", "Food", Utensils],
-  ["places", "Places", MapPin],
-  ["jobs", "Jobs", BriefcaseBusiness]
+const timerOptions = [
+  ["none", "No Timer"],
+  [30, "30s"],
+  [60, "1m"],
+  [90, "1m 30s"],
+  [120, "2m"],
+  [180, "3m"]
 ] as const;
 
-const imposterCodePacks = [
-  ["casual", "Casual", Shuffle],
-  ["food", "Food", Utensils],
-  ["school", "School", Shapes],
-  ["work", "Work", BriefcaseBusiness],
-  ["relationships", "Friends", Shapes],
-  ["travel", "Travel", MapPin],
-  ["party", "Party", Play],
-  ["deep", "Deep", Braces],
-  ["funny", "Funny", Shuffle],
-  ["desi", "Desi", MapPin]
-] as const;
+type PackOption = {
+  id: string;
+  label: string;
+  Icon: LucideIcon;
+  subcategories: Array<{ id: string; label: string }>;
+};
 
-const wavelengthPacks = [
-  ["casual", "Casual", Shuffle],
-  ["food", "Food", Utensils],
-  ["movies", "Movies", Play],
-  ["music", "Music", RadioTower],
-  ["school", "School", Shapes],
-  ["work", "Work", BriefcaseBusiness],
-  ["relationships", "Friends", Shapes],
-  ["party", "Party", Play],
-  ["desi", "Desi", MapPin],
-  ["weird", "Weird", Shuffle]
-] as const;
+const imposterPacks: PackOption[] = [
+  { id: "classic", label: "Classic", Icon: Sparkles, subcategories: [
+    { id: "objects", label: "Things" },
+    { id: "places", label: "Places" },
+    { id: "food", label: "Food" },
+    { id: "animals", label: "Animals" },
+    { id: "actions", label: "Actions" },
+    { id: "social", label: "Social" }
+  ] },
+  { id: "desi", label: "Desi", Icon: MapPin, subcategories: [
+    { id: "dhaka", label: "Dhaka" },
+    { id: "food", label: "Bangladeshi Food" },
+    { id: "eid", label: "Eid" },
+    { id: "school", label: "School" },
+    { id: "family", label: "Family" },
+    { id: "cricket", label: "Cricket" }
+  ] }
+];
+
+const imposterCodePacks: PackOption[] = [
+  { id: "casual", label: "Casual", Icon: Laugh, subcategories: [
+    { id: "objects", label: "Objects" },
+    { id: "internet", label: "Internet" },
+    { id: "funny", label: "Funny" }
+  ] },
+  { id: "life", label: "Life", Icon: UsersRound, subcategories: [
+    { id: "food", label: "Food" },
+    { id: "school", label: "School" },
+    { id: "work", label: "Work" },
+    { id: "relationships", label: "Friends" }
+  ] },
+  { id: "desi", label: "Desi", Icon: Coffee, subcategories: [
+    { id: "food", label: "Food" },
+    { id: "dhaka", label: "Dhaka" },
+    { id: "eid", label: "Eid" },
+    { id: "family", label: "Family" }
+  ] }
+];
+
+const wavelengthPacks: PackOption[] = [
+  { id: "casual", label: "Casual", Icon: Shuffle, subcategories: [
+    { id: "simple", label: "Simple" },
+    { id: "people", label: "People" },
+    { id: "weird", label: "Weird" }
+  ] },
+  { id: "culture", label: "Culture", Icon: Film, subcategories: [
+    { id: "food", label: "Food" },
+    { id: "movies", label: "Movies" },
+    { id: "music", label: "Music" }
+  ] },
+  { id: "desi", label: "Desi", Icon: Building2, subcategories: [
+    { id: "dhaka", label: "Dhaka" },
+    { id: "food", label: "Food" },
+    { id: "social", label: "Social" },
+    { id: "student", label: "Student" }
+  ] }
+];
+
+function PackPicker({
+  packs,
+  value,
+  onChange
+}: {
+  packs: PackOption[];
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const selectedPackId = value.split(":")[0];
+  const selectedPack = packs.find((pack) => pack.id === selectedPackId) ?? packs[0];
+  const SelectedIcon = selectedPack.Icon;
+
+  return (
+    <section className="mt-6 pb-4">
+      <h2 className="text-center text-body-regular">Game Pack</h2>
+      <div className="-mx-4 mt-4 flex snap-x gap-3 overflow-x-auto px-4 pb-4 [scrollbar-width:none]">
+        {packs.map(({ id, label, Icon }) => {
+          const selected = selectedPackId === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => onChange(id)}
+              aria-pressed={value === id}
+              className={`group flex h-[158px] w-[150px] shrink-0 snap-start flex-col items-center justify-center rounded-[36px] border-2 border-transparent text-center transition duration-200 hover:-translate-y-1 active:scale-[0.98] aria-pressed:scale-[1.02] ${selected ? "bg-[var(--surface-inverted)] text-[var(--text-inverted)]" : "bg-[var(--surface-primary-light)] text-[var(--text-primary)]"}`}
+            >
+              <Icon size={54} strokeWidth={2.4} className={`transition-transform duration-300 group-hover:rotate-3 group-hover:scale-110 ${selected ? "text-[var(--surface-secondary)]" : ""}`} />
+              <span className="mt-4 text-headline-md-bold">{label}</span>
+              <span className="mt-1 text-caption-semibold opacity-60">{selected ? "Selected" : "Tap pack"}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="animate-pop rounded-[28px] bg-[var(--surface-primary-light)] p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-body-bold">{selectedPack.label}</p>
+            <p className="text-caption-regular opacity-60">Choose full pack or one subcategory</p>
+          </div>
+          <SelectedIcon className="shrink-0 text-[var(--surface-secondary)]" size={28} />
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => onChange(selectedPack.id)}
+            aria-pressed={value === selectedPack.id}
+            className="rounded-full bg-[var(--surface-primary)] px-4 py-2 text-footnote-semibold transition hover:-translate-y-0.5 active:scale-95 aria-pressed:bg-[var(--surface-secondary)] aria-pressed:text-[var(--text-inverted-plus)]"
+          >
+            Full {selectedPack.label}
+          </button>
+          {selectedPack.subcategories.map((subcategory) => {
+            const subcategoryValue = `${selectedPack.id}:${subcategory.id}`;
+            return (
+              <button
+                key={subcategoryValue}
+                type="button"
+                onClick={() => onChange(subcategoryValue)}
+                aria-pressed={value === subcategoryValue}
+                className="rounded-full bg-[var(--surface-primary)] px-4 py-2 text-footnote-semibold transition hover:-translate-y-0.5 active:scale-95 aria-pressed:bg-[var(--surface-secondary)] aria-pressed:text-[var(--text-inverted-plus)]"
+              >
+                {subcategory.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
 
 export default function GameSetupPage({ params }: { params: Promise<{ code: string; gameSlug: string }> }) {
   const router = useRouter();
@@ -53,10 +166,12 @@ export default function GameSetupPage({ params }: { params: Promise<{ code: stri
   const [room, setRoom] = useState<Room | null>(null);
   const [currentPlayerId] = useState(() => getStoredSession().roomCode?.toUpperCase() === roomCode ? getStoredSession().playerId : null);
   const [numberOfImposters, setNumberOfImposters] = useState(1);
-  const [roundTimer] = useState(90);
-  const [wordCategory, setWordCategory] = useState("random");
+  const [timerSetting, setTimerSetting] = useState<(typeof timerOptions)[number][0]>(90);
+  const [wordCategory, setWordCategory] = useState("classic");
   const [questionPack, setQuestionPack] = useState("casual");
   const [scalePack, setScalePack] = useState("casual");
+  const [wavelengthMode, setWavelengthMode] = useState<"everyone" | "teams">("everyone");
+  const [maxRounds, setMaxRounds] = useState(6);
   const [hintsEnabled, setHintsEnabled] = useState(true);
   const [error, setError] = useState("");
   const [isStarting, setIsStarting] = useState(false);
@@ -64,7 +179,12 @@ export default function GameSetupPage({ params }: { params: Promise<{ code: stri
   const currentPlayer = room?.players.find((player) => player.id === currentPlayerId);
   const isHost = Boolean(currentPlayer?.isHost);
   const selectedGame = room?.selectedGame;
-  const enoughPlayers = Boolean(selectedGame && room && room.players.length >= selectedGame.minPlayers);
+  const enoughPlayers = Boolean(
+    selectedGame &&
+    room &&
+    room.players.length >= selectedGame.minPlayers &&
+    !(selectedGame.slug === "wavelength" && wavelengthMode === "teams" && room.players.length < 4)
+  );
   const isImposterSetup = selectedGame?.slug === "imposter";
   const isImposterFamily = selectedGame?.slug === "imposter" || selectedGame?.slug === "imposter-code";
   const maxImposters = Math.max(1, (room?.players.length ?? 2) - 1);
@@ -108,10 +228,12 @@ export default function GameSetupPage({ params }: { params: Promise<{ code: stri
           settings: {
             playMode: "multiplayer",
             numberOfImposters,
-            roundTimer,
+            roundTimer: timerSetting,
             wordCategory,
             questionPack,
             scalePack,
+            wavelengthMode,
+            maxRounds,
             hintsEnabled
           }
         })
@@ -179,35 +301,62 @@ export default function GameSetupPage({ params }: { params: Promise<{ code: stri
           )}
         </section>
 
-        <section className="mt-6">
-          <h2 className="text-center text-body-regular">Game Pack</h2>
-          <div className="-mx-4 mt-4 flex snap-x gap-3 overflow-x-auto px-[112px] pb-3 [scrollbar-width:none]">
-            {(selectedGame.slug === "imposter" ? imposterPacks : selectedGame.slug === "imposter-code" ? imposterCodePacks : wavelengthPacks).map(([value, label, Icon]) => {
-              const selected =
-                selectedGame.slug === "imposter"
-                  ? wordCategory === value
-                  : selectedGame.slug === "imposter-code"
-                    ? questionPack === value
-                    : scalePack === value;
-              return (
-                <button
-                  key={String(value)}
-                  type="button"
-                  onClick={() => {
-                    if (selectedGame.slug === "imposter") setWordCategory(String(value));
-                    else if (selectedGame.slug === "imposter-code") setQuestionPack(String(value));
-                    else setScalePack(String(value));
-                  }}
-                  aria-pressed={selected}
-                  className={`flex h-[182px] w-[180px] shrink-0 snap-center flex-col items-center justify-center rounded-[40px] border-2 border-transparent transition aria-pressed:scale-[1.02] ${selected ? "bg-[var(--surface-inverted)] text-[var(--text-inverted)]" : "bg-[var(--surface-primary-light)] text-[var(--text-primary)]"}`}
-                >
-                  <Icon size={62} strokeWidth={2.5} className={selected ? "text-[var(--surface-secondary)]" : ""} />
-                  <span className="mt-4 text-headline-md-bold">{String(label)}</span>
-                </button>
-              );
-            })}
+        <section className="mt-5 space-y-3">
+          <h2 className="text-center text-body-regular">Timer</h2>
+          <div className="grid grid-cols-3 gap-2">
+            {timerOptions.map(([value, label]) => (
+              <button
+                key={String(value)}
+                type="button"
+                onClick={() => setTimerSetting(value)}
+                aria-pressed={timerSetting === value}
+                className="h-12 rounded-[18px] bg-[var(--surface-primary-light)] text-footnote-semibold transition aria-pressed:bg-[var(--surface-secondary)] aria-pressed:text-[var(--text-inverted-plus)]"
+              >
+                {label}
+              </button>
+            ))}
           </div>
         </section>
+
+        {selectedGame.slug === "wavelength" && (
+          <section className="mt-5 space-y-3">
+            <h2 className="text-center text-body-regular">Wavelength Mode</h2>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                ["everyone", "Everyone Guesses"],
+                ["teams", "Team Mode"]
+              ].map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setWavelengthMode(value as "everyone" | "teams")}
+                  aria-pressed={wavelengthMode === value}
+                  className="min-h-14 rounded-[20px] bg-[var(--surface-primary-light)] px-3 text-footnote-semibold transition aria-pressed:bg-[var(--surface-secondary)] aria-pressed:text-[var(--text-inverted-plus)] disabled:opacity-30"
+                  disabled={value === "teams" && room.players.length < 4}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div className="flex h-[60px] items-center rounded-[24px] bg-[var(--surface-primary-light)] px-5">
+              <span className="flex-1 text-body-bold">Rounds</span>
+              <button type="button" aria-label="Decrease rounds" onClick={() => setMaxRounds((value) => Math.max(1, value - 1))} className="grid size-10 place-items-center rounded-full bg-[var(--surface-primary)]"><Minus size={19} /></button>
+              <output className="w-12 text-center text-title-sm-bold">{maxRounds}</output>
+              <button type="button" aria-label="Increase rounds" onClick={() => setMaxRounds((value) => Math.min(20, value + 1))} className="grid size-10 place-items-center rounded-full bg-[var(--surface-primary)]"><Plus size={19} /></button>
+            </div>
+            {wavelengthMode === "teams" && room.players.length < 4 && (
+              <p className="text-center text-footnote-semibold text-[var(--text-highlight)]">Team Mode needs at least 4 players.</p>
+            )}
+          </section>
+        )}
+
+        {selectedGame.slug === "imposter" ? (
+          <PackPicker packs={imposterPacks} value={wordCategory} onChange={setWordCategory} />
+        ) : selectedGame.slug === "imposter-code" ? (
+          <PackPicker packs={imposterCodePacks} value={questionPack} onChange={setQuestionPack} />
+        ) : (
+          <PackPicker packs={wavelengthPacks} value={scalePack} onChange={setScalePack} />
+        )}
 
         {error && <p role="alert" className="mt-3 rounded-[16px] bg-[var(--danger)] px-4 py-3 text-footnote-semibold text-white">{error}</p>}
 

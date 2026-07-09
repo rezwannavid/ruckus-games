@@ -77,7 +77,7 @@ a {
 :root {
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --sticky-bottom: max(1rem, calc(var(--safe-bottom) + 1rem));
+  --sticky-bottom: max(1.25rem, calc(var(--safe-bottom) + 1.25rem));
 }
 
 .min-screen-safe {
@@ -129,6 +129,29 @@ a {
   }
 }
 
+@keyframes ruckus-wiggle {
+  0%, 100% {
+    transform: rotate(0deg) scale(1);
+  }
+  35% {
+    transform: rotate(-2deg) scale(1.03);
+  }
+  70% {
+    transform: rotate(2deg) scale(1.03);
+  }
+}
+
+@keyframes ruckus-pulse-soft {
+  0%, 100% {
+    opacity: 0.72;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.03);
+  }
+}
+
 .animate-page-in {
   animation: ruckus-fade-up 220ms ease-out both;
 }
@@ -139,4 +162,33 @@ a {
 
 .animate-float {
   animation: ruckus-float 2.8s ease-in-out infinite;
+}
+
+.animate-wiggle {
+  animation: ruckus-wiggle 420ms ease-out both;
+}
+
+.animate-pulse-soft {
+  animation: ruckus-pulse-soft 1.8s ease-in-out infinite;
+}
+
+.sticky-safe-cta {
+  position: sticky;
+  bottom: var(--sticky-bottom);
+  padding-bottom: var(--safe-bottom);
+}
+
+.wavelength-slider {
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
+  }
 }
