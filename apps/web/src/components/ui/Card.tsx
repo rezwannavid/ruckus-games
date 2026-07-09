@@ -25,7 +25,7 @@ type CardProps = HTMLAttributes<HTMLDivElement> & {
 };
 
 const variantClasses: Record<CardVariant, string> = {
-  default: "bg-[var(--surface-inverted-light)] text-[var(--text-inverted)]",
+  default: "bg-[var(--surface-inverted)] text-[var(--text-inverted)]",
   selected: "bg-[var(--surface-secondary)] text-[var(--text-inverted)]",
   highlight: "bg-[var(--surface-inverted)] text-[var(--text-inverted)]",
   inverted: "bg-[var(--surface-primary-light)] text-[var(--text-primary)]"

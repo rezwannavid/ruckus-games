@@ -2,7 +2,7 @@
 
 import { Suspense, useState, useSyncExternalStore } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, LogIn } from "lucide-react";
+import { LogIn, MoveLeft } from "lucide-react";
 import { AvatarPicker } from "@/components/ui/AvatarPicker";
 import { Button } from "@/components/ui/Button";
 import { LoadingState } from "@/components/ui/GameUI";
@@ -108,34 +108,76 @@ function JoinContent() {
   }
 
   const isName = step === "name";
+
+  if (isName) {
+    const hasName = Boolean(playerName.trim());
+
+    return (
+      <main className="min-h-[100dvh] overflow-hidden bg-[var(--surface-secondary)] text-[var(--text-inverted)]">
+        <div className="relative mx-auto min-h-[100dvh] w-full max-w-[393px] overflow-hidden bg-[var(--surface-secondary)] px-4">
+          <div className="absolute left-4 right-4 top-[74px] flex items-start gap-2">
+            <button
+              type="button"
+              aria-label="Back to room code"
+              onClick={() => setStep("code")}
+              className="mt-1 flex size-6 shrink-0 items-center justify-center text-[var(--text-inverted)]"
+            >
+              <MoveLeft className="size-6" strokeWidth={2} />
+            </button>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1 text-body-semibold text-[var(--text-inverted)]">
+                <span aria-hidden="true" className="size-5 rounded-full bg-[var(--text-inverted)]/15" />
+                <span>ruckus games</span>
+              </div>
+              <h1 className="text-title-sm-extrabold text-[var(--text-inverted)]">Enter your Name</h1>
+            </div>
+          </div>
+
+          <label className="absolute left-1/2 top-[298px] flex h-[64px] w-[360px] -translate-x-1/2 items-center justify-center">
+            <span className="sr-only">Your name</span>
+            <input
+              autoFocus
+              value={playerName}
+              onChange={(event) => setNameOverride(event.target.value)}
+              onKeyDown={(event) => { if (event.key === "Enter" && playerName.trim()) setStep("avatar"); }}
+              maxLength={16}
+              placeholder=""
+              className="h-[64px] w-full appearance-none border-0 bg-transparent p-0 text-center !text-[64px] font-bold leading-[60px] !text-white caret-transparent shadow-none outline-none ring-0 placeholder:text-transparent focus:border-0 focus:outline-none focus:ring-0"
+            />
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute top-0 h-16 w-1 rounded-full bg-white/35"
+              style={{ left: `calc(50% + ${Math.min(playerName.length, 8) * 20}px)` }}
+            />
+          </label>
+
+          {error && <p role="alert" className="absolute bottom-[112px] left-4 right-4 rounded-[16px] bg-[var(--surface-primary)] px-4 py-3 text-footnote-semibold text-[var(--text-primary)]">{error}</p>}
+          <Button
+            onClick={() => setStep("avatar")}
+            disabled={!hasName}
+            variant="inverted"
+            size="lg"
+            showLeftIcon={false}
+            className="absolute left-4 right-4 top-[502px] h-20 rounded-[28px] text-headline-md-bold"
+          >
+            Enter
+          </Button>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-[var(--surface-secondary)] px-4 py-8 text-[var(--text-inverted-plus)]">
       <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-[25rem] flex-col">
-        <BrandNav title={isName ? "Enter your Name" : "Choose your Character"} tone="light" onBack={() => setStep(isName ? "code" : "name")} />
-        {isName ? (
-          <section className="flex flex-1 items-center justify-center">
-            <label className="w-full">
-              <span className="sr-only">Your name</span>
-              <input
-                autoFocus
-                value={playerName}
-                onChange={(event) => setNameOverride(event.target.value)}
-                onKeyDown={(event) => { if (event.key === "Enter" && playerName.trim()) setStep("avatar"); }}
-                maxLength={16}
-                placeholder="Your name"
-                className="h-24 w-full border-0 border-b-4 border-black/20 bg-transparent text-center text-title-lg-bold outline-none placeholder:text-black/20 focus:border-[var(--surface-inverted-light)]"
-              />
-            </label>
-          </section>
-        ) : (
-          <section className="flex flex-1 flex-col justify-center">
-            <div className="rounded-[28px] bg-black/8 p-5"><AvatarPicker value={avatarId} onChange={setAvatarOverride} label="Choose a player icon" /></div>
-            <p className="mt-5 text-center text-title-sm-bold">{playerName}</p>
-          </section>
-        )}
+        <BrandNav title="Choose your Character" tone="light" onBack={() => setStep("name")} />
+        <section className="flex flex-1 flex-col justify-center">
+          <div className="rounded-[28px] bg-black/8 p-5"><AvatarPicker value={avatarId} onChange={setAvatarOverride} label="Choose a player icon" /></div>
+          <p className="mt-5 text-center text-title-sm-bold">{playerName}</p>
+        </section>
         {error && <p role="alert" className="mb-4 rounded-[16px] bg-[var(--surface-primary)] px-4 py-3 text-footnote-semibold text-[var(--text-primary)]">{error}</p>}
-        <Button onClick={() => isName ? setStep("avatar") : join()} disabled={isName && !playerName.trim()} variant="inverted" size="lg" showLeftIcon={false} rightIcon={isName ? <ArrowRight /> : <LogIn />} className="w-full">
-          {isName ? "Enter" : "Join Room"}
+        <Button onClick={join} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<LogIn />} className="w-full">
+          Join Room
         </Button>
       </div>
     </main>
