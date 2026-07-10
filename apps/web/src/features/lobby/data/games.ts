@@ -6,7 +6,7 @@ export const games: Game[] = [
     name: "Imposter",
     description: "Social Deduction",
     summary: "Find the hidden player before they blend in.",
-    minPlayers: 2,
+    minPlayers: 3,
     maxPlayers: 12,
     supportsMultiplayer: true,
     supportsSingleDevice: true
