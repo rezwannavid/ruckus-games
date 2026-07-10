@@ -59,7 +59,7 @@ export function HomeScreen({
 
         {error && <p className="mt-4 text-center text-sm text-red-300">{error}</p>}
 
-        <footer className="mt-auto pt-8 text-center text-caption-regular opacity-30">with love by rezwan navid</footer>
+        <footer className="mt-auto pt-4 text-center text-footnote-semibold opacity-80">With Love By Rezwan Navid</footer>
       </div>
     </main>
   );
