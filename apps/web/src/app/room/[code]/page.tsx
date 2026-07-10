@@ -3,9 +3,11 @@
 import { use, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { io, type Socket } from "socket.io-client";
+import { ArrowRight, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { AvatarPicker } from "@/components/ui/AvatarPicker";
-import { FormField } from "@/components/ui/FormField";
+import { LoadingState } from "@/components/ui/GameUI";
+import { BrandNav } from "@/features/lobby/components/BrandNav";
+import { CharacterSelectionScreen } from "@/features/lobby/components/CharacterSelectionScreen";
 import { RoomLobbyView } from "@/features/lobby/components/RoomLobbyView";
 import type { Game, Room } from "@/features/lobby/types/room";
 import { serverUrl } from "@/lib/config";
@@ -36,10 +38,8 @@ export default function RoomPage({
       ? savedSession.playerId
       : null;
   });
-  const [avatarId, setAvatarId] = useState(() => {
-    if (typeof window === "undefined") return 1;
-    return getStoredSession().avatarId;
-  });
+  const [avatarId, setAvatarId] = useState<number | null>(null);
+  const [inviteStep, setInviteStep] = useState<"landing" | "name" | "avatar" | "joining">("landing");
   const [error, setError] = useState("");
   const [copyMessage, setCopyMessage] = useState("");
   const [isJoining, setIsJoining] = useState(false);
@@ -61,7 +61,8 @@ export default function RoomPage({
     socketRef.current = nextSocket;
 
     nextSocket.emit("room:subscribe", {
-      roomCode
+      roomCode,
+      playerId: currentPlayerId
     });
 
     nextSocket.on("room:state", (roomState: Room) => {
@@ -105,6 +106,8 @@ export default function RoomPage({
   }, [currentPlayerId, roomCode, router]);
 
   async function joinRoom() {
+    if (avatarId === null || !playerName.trim()) return;
+    setInviteStep("joining");
     setError("");
     setIsJoining(true);
 
@@ -126,19 +129,15 @@ export default function RoomPage({
       setRoom(data.room);
 
       socketRef.current?.emit("room:subscribe", {
-        roomCode: data.room.code
+        roomCode: data.room.code,
+        playerId: data.player.id
       });
     } catch {
       setError("Could not connect to the server.");
     } finally {
       setIsJoining(false);
+      if (!currentPlayerId) setInviteStep("avatar");
     }
-  }
-
-  async function copyRoomCode() {
-    await navigator.clipboard.writeText(roomCode);
-    setCopyMessage("Room code copied.");
-    setTimeout(() => setCopyMessage(""), 1500);
   }
 
   async function copyInviteLink() {
@@ -235,46 +234,62 @@ export default function RoomPage({
   }
 
   if (!hasJoinedRoom) {
+    const host = room.players.find((player) => player.isHost);
+
+    if (inviteStep === "joining") {
+      return <LoadingState title="Joining Room..." subtitle={`as ${playerName}`} />;
+    }
+
+    if (inviteStep === "avatar") {
+      return (
+        <CharacterSelectionScreen
+          value={avatarId}
+          onChange={setAvatarId}
+          onBack={() => setInviteStep("name")}
+          onContinue={joinRoom}
+          actionLabel={isJoining ? "Joining..." : "Join Room"}
+          actionIcon={<LogIn />}
+          error={error}
+          eyebrow={room.name}
+        />
+      );
+    }
+
+    if (inviteStep === "name") {
+      const hasName = Boolean(playerName.trim());
+      return (
+        <main className="min-screen-safe overflow-hidden bg-[var(--surface-secondary)] text-[var(--text-inverted-plus)] [--page-background:var(--surface-secondary)]">
+          <div className="mx-auto flex min-screen-safe w-full max-w-[393px] flex-col px-4 pb-safe pt-safe">
+            <BrandNav title="Enter your Name" tone="light" onBack={() => setInviteStep("landing")} />
+            <label className="flex flex-1 items-center justify-center">
+              <span className="sr-only">Your name</span>
+              <input
+                autoFocus
+                value={playerName}
+                onChange={(event) => setPlayerName(event.target.value.slice(0, 16))}
+                onKeyDown={(event) => { if (event.key === "Enter" && hasName) setInviteStep("avatar"); }}
+                autoComplete="nickname"
+                className="h-24 w-full border-0 border-b-4 border-black/20 bg-transparent px-2 text-center !text-[56px] font-extrabold leading-none caret-white outline-none focus:border-[var(--surface-inverted-light)]"
+              />
+            </label>
+            {error && <p role="alert" className="mb-3 rounded-[18px] bg-[var(--surface-primary)] px-4 py-3 text-footnote-semibold text-[var(--text-primary)]">{error}</p>}
+            <Button onClick={() => setInviteStep("avatar")} disabled={!hasName} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<ArrowRight />} className="w-full">Enter</Button>
+          </div>
+        </main>
+      );
+    }
+
     return (
-      <main className="min-h-screen bg-[var(--surface-secondary)] p-4 pt-10 text-[var(--text-inverted-plus)]">
-        <div className="mx-auto max-w-[25rem] space-y-8">
-          <header className="space-y-3">
-            <p className="text-footnote-semibold opacity-70">You were invited to</p>
-            <h1 className="text-display-lg-bold">{room.name}</h1>
-            <p className="text-body-medium opacity-80">
-              Enter your name to join this Ruckus Games room.
-            </p>
-          </header>
-
-          <section className="space-y-5">
-            <FormField label="Your name" name="invitePlayerName" placeholder="Enter your name" value={playerName} onChange={(event) => setPlayerName(event.target.value)} />
-            <AvatarPicker value={avatarId} onChange={setAvatarId} />
-
-            <Button
-              onClick={joinRoom}
-              disabled={isJoining}
-              variant="inverted"
-              size="lg"
-              className="w-full"
-            >
-              {isJoining ? "Joining..." : "Join Room"}
-            </Button>
-
-            {error && <p className="text-red-500">{error}</p>}
+      <main className="min-screen-safe bg-[var(--surface-secondary)] text-[var(--text-inverted-plus)] [--page-background:var(--surface-secondary)]">
+        <div className="mx-auto flex min-screen-safe w-full max-w-[393px] flex-col px-4 pb-safe pt-safe text-center">
+          <BrandNav tone="light" onBack={goHome} />
+          <section className="my-auto animate-spring-in">
+            <p className="text-title-sm-semibold">You have been invited to</p>
+            <h1 className="mt-3 text-title-lg-bold text-balance">{room.name ?? `${host?.name ?? "Your friend"}'s Room`}</h1>
+            <p className="mt-4 text-body-semibold opacity-65">Hosted by {host?.name ?? "the room owner"}</p>
+            <div className="mx-auto mt-7 w-fit rounded-full bg-[var(--surface-primary)] px-5 py-2 text-footnote-semibold text-[var(--text-primary)]">Room {room.code}</div>
           </section>
-
-          <section className="rounded-[24px] bg-[var(--surface-inverted-light)] p-6">
-            <p className="text-footnote-semibold opacity-70">Room Code</p>
-            <div className="mt-2 flex items-center justify-between gap-4">
-              <p className="text-title-md-extrabold">{room.code}</p>
-
-              <Button onClick={copyRoomCode} variant="inverted" size="md">
-                Copy Code
-              </Button>
-            </div>
-          </section>
-
-          {copyMessage && <p className="text-sm opacity-70">{copyMessage}</p>}
+          <Button onClick={() => setInviteStep("name")} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<ArrowRight />} className="w-full">Continue</Button>
         </div>
       </main>
     );

@@ -190,7 +190,15 @@
           "votes": {},
           "round": 1,
           "numberOfImposters": 1,
-          "answerRevealed": false
+          "answerRevealed": false,
+          "eliminatedPlayerIds": [],
+          "usedPromptIds": [],
+          "currentPromptId": "legacy:random:Hotel",
+          "gameOver": false,
+          "winner": null,
+          "lastEliminatedPlayerId": null,
+          "lastGuessWasImposter": false,
+          "lastTopVotedPlayerIds": []
         }
       }
     ],
@@ -288,7 +296,15 @@
           "votes": {},
           "round": 1,
           "numberOfImposters": 1,
-          "answerRevealed": false
+          "answerRevealed": false,
+          "eliminatedPlayerIds": [],
+          "usedPromptIds": [],
+          "currentPromptId": "legacy:random:Hotel",
+          "gameOver": false,
+          "winner": null,
+          "lastEliminatedPlayerId": null,
+          "lastGuessWasImposter": false,
+          "lastTopVotedPlayerIds": []
         }
       }
     ],
@@ -433,7 +449,15 @@
           },
           "round": 3,
           "numberOfImposters": 1,
-          "answerRevealed": false
+          "answerRevealed": false,
+          "eliminatedPlayerIds": [],
+          "usedPromptIds": [],
+          "currentPromptId": "legacy:random:Selfie",
+          "gameOver": false,
+          "winner": null,
+          "lastEliminatedPlayerId": null,
+          "lastGuessWasImposter": false,
+          "lastTopVotedPlayerIds": []
         }
       }
     ],
@@ -979,7 +1003,7 @@
               "avatarId": 3
             }
           ],
-          "mode": "everyone",
+          "mode": "single",
           "clueGiverId": "94666c35-a377-47e8-9d4e-9ecb4e07e1dc",
           "clueGiverName": "Host",
           "activeTeamId": null,
@@ -1016,7 +1040,18 @@
             "47d24e2d-68d0-478a-ab1e-6c6fd3fe35f3": 8
           },
           "maxRounds": 2,
-          "round": 1
+          "round": 1,
+          "teamNames": {
+            "team-1": "Host’s Team",
+            "team-2": "A’s Team"
+          },
+          "usedPromptIds": [],
+          "currentPromptId": "legacy:desi:dhaka:Old Dhaka:Gulshan",
+          "roundHistory": [],
+          "lastRoundScore": 0,
+          "lastClueGiverPoints": 0,
+          "acceptedGuessPlayerId": null,
+          "isComplete": false
         }
       }
     ],
@@ -1220,6 +1255,863 @@
           "description": "Find the hidden player before they blend in.",
           "minPlayers": 2,
           "maxPlayers": 12
+        }
+      }
+    ],
+    [
+      "4305",
+      {
+        "code": "4305",
+        "name": "Host's Room",
+        "players": [
+          {
+            "id": "741ac51d-04ff-48e6-b569-107ca1d77e69",
+            "name": "Host",
+            "avatarId": 1,
+            "isHost": true
+          },
+          {
+            "id": "ada070a3-2773-4c18-925f-c8c0eefd27ce",
+            "name": "A",
+            "avatarId": 2,
+            "isHost": false
+          },
+          {
+            "id": "db2ccb06-3faf-4708-8ca0-7a48055ac809",
+            "name": "B",
+            "avatarId": 3,
+            "isHost": false
+          },
+          {
+            "id": "d7fa57a7-a420-4590-aca5-76e5ab53d340",
+            "name": "C",
+            "avatarId": 4,
+            "isHost": false
+          },
+          {
+            "id": "766af5c1-8c31-49a2-afa6-1dc57facf459",
+            "name": "D",
+            "avatarId": 5,
+            "isHost": false
+          }
+        ],
+        "status": "in_game",
+        "selectedGame": {
+          "slug": "imposter",
+          "name": "Imposter",
+          "description": "Find the hidden player before they blend in.",
+          "minPlayers": 2,
+          "maxPlayers": 12
+        },
+        "gameState": {
+          "type": "imposter",
+          "playMode": "multiplayer",
+          "phase": "role_reveal",
+          "players": [
+            {
+              "id": "741ac51d-04ff-48e6-b569-107ca1d77e69",
+              "name": "Host",
+              "avatarId": 1
+            },
+            {
+              "id": "ada070a3-2773-4c18-925f-c8c0eefd27ce",
+              "name": "A",
+              "avatarId": 2,
+              "status": "eliminated"
+            },
+            {
+              "id": "db2ccb06-3faf-4708-8ca0-7a48055ac809",
+              "name": "B",
+              "avatarId": 3
+            },
+            {
+              "id": "d7fa57a7-a420-4590-aca5-76e5ab53d340",
+              "name": "C",
+              "avatarId": 4
+            },
+            {
+              "id": "766af5c1-8c31-49a2-afa6-1dc57facf459",
+              "name": "D",
+              "avatarId": 5
+            }
+          ],
+          "word": "Rickshaw",
+          "wordCategory": "desi:dhaka",
+          "roundTimerSeconds": 30,
+          "startedAt": "2026-07-10T07:42:15.251Z",
+          "endsAt": "2026-07-10T07:42:45.251Z",
+          "imposterPlayerId": "ada070a3-2773-4c18-925f-c8c0eefd27ce",
+          "imposterPlayerIds": [
+            "ada070a3-2773-4c18-925f-c8c0eefd27ce",
+            "d7fa57a7-a420-4590-aca5-76e5ab53d340"
+          ],
+          "readyPlayerIds": [],
+          "votes": {},
+          "round": 2,
+          "numberOfImposters": 2,
+          "answerRevealed": false,
+          "eliminatedPlayerIds": [
+            "ada070a3-2773-4c18-925f-c8c0eefd27ce"
+          ],
+          "usedPromptIds": [
+            "desi:dhaka:13",
+            "desi:dhaka:11"
+          ],
+          "currentPromptId": "desi:dhaka:11",
+          "gameOver": false,
+          "winner": null,
+          "lastEliminatedPlayerId": null,
+          "lastGuessWasImposter": false,
+          "lastTopVotedPlayerIds": []
+        }
+      }
+    ],
+    [
+      "2193",
+      {
+        "code": "2193",
+        "name": "WaveHost's Room",
+        "players": [
+          {
+            "id": "f8d2c448-b3c5-479f-a5ef-2d31b2b9e0bf",
+            "name": "WaveHost",
+            "avatarId": 1,
+            "isHost": true
+          },
+          {
+            "id": "9f272e7d-c738-4f9e-923f-749a267aeb09",
+            "name": "W2",
+            "avatarId": 2,
+            "isHost": false
+          },
+          {
+            "id": "a529391d-d2fe-420f-a806-89602c30d93a",
+            "name": "W3",
+            "avatarId": 3,
+            "isHost": false
+          },
+          {
+            "id": "4a54c3c2-eb78-46b9-a203-429b033f36eb",
+            "name": "W4",
+            "avatarId": 4,
+            "isHost": false
+          }
+        ],
+        "status": "in_game",
+        "selectedGame": {
+          "slug": "wavelength",
+          "name": "Wavelength",
+          "description": "Give a clue and land closest to the secret number.",
+          "minPlayers": 2,
+          "maxPlayers": 12
+        },
+        "gameState": {
+          "type": "wavelength",
+          "playMode": "multiplayer",
+          "phase": "results",
+          "players": [
+            {
+              "id": "f8d2c448-b3c5-479f-a5ef-2d31b2b9e0bf",
+              "name": "WaveHost",
+              "avatarId": 1
+            },
+            {
+              "id": "9f272e7d-c738-4f9e-923f-749a267aeb09",
+              "name": "W2",
+              "avatarId": 2
+            },
+            {
+              "id": "a529391d-d2fe-420f-a806-89602c30d93a",
+              "name": "W3",
+              "avatarId": 3
+            },
+            {
+              "id": "4a54c3c2-eb78-46b9-a203-429b033f36eb",
+              "name": "W4",
+              "avatarId": 4
+            }
+          ],
+          "mode": "teams",
+          "clueGiverId": "f8d2c448-b3c5-479f-a5ef-2d31b2b9e0bf",
+          "clueGiverName": "WaveHost",
+          "activeTeamId": "team-1",
+          "teams": {
+            "team-1": [
+              "f8d2c448-b3c5-479f-a5ef-2d31b2b9e0bf",
+              "a529391d-d2fe-420f-a806-89602c30d93a"
+            ],
+            "team-2": [
+              "9f272e7d-c738-4f9e-923f-749a267aeb09",
+              "4a54c3c2-eb78-46b9-a203-429b033f36eb"
+            ]
+          },
+          "teamNames": {
+            "team-1": "WaveHost’s Team",
+            "team-2": "W4’s Team"
+          },
+          "scaleLeft": "Calm Road",
+          "scaleRight": "Traffic Jam",
+          "scalePack": "desi:dhaka",
+          "secretNumber": 65,
+          "clue": "test clue",
+          "guess": 68,
+          "guesses": {
+            "a529391d-d2fe-420f-a806-89602c30d93a": 68
+          },
+          "acceptedGuessPlayerId": "a529391d-d2fe-420f-a806-89602c30d93a",
+          "roundTimerSeconds": 30,
+          "startedAt": "2026-07-10T07:42:15.265Z",
+          "endsAt": "2026-07-10T07:42:45.265Z",
+          "score": 5,
+          "teamScores": {
+            "team-1": 5,
+            "team-2": 0
+          },
+          "playerScores": {
+            "f8d2c448-b3c5-479f-a5ef-2d31b2b9e0bf": 4,
+            "9f272e7d-c738-4f9e-923f-749a267aeb09": 0,
+            "a529391d-d2fe-420f-a806-89602c30d93a": 0,
+            "4a54c3c2-eb78-46b9-a203-429b033f36eb": 0
+          },
+          "maxRounds": 3,
+          "round": 1,
+          "usedPromptIds": [
+            "desi:dhaka:1"
+          ],
+          "currentPromptId": "desi:dhaka:1",
+          "roundHistory": [
+            {
+              "round": 1,
+              "target": 65,
+              "guess": 68,
+              "guesserId": "a529391d-d2fe-420f-a806-89602c30d93a",
+              "distance": 3,
+              "roundScore": 5,
+              "clueGiverPoints": 4,
+              "activeTeamId": "team-1"
+            }
+          ],
+          "lastRoundScore": 5,
+          "lastClueGiverPoints": 4,
+          "isComplete": false
+        }
+      }
+    ],
+    [
+      "6144",
+      {
+        "code": "6144",
+        "name": "H's Room",
+        "players": [
+          {
+            "id": "02ad617a-8b8b-427a-ad8a-ccb57bbfbde9",
+            "name": "H",
+            "avatarId": 1,
+            "isHost": true
+          },
+          {
+            "id": "1779ae8c-1880-4238-9c68-a1aabcd297c7",
+            "name": "A",
+            "avatarId": 2,
+            "isHost": false
+          },
+          {
+            "id": "925e52c8-473c-4fe5-aa59-bed524ce88be",
+            "name": "B",
+            "avatarId": 3,
+            "isHost": false
+          },
+          {
+            "id": "a45b37d6-a91c-4e7c-9d4b-63c526aee0d4",
+            "name": "C",
+            "avatarId": 4,
+            "isHost": false
+          },
+          {
+            "id": "24a439ca-92e2-457d-bc03-fc8d104ea3e8",
+            "name": "D",
+            "avatarId": 5,
+            "isHost": false
+          }
+        ],
+        "status": "in_game",
+        "selectedGame": {
+          "slug": "imposter-code",
+          "name": "Imposter Code",
+          "description": "Answer prompts, reveal responses, and find the odd one out.",
+          "minPlayers": 3,
+          "maxPlayers": 12
+        },
+        "gameState": {
+          "type": "imposter-code",
+          "playMode": "multiplayer",
+          "phase": "answering",
+          "players": [
+            {
+              "id": "02ad617a-8b8b-427a-ad8a-ccb57bbfbde9",
+              "name": "H",
+              "avatarId": 1
+            },
+            {
+              "id": "1779ae8c-1880-4238-9c68-a1aabcd297c7",
+              "name": "A",
+              "avatarId": 2
+            },
+            {
+              "id": "925e52c8-473c-4fe5-aa59-bed524ce88be",
+              "name": "B",
+              "avatarId": 3
+            },
+            {
+              "id": "a45b37d6-a91c-4e7c-9d4b-63c526aee0d4",
+              "name": "C",
+              "avatarId": 4,
+              "status": "eliminated"
+            },
+            {
+              "id": "24a439ca-92e2-457d-bc03-fc8d104ea3e8",
+              "name": "D",
+              "avatarId": 5
+            }
+          ],
+          "question": "What food disappears first at a dawath?",
+          "imposterQuestion": "What food is always left over at a dawath?",
+          "questionPack": "desi:food",
+          "roundTimerSeconds": 30,
+          "startedAt": "2026-07-10T07:42:40.720Z",
+          "endsAt": "2026-07-10T07:43:10.720Z",
+          "imposterPlayerId": "02ad617a-8b8b-427a-ad8a-ccb57bbfbde9",
+          "imposterPlayerIds": [
+            "02ad617a-8b8b-427a-ad8a-ccb57bbfbde9",
+            "a45b37d6-a91c-4e7c-9d4b-63c526aee0d4"
+          ],
+          "numberOfImposters": 2,
+          "answers": {},
+          "votes": {},
+          "round": 2,
+          "answerRevealed": false,
+          "eliminatedPlayerIds": [
+            "a45b37d6-a91c-4e7c-9d4b-63c526aee0d4"
+          ],
+          "usedPromptIds": [
+            "desi:food:2",
+            "desi:food:1"
+          ],
+          "currentPromptId": "desi:food:1",
+          "gameOver": false,
+          "winner": null,
+          "lastEliminatedPlayerId": null,
+          "lastGuessWasImposter": false,
+          "lastTopVotedPlayerIds": []
+        }
+      }
+    ],
+    [
+      "7921",
+      {
+        "code": "7921",
+        "name": "WH's Room",
+        "players": [
+          {
+            "id": "2c18053b-9b7c-4424-bae7-4002c577a2e1",
+            "name": "WH",
+            "avatarId": 1,
+            "isHost": true
+          },
+          {
+            "id": "0df156c5-43a7-4e6f-8363-02bfac0312f6",
+            "name": "A1",
+            "avatarId": 2,
+            "isHost": false
+          },
+          {
+            "id": "379707e8-4f38-44c2-b18a-0c0513452cb4",
+            "name": "A2",
+            "avatarId": 3,
+            "isHost": false
+          },
+          {
+            "id": "fe54c003-af71-40e4-a074-0ebf17a69c36",
+            "name": "B1",
+            "avatarId": 4,
+            "isHost": false
+          },
+          {
+            "id": "c1e558fa-ee1d-4606-958d-60aa4a37aa68",
+            "name": "B2",
+            "avatarId": 5,
+            "isHost": false
+          },
+          {
+            "id": "85505b22-2f00-4d9c-9a5a-9a95b128b38e",
+            "name": "B3",
+            "avatarId": 6,
+            "isHost": false
+          }
+        ],
+        "status": "in_game",
+        "selectedGame": {
+          "slug": "wavelength",
+          "name": "Wavelength",
+          "description": "Give a clue and land closest to the secret number.",
+          "minPlayers": 2,
+          "maxPlayers": 12
+        },
+        "gameState": {
+          "type": "wavelength",
+          "playMode": "multiplayer",
+          "phase": "results",
+          "players": [
+            {
+              "id": "2c18053b-9b7c-4424-bae7-4002c577a2e1",
+              "name": "WH",
+              "avatarId": 1
+            },
+            {
+              "id": "0df156c5-43a7-4e6f-8363-02bfac0312f6",
+              "name": "A1",
+              "avatarId": 2
+            },
+            {
+              "id": "379707e8-4f38-44c2-b18a-0c0513452cb4",
+              "name": "A2",
+              "avatarId": 3
+            },
+            {
+              "id": "fe54c003-af71-40e4-a074-0ebf17a69c36",
+              "name": "B1",
+              "avatarId": 4
+            },
+            {
+              "id": "c1e558fa-ee1d-4606-958d-60aa4a37aa68",
+              "name": "B2",
+              "avatarId": 5
+            },
+            {
+              "id": "85505b22-2f00-4d9c-9a5a-9a95b128b38e",
+              "name": "B3",
+              "avatarId": 6
+            }
+          ],
+          "mode": "teams",
+          "clueGiverId": "2c18053b-9b7c-4424-bae7-4002c577a2e1",
+          "clueGiverName": "WH",
+          "activeTeamId": "team-1",
+          "teams": {
+            "team-1": [
+              "2c18053b-9b7c-4424-bae7-4002c577a2e1",
+              "379707e8-4f38-44c2-b18a-0c0513452cb4",
+              "c1e558fa-ee1d-4606-958d-60aa4a37aa68"
+            ],
+            "team-2": [
+              "0df156c5-43a7-4e6f-8363-02bfac0312f6",
+              "fe54c003-af71-40e4-a074-0ebf17a69c36",
+              "85505b22-2f00-4d9c-9a5a-9a95b128b38e"
+            ]
+          },
+          "teamNames": {
+            "team-1": "B2’s Team",
+            "team-2": "B1’s Team"
+          },
+          "scaleLeft": "Normal",
+          "scaleRight": "Weird",
+          "scalePack": "casual",
+          "secretNumber": 35,
+          "clue": "x",
+          "guess": 40,
+          "guesses": {
+            "379707e8-4f38-44c2-b18a-0c0513452cb4": 40
+          },
+          "acceptedGuessPlayerId": "379707e8-4f38-44c2-b18a-0c0513452cb4",
+          "roundTimerSeconds": 30,
+          "startedAt": "2026-07-10T07:42:40.734Z",
+          "endsAt": "2026-07-10T07:43:10.734Z",
+          "score": 4,
+          "teamScores": {
+            "team-1": 4,
+            "team-2": 0
+          },
+          "playerScores": {
+            "2c18053b-9b7c-4424-bae7-4002c577a2e1": 3,
+            "0df156c5-43a7-4e6f-8363-02bfac0312f6": 0,
+            "379707e8-4f38-44c2-b18a-0c0513452cb4": 0,
+            "fe54c003-af71-40e4-a074-0ebf17a69c36": 0,
+            "c1e558fa-ee1d-4606-958d-60aa4a37aa68": 0,
+            "85505b22-2f00-4d9c-9a5a-9a95b128b38e": 0
+          },
+          "maxRounds": 2,
+          "round": 1,
+          "usedPromptIds": [
+            "casual:weird:0"
+          ],
+          "currentPromptId": "casual:weird:0",
+          "roundHistory": [
+            {
+              "round": 1,
+              "target": 35,
+              "guess": 40,
+              "guesserId": "379707e8-4f38-44c2-b18a-0c0513452cb4",
+              "distance": 5,
+              "roundScore": 4,
+              "clueGiverPoints": 3,
+              "activeTeamId": "team-1"
+            }
+          ],
+          "lastRoundScore": 4,
+          "lastClueGiverPoints": 3,
+          "isComplete": false
+        }
+      }
+    ],
+    [
+      "2201",
+      {
+        "code": "2201",
+        "name": "InviteHost's Room",
+        "players": [
+          {
+            "id": "3c20c7cc-4c3b-4c80-aa21-452b989d037c",
+            "name": "InviteHost",
+            "avatarId": 2,
+            "isHost": true
+          }
+        ],
+        "status": "waiting"
+      }
+    ],
+    [
+      "8517",
+      {
+        "code": "8517",
+        "name": "ScoreHost's Room",
+        "players": [
+          {
+            "id": "9e453c72-8c36-4331-bd21-4eaec2828ab0",
+            "name": "ScoreHost",
+            "avatarId": 1,
+            "isHost": true
+          },
+          {
+            "id": "cebd4c4e-5007-4804-8068-2ea43a431d55",
+            "name": "Guesser",
+            "avatarId": 2,
+            "isHost": false
+          }
+        ],
+        "status": "in_game",
+        "selectedGame": {
+          "slug": "wavelength",
+          "name": "Wavelength",
+          "description": "Give a clue and land closest to the secret number.",
+          "minPlayers": 2,
+          "maxPlayers": 12
+        },
+        "gameState": {
+          "type": "wavelength",
+          "playMode": "multiplayer",
+          "phase": "results",
+          "players": [
+            {
+              "id": "9e453c72-8c36-4331-bd21-4eaec2828ab0",
+              "name": "ScoreHost",
+              "avatarId": 1
+            },
+            {
+              "id": "cebd4c4e-5007-4804-8068-2ea43a431d55",
+              "name": "Guesser",
+              "avatarId": 2
+            }
+          ],
+          "mode": "single",
+          "clueGiverId": "9e453c72-8c36-4331-bd21-4eaec2828ab0",
+          "clueGiverName": "ScoreHost",
+          "activeTeamId": null,
+          "teams": {
+            "team-1": [
+              "9e453c72-8c36-4331-bd21-4eaec2828ab0"
+            ],
+            "team-2": [
+              "cebd4c4e-5007-4804-8068-2ea43a431d55"
+            ]
+          },
+          "teamNames": {
+            "team-1": "ScoreHost’s Team",
+            "team-2": "Guesser’s Team"
+          },
+          "scaleLeft": "Useful",
+          "scaleRight": "Cursed",
+          "scalePack": "casual",
+          "secretNumber": 49,
+          "clue": "boundary",
+          "guess": 65,
+          "guesses": {
+            "cebd4c4e-5007-4804-8068-2ea43a431d55": 65
+          },
+          "acceptedGuessPlayerId": null,
+          "roundTimerSeconds": 30,
+          "startedAt": "2026-07-10T07:51:55.657Z",
+          "endsAt": "2026-07-10T07:52:25.657Z",
+          "score": 50,
+          "teamScores": {
+            "team-1": 0,
+            "team-2": 0
+          },
+          "playerScores": {
+            "9e453c72-8c36-4331-bd21-4eaec2828ab0": 25,
+            "cebd4c4e-5007-4804-8068-2ea43a431d55": 25
+          },
+          "maxRounds": 11,
+          "round": 11,
+          "usedPromptIds": [
+            "casual:weird:3",
+            "casual:weird:4",
+            "casual:people:1",
+            "casual:simple:3",
+            "casual:people:4",
+            "casual:simple:1",
+            "casual:weird:1",
+            "casual:people:0",
+            "casual:simple:2",
+            "casual:people:2",
+            "casual:weird:2"
+          ],
+          "currentPromptId": "casual:weird:2",
+          "roundHistory": [
+            {
+              "round": 1,
+              "target": 2,
+              "guess": 2,
+              "guesserId": "cebd4c4e-5007-4804-8068-2ea43a431d55",
+              "distance": 0,
+              "roundScore": 5,
+              "clueGiverPoints": 4,
+              "activeTeamId": null
+            },
+            {
+              "round": 2,
+              "target": 50,
+              "guess": 53,
+              "guesserId": "9e453c72-8c36-4331-bd21-4eaec2828ab0",
+              "distance": 3,
+              "roundScore": 5,
+              "clueGiverPoints": 4,
+              "activeTeamId": null
+            },
+            {
+              "round": 3,
+              "target": 29,
+              "guess": 33,
+              "guesserId": "cebd4c4e-5007-4804-8068-2ea43a431d55",
+              "distance": 4,
+              "roundScore": 4,
+              "clueGiverPoints": 3,
+              "activeTeamId": null
+            },
+            {
+              "round": 4,
+              "target": 85,
+              "guess": 91,
+              "guesserId": "9e453c72-8c36-4331-bd21-4eaec2828ab0",
+              "distance": 6,
+              "roundScore": 4,
+              "clueGiverPoints": 3,
+              "activeTeamId": null
+            },
+            {
+              "round": 5,
+              "target": 17,
+              "guess": 24,
+              "guesserId": "cebd4c4e-5007-4804-8068-2ea43a431d55",
+              "distance": 7,
+              "roundScore": 3,
+              "clueGiverPoints": 2,
+              "activeTeamId": null
+            },
+            {
+              "round": 6,
+              "target": 13,
+              "guess": 22,
+              "guesserId": "9e453c72-8c36-4331-bd21-4eaec2828ab0",
+              "distance": 9,
+              "roundScore": 3,
+              "clueGiverPoints": 2,
+              "activeTeamId": null
+            },
+            {
+              "round": 7,
+              "target": 72,
+              "guess": 82,
+              "guesserId": "cebd4c4e-5007-4804-8068-2ea43a431d55",
+              "distance": 10,
+              "roundScore": 2,
+              "clueGiverPoints": 1,
+              "activeTeamId": null
+            },
+            {
+              "round": 8,
+              "target": 52,
+              "guess": 64,
+              "guesserId": "9e453c72-8c36-4331-bd21-4eaec2828ab0",
+              "distance": 12,
+              "roundScore": 2,
+              "clueGiverPoints": 1,
+              "activeTeamId": null
+            },
+            {
+              "round": 9,
+              "target": 53,
+              "guess": 66,
+              "guesserId": "cebd4c4e-5007-4804-8068-2ea43a431d55",
+              "distance": 13,
+              "roundScore": 1,
+              "clueGiverPoints": 0,
+              "activeTeamId": null
+            },
+            {
+              "round": 10,
+              "target": 62,
+              "guess": 77,
+              "guesserId": "9e453c72-8c36-4331-bd21-4eaec2828ab0",
+              "distance": 15,
+              "roundScore": 1,
+              "clueGiverPoints": 0,
+              "activeTeamId": null
+            },
+            {
+              "round": 11,
+              "target": 49,
+              "guess": 65,
+              "guesserId": "cebd4c4e-5007-4804-8068-2ea43a431d55",
+              "distance": 16,
+              "roundScore": 0,
+              "clueGiverPoints": 0,
+              "activeTeamId": null
+            }
+          ],
+          "lastRoundScore": 0,
+          "lastClueGiverPoints": 0,
+          "isComplete": true
+        }
+      }
+    ],
+    [
+      "9619",
+      {
+        "code": "9619",
+        "name": "Navid's Room",
+        "players": [
+          {
+            "id": "bb819e1f-b9ec-464a-a066-ceda37ff3060",
+            "name": "Navid",
+            "avatarId": 5,
+            "isHost": true
+          },
+          {
+            "id": "05ec92a4-549b-457f-b5db-5bc45abc710d",
+            "name": "hasdlkjads",
+            "avatarId": 5,
+            "isHost": false
+          },
+          {
+            "id": "b439ace3-3b40-4aad-8c72-eef5c26305bd",
+            "name": "asdsad",
+            "avatarId": 6,
+            "isHost": false
+          }
+        ],
+        "status": "in_game",
+        "selectedGame": {
+          "slug": "wavelength",
+          "name": "Wavelength",
+          "description": "Give a clue and land closest to the secret number.",
+          "minPlayers": 2,
+          "maxPlayers": 12
+        },
+        "gameState": {
+          "type": "wavelength",
+          "playMode": "multiplayer",
+          "phase": "results",
+          "players": [
+            {
+              "id": "bb819e1f-b9ec-464a-a066-ceda37ff3060",
+              "name": "Navid",
+              "avatarId": 5,
+              "status": "disconnected"
+            },
+            {
+              "id": "05ec92a4-549b-457f-b5db-5bc45abc710d",
+              "name": "hasdlkjads",
+              "avatarId": 5
+            },
+            {
+              "id": "b439ace3-3b40-4aad-8c72-eef5c26305bd",
+              "name": "asdsad",
+              "avatarId": 6,
+              "status": "disconnected"
+            }
+          ],
+          "mode": "single",
+          "clueGiverId": "bb819e1f-b9ec-464a-a066-ceda37ff3060",
+          "clueGiverName": "Navid",
+          "activeTeamId": null,
+          "teams": {
+            "team-1": [
+              "bb819e1f-b9ec-464a-a066-ceda37ff3060",
+              "b439ace3-3b40-4aad-8c72-eef5c26305bd"
+            ],
+            "team-2": [
+              "05ec92a4-549b-457f-b5db-5bc45abc710d"
+            ]
+          },
+          "teamNames": {
+            "team-1": "Navid’s Team",
+            "team-2": "hasdlkjads’s Team"
+          },
+          "scaleLeft": "Relaxing",
+          "scaleRight": "Chaotic",
+          "scalePack": "casual",
+          "secretNumber": 5,
+          "clue": "ewqewq",
+          "guess": 88,
+          "guesses": {
+            "05ec92a4-549b-457f-b5db-5bc45abc710d": 55,
+            "b439ace3-3b40-4aad-8c72-eef5c26305bd": 88
+          },
+          "acceptedGuessPlayerId": null,
+          "roundTimerSeconds": 90,
+          "startedAt": "2026-07-10T08:21:15.088Z",
+          "endsAt": "2026-07-10T08:22:45.088Z",
+          "score": 0,
+          "teamScores": {
+            "team-1": 0,
+            "team-2": 0
+          },
+          "playerScores": {
+            "bb819e1f-b9ec-464a-a066-ceda37ff3060": 0,
+            "05ec92a4-549b-457f-b5db-5bc45abc710d": 0,
+            "b439ace3-3b40-4aad-8c72-eef5c26305bd": 0
+          },
+          "maxRounds": 6,
+          "round": 1,
+          "usedPromptIds": [
+            "casual:people:4"
+          ],
+          "currentPromptId": "casual:people:4",
+          "roundHistory": [
+            {
+              "round": 1,
+              "target": 5,
+              "guess": 55,
+              "guesserId": "05ec92a4-549b-457f-b5db-5bc45abc710d",
+              "distance": 50,
+              "roundScore": 0,
+              "clueGiverPoints": 0,
+              "activeTeamId": null
+            }
+          ],
+          "lastRoundScore": 0,
+          "lastClueGiverPoints": 0,
+          "isComplete": false
         }
       }
     ]

@@ -92,7 +92,7 @@ export function Button({
       className={cx(
         "inline-flex items-center justify-center overflow-hidden whitespace-nowrap transition duration-[var(--motion-fast)] will-change-transform",
         "focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-[var(--focus-ring)]",
-        "disabled:pointer-events-none disabled:opacity-50",
+        "button-content-disabled disabled:pointer-events-none",
         "hover:brightness-110 active:translate-y-px active:scale-[0.985] active:brightness-90",
         variantClasses[resolvedVariant],
         sizeClasses[resolvedSize],
@@ -100,13 +100,15 @@ export function Button({
       )}
       {...props}
     >
-      {shouldShowLeftIcon &&
-        (resolvedLeftIcon ?? <ArrowLeft aria-hidden className={iconClassName} />)}
+      <span className="inline-flex items-center justify-center gap-[inherit] transition-opacity">
+        {shouldShowLeftIcon &&
+          (resolvedLeftIcon ?? <ArrowLeft aria-hidden className={iconClassName} />)}
 
-      <span>{content}</span>
+        <span>{content}</span>
 
-      {shouldShowRightIcon &&
-        (resolvedRightIcon ?? <ArrowRight aria-hidden className={iconClassName} />)}
+        {shouldShowRightIcon &&
+          (resolvedRightIcon ?? <ArrowRight aria-hidden className={iconClassName} />)}
+      </span>
     </button>
   );
 }

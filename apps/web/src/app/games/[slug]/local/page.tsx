@@ -2,13 +2,14 @@
 
 import { type Dispatch, type ReactNode, type SetStateAction, use, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Braces, Eye, EyeOff, Flag, Minus, Play, Plus, RadioTower, Send, Shuffle, Utensils, Vote } from "lucide-react";
+import { Braces, Eye, EyeOff, Flag, Minus, Play, Plus, Send, Shuffle, Utensils, Vote } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { AppScreen } from "@/components/ui/GameUI";
 import { BrandNav } from "@/features/lobby/components/BrandNav";
+import { GameArtwork } from "@/features/lobby/components/GameArtwork";
 import { getGameBySlug, playableGameSlugs } from "@/features/lobby/data/games";
 
-type LocalPlayer = { id: string; name: string };
+type LocalPlayer = { id: string; name: string; eliminated?: boolean };
 type CodePhase = "setup" | "pass" | "private" | "answers" | "vote" | "result";
 type WavePhase = "setup" | "pass" | "private" | "guess" | "result";
 type PromptPair = readonly [string, string];
@@ -61,6 +62,44 @@ function pick<T>(items: readonly T[]) {
 
 function pickMany<T>(items: readonly T[], count: number) {
   return [...items].sort(() => Math.random() - 0.5).slice(0, count);
+}
+
+function getWavelengthScore(target: number, guess: number) {
+  const distance = Math.abs(target - guess);
+  if (distance <= 3) return 5;
+  if (distance <= 6) return 4;
+  if (distance <= 9) return 3;
+  if (distance <= 12) return 2;
+  if (distance <= 15) return 1;
+  return 0;
+}
+
+function pickUnused<T>(items: readonly T[], pack: string, usedIds: string[], resetWhenExhausted: boolean) {
+  const entries = items.map((item, index) => ({ id: `${pack}:${index}`, item }));
+  let available = entries.filter((entry) => !usedIds.includes(entry.id));
+  let history = [...usedIds];
+  if (available.length === 0) {
+    available = entries.filter((entry) => entry.id !== usedIds.at(-1));
+    if (available.length === 0) available = entries;
+    if (resetWhenExhausted) history = [];
+  }
+  const selected = pick(available);
+  return { item: selected.item, usedIds: [...history, selected.id] };
+}
+
+function TimerPicker({ value, onChange }: { value: number; onChange: (value: number) => void }) {
+  return (
+    <section className="mt-5">
+      <h2 className="text-center text-body-regular">Timer</h2>
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        {[30, 60, 90, 120, 180].map((seconds) => (
+          <button key={seconds} type="button" onClick={() => onChange(seconds)} aria-pressed={value === seconds} className="interactive-pop h-12 rounded-[18px] bg-[var(--surface-primary-light)] text-footnote-semibold aria-pressed:bg-[var(--color-game-accent)] aria-pressed:text-[var(--text-inverted)]">
+            {seconds < 60 ? `${seconds}s` : `${seconds / 60}m`}
+          </button>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 export default function LocalGamePage({ params }: { params: Promise<{ slug: string }> }) {
@@ -155,8 +194,8 @@ function PackSelector<T extends string>({
           const selected = value === pack;
           const Icon = pack === "food" ? Utensils : pack === "party" ? Play : pack === "work" ? Braces : Shuffle;
           return (
-            <button key={pack} type="button" onClick={() => onChange(pack)} aria-pressed={selected} className={`flex h-[160px] w-[164px] shrink-0 snap-center flex-col items-center justify-center rounded-[38px] border-2 border-transparent transition aria-pressed:scale-[1.03] ${selected ? "bg-[var(--surface-inverted)] text-[var(--text-inverted)]" : "bg-[var(--surface-primary-light)] text-[var(--text-primary)]"}`}>
-              <Icon size={52} className={selected ? "text-[var(--surface-secondary)]" : ""} />
+            <button key={pack} type="button" onClick={() => onChange(pack)} aria-pressed={selected} className={`interactive-pop flex h-[160px] w-[164px] shrink-0 snap-center flex-col items-center justify-center rounded-[38px] border-[4px] bg-[var(--surface-primary-light)] text-[var(--text-primary)] ${selected ? "border-[var(--color-game-accent)]" : "border-transparent"}`}>
+              <Icon size={52} className="text-[var(--color-game-accent)]" />
               <span className="mt-4 text-headline-md-bold capitalize">{pack}</span>
             </button>
           );
@@ -199,13 +238,19 @@ function LocalImposterCode(props: {
   const [vote, setVote] = useState("");
   const [questionVisible, setQuestionVisible] = useState(false);
   const [revealed, setRevealed] = useState(false);
-  const current = props.players[index];
+  const [roundTimer, setRoundTimer] = useState(90);
+  const [usedPromptIds, setUsedPromptIds] = useState<string[]>([]);
+  const activePlayers = props.players.filter((player) => !player.eliminated);
+  const current = activePlayers[index];
   const maxImposters = Math.max(1, props.players.length - 1);
 
   function start() {
     const safeCount = Math.min(imposterCount, Math.max(1, props.players.length - 1));
-    setPrompt(pick(codePacks[pack]));
+    const nextPrompt = pickUnused(codePacks[pack], pack, usedPromptIds, false);
+    setPrompt(nextPrompt.item);
+    setUsedPromptIds(nextPrompt.usedIds);
     setImposterIds(pickMany(props.players, safeCount).map((player) => player.id));
+    props.setPlayers((list) => list.map((player) => ({ ...player, eliminated: false })));
     setAnswers({});
     setAnswer("");
     setVote("");
@@ -215,12 +260,23 @@ function LocalImposterCode(props: {
     setPhase("pass");
   }
 
+  function anotherGuess() {
+    setVote("");
+    setPhase("vote");
+  }
+
+  function castVote() {
+    if (!vote) return;
+    props.setPlayers((list) => list.map((player) => player.id === vote ? { ...player, eliminated: true } : player));
+    setPhase("result");
+  }
+
   function submit() {
     if (!current || !answer.trim()) return;
     setAnswers((list) => ({ ...list, [current.id]: answer.trim() }));
     setAnswer("");
     setQuestionVisible(false);
-    if (index + 1 >= props.players.length) setPhase("answers");
+    if (index + 1 >= activePlayers.length) setPhase("answers");
     else {
       setIndex((value) => value + 1);
       setPhase("pass");
@@ -237,6 +293,7 @@ function LocalImposterCode(props: {
           <button type="button" aria-label="Increase imposters" onClick={() => setImposterCount((value) => Math.min(maxImposters, value + 1))} disabled={imposterCount >= maxImposters} className="grid size-10 place-items-center rounded-full bg-[var(--surface-primary)] disabled:opacity-30"><Plus size={19} /></button>
         </div>
         <PackSelector packs={Object.keys(codePacks) as Array<keyof typeof codePacks>} value={pack} onChange={setPack} />
+        <TimerPicker value={roundTimer} onChange={setRoundTimer} />
       </PlayerSetup>
     );
   }
@@ -259,7 +316,7 @@ function LocalImposterCode(props: {
       <AppScreen tone="dark" className="!p-0">
         <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col px-4 pb-safe pt-20 text-center">
           <BrandNav title={current?.name ?? "Your Turn"} tone="dark" />
-          <Braces className="mx-auto mt-10 text-[var(--surface-secondary)]" size={58} />
+          <div className="mx-auto mt-8 w-24"><GameArtwork gameSlug="imposter-code" tone="light" /></div>
           <div className="mt-8 rounded-[32px] bg-[var(--surface-primary-light)] p-6">
             <p className={`min-h-20 text-title-sm-bold text-[var(--text-highlight)] transition ${questionVisible ? "opacity-100" : "opacity-25 blur-sm"}`}>{questionVisible ? personalPrompt : "Question hidden"}</p>
             <Button onClick={() => setQuestionVisible((value) => !value)} variant="inverted" size="md" showLeftIcon={false} rightIcon={questionVisible ? <EyeOff /> : <Eye />} className="mt-5">{questionVisible ? "Hide" : "Reveal"}</Button>
@@ -273,12 +330,12 @@ function LocalImposterCode(props: {
 
   if (phase === "answers") {
     return (
-      <AppScreen tone="blue" className="!p-0">
+      <AppScreen tone="accent" className="!p-0">
         <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col px-4 pb-safe pt-16 text-center">
           <BrandNav title="Answers" tone="light" />
           <h1 className="mt-8 text-title-sm-bold">{prompt[0]}</h1>
           <div className="mt-7 space-y-2 text-left">
-            {props.players.map((player) => <div key={player.id} className="animate-pop rounded-[24px] bg-[var(--surface-inverted-light)] p-5 text-[var(--text-inverted)]"><p className="text-headline-md-bold">{player.name}</p><p className="mt-2 text-body-semibold">{answers[player.id]}</p></div>)}
+            {activePlayers.map((player) => <div key={player.id} className="animate-pop rounded-[24px] bg-[var(--surface-inverted-light)] p-5 text-[var(--text-inverted)]"><p className="text-headline-md-bold">{player.name}</p><p className="mt-2 text-body-semibold">{answers[player.id]}</p></div>)}
           </div>
           <Button onClick={() => setPhase("vote")} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Vote />} className="mt-auto w-full">Start Voting</Button>
         </section>
@@ -292,9 +349,9 @@ function LocalImposterCode(props: {
         <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col px-4 pb-safe pt-20">
           <BrandNav title="Cast your Vote" tone="dark" />
           <div className="mt-16 space-y-2">
-            {props.players.map((player) => <button key={player.id} type="button" onClick={() => setVote(player.id)} aria-pressed={vote === player.id} className="flex h-[68px] w-full items-center justify-center rounded-[24px] border-2 border-transparent bg-[var(--surface-primary-light)] text-headline-md-semibold transition aria-pressed:border-[var(--surface-secondary)] aria-pressed:scale-[0.99]"><span>{player.name}</span></button>)}
+            {activePlayers.map((player) => <button key={player.id} type="button" onClick={() => setVote(player.id)} aria-pressed={vote === player.id} className="flex h-[68px] w-full items-center justify-center rounded-[24px] border-2 border-transparent bg-[var(--surface-primary-light)] text-headline-md-semibold transition aria-pressed:border-[var(--surface-secondary)] aria-pressed:scale-[0.99]"><span>{player.name}</span></button>)}
           </div>
-          <Button onClick={() => setPhase("result")} disabled={!vote} variant="primary" size="lg" showLeftIcon={false} className="mt-auto w-full">Cast Vote</Button>
+          <Button onClick={castVote} disabled={!vote} variant="primary" size="lg" showLeftIcon={false} className="mt-auto w-full">Cast Vote</Button>
         </section>
       </AppScreen>
     );
@@ -303,18 +360,22 @@ function LocalImposterCode(props: {
   const votedPlayer = props.players.find((player) => player.id === vote);
   const imposters = props.players.filter((player) => imposterIds.includes(player.id));
   const caught = vote ? imposterIds.includes(vote) : false;
-  const showAnswer = caught || revealed;
+  const remaining = props.players.filter((player) => !player.eliminated && player.id !== vote);
+  const remainingImposters = remaining.filter((player) => imposterIds.includes(player.id)).length;
+  const gameOver = remainingImposters === 0 || remainingImposters >= remaining.length - remainingImposters;
+  const showAnswer = gameOver || revealed;
   return (
-    <AppScreen tone={showAnswer ? "blue" : "light"} className="!p-0">
+    <AppScreen tone={showAnswer ? "accent" : "light"} className="!p-0">
       <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col px-4 pb-safe pt-16 text-center">
         <BrandNav title="Results" tone="light" />
         <div className="my-auto">
-          <h1 className="text-title-lg-bold">{showAnswer ? `${imposters.map((player) => player.name).join(", ")} ${imposters.length === 1 ? "had" : "had"} the imposter code` : `${votedPlayer?.name} is not an imposter`}</h1>
+          <h1 className="text-title-lg-bold">{showAnswer ? `${imposters.map((player) => player.name).join(", ")} had the imposter code` : caught ? `${votedPlayer?.name} had the imposter code` : `${votedPlayer?.name} is not an imposter`}</h1>
           {showAnswer && <p className="mt-4 text-body-bold">Imposter prompt: {prompt[1]}</p>}
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          <Button onClick={showAnswer ? start : () => setPhase("answers")} variant={showAnswer ? "primary" : "inverted"} size="lg" showLeftIcon={false} showRightIcon={false}>{showAnswer ? "Another Round" : "Try Again"}</Button>
-          <Button onClick={showAnswer ? props.onExit : () => setRevealed(true)} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Flag />}>{showAnswer ? "End Game" : "Reveal"}</Button>
+        <div className="grid gap-2">
+          {!showAnswer && <Button onClick={anotherGuess} variant="primary" size="lg" showLeftIcon={false} showRightIcon={false}>Another Guess</Button>}
+          {showAnswer && <Button onClick={start} variant="primary" size="lg" showLeftIcon={false} showRightIcon={false}>Another Round</Button>}
+          <Button onClick={showAnswer ? props.onExit : () => setRevealed(true)} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Flag />}>{showAnswer ? "End Game" : "Reveal Result"}</Button>
         </div>
       </section>
     </AppScreen>
@@ -340,10 +401,14 @@ function LocalWavelength(props: {
   const [guess, setGuess] = useState(50);
   const [score, setScore] = useState(0);
   const [secretVisible, setSecretVisible] = useState(false);
+  const [roundTimer, setRoundTimer] = useState(90);
+  const [usedPromptIds, setUsedPromptIds] = useState<string[]>([]);
   const clueGiver = props.players[clueGiverIndex % Math.max(1, props.players.length)];
 
   function start() {
-    setScale(pick(wavePacks[pack]));
+    const nextScale = pickUnused(wavePacks[pack], pack, usedPromptIds, true);
+    setScale(nextScale.item);
+    setUsedPromptIds(nextScale.usedIds);
     setSecret(Math.floor(Math.random() * 101));
     setClue("");
     setGuess(50);
@@ -352,7 +417,7 @@ function LocalWavelength(props: {
   }
 
   function lockGuess() {
-    setScore((value) => value + Math.max(0, 10 - Math.floor(Math.abs(secret - guess) / 5)));
+    setScore((value) => value + getWavelengthScore(secret, guess));
     setPhase("result");
   }
 
@@ -360,6 +425,7 @@ function LocalWavelength(props: {
     return (
       <PlayerSetup title={`${props.gameName} Rules`} minPlayers={props.minPlayers} players={props.players} setPlayers={props.setPlayers} newName={props.newName} setNewName={props.setNewName} addPlayer={props.addPlayer} onStart={start} onExit={props.onExit}>
         <PackSelector packs={Object.keys(wavePacks) as Array<keyof typeof wavePacks>} value={pack} onChange={setPack} />
+        <TimerPicker value={roundTimer} onChange={setRoundTimer} />
       </PlayerSetup>
     );
   }
@@ -381,7 +447,7 @@ function LocalWavelength(props: {
       <AppScreen tone="dark" className="!p-0">
         <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col px-4 pb-safe pt-20 text-center">
           <BrandNav title={clueGiver?.name ?? "Clue Giver"} tone="dark" />
-          <RadioTower className="mx-auto mt-8 text-[var(--surface-secondary)]" size={62} />
+          <div className="mx-auto mt-8 w-24"><GameArtwork gameSlug="wavelength" tone="light" /></div>
           <h1 className="mt-6 text-title-md-bold text-[var(--text-highlight)]">{scale[0]} - {scale[1]}</h1>
           <div className="mt-6">
             <SecretScale left={scale[0]} right={scale[1]} value={secret} hidden={!secretVisible} />
@@ -396,7 +462,7 @@ function LocalWavelength(props: {
 
   if (phase === "guess") {
     return (
-      <AppScreen tone="blue" className="!p-0">
+      <AppScreen tone="accent" className="!p-0">
         <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col px-4 pb-safe pt-16 text-center">
           <BrandNav title="Make a Guess" tone="light" />
           <p className="mt-10 text-body-semibold opacity-60">Clue</p>
@@ -412,9 +478,10 @@ function LocalWavelength(props: {
     );
   }
 
-  const roundScore = Math.max(0, 10 - Math.floor(Math.abs(secret - guess) / 5));
+  const roundScore = getWavelengthScore(secret, guess);
+  const clueGiverScore = Math.max(0, roundScore - 1);
   return (
-    <AppScreen tone="blue" className="!p-0">
+    <AppScreen tone="accent" className="!p-0">
       <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col px-4 pb-safe pt-16 text-center">
         <BrandNav title="Results" tone="light" />
         <h1 className="mt-12 text-title-lg-bold">{scale[0]} - {scale[1]}</h1>
@@ -424,7 +491,8 @@ function LocalWavelength(props: {
             <div className="absolute top-1/2 h-10 w-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--surface-inverted)] transition-all duration-700" style={{ left: `${guess}%` }} />
           </div>
           <p className="mt-6 text-title-sm-bold">Guess {guess} / Answer {secret}</p>
-          <p className="mt-2 text-headline-md-bold">{roundScore} Points</p>
+          <p className="mt-2 text-headline-md-bold">Round Score: +{roundScore}</p>
+          <p className="mt-1 text-body-semibold">Clue-Giver Bonus: +{clueGiverScore}</p>
         </div>
         <p className="mt-8 text-title-sm-bold">Total Score: {score}</p>
         <div className="mt-auto grid grid-cols-2 gap-2">

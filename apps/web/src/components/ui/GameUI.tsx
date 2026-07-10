@@ -11,13 +11,13 @@ export function AppScreen({
   className = ""
 }: {
   children: ReactNode;
-  tone?: "dark" | "light" | "blue";
+  tone?: "dark" | "light" | "accent";
   className?: string;
 }) {
   const tones = {
     dark: "bg-[var(--surface-primary)] text-[var(--text-primary)]",
-    light: "bg-[var(--surface-inverted)] text-[var(--text-inverted)]",
-    blue: "bg-[var(--surface-secondary)] text-[var(--text-inverted-plus)]"
+    light: "page-light bg-[var(--surface-inverted)] text-[var(--text-inverted)]",
+    accent: "page-accent bg-[var(--surface-secondary)] text-[var(--text-inverted-plus)]"
   };
 
   return <main className={`min-screen-safe animate-page-in px-4 pb-safe pt-safe ${tones[tone]} ${className}`}>{children}</main>;
@@ -25,7 +25,7 @@ export function AppScreen({
 
 export function LoadingState({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
-    <AppScreen tone="blue" className="grid place-items-center">
+    <AppScreen tone="accent" className="grid place-items-center">
       <div className="text-center">
         <div className="mx-auto size-12 animate-spin rounded-full border-4 border-black/15 border-t-[var(--surface-primary)]" />
         <h1 className="mt-7 text-title-md-extrabold">{title}</h1>
@@ -45,7 +45,7 @@ export function ErrorState({
   action: ReactNode;
 }) {
   return (
-    <AppScreen tone="blue" className="grid place-items-center">
+    <AppScreen tone="accent" className="grid place-items-center">
       <section className="w-full max-w-[25rem] text-center">
         <p className="text-display-lg-bold">!</p>
         <h1 className="mt-3 text-title-lg-bold">{title}</h1>
@@ -186,8 +186,8 @@ export function PlayerStatusPill({
     <div className="fixed bottom-[calc(var(--sticky-bottom)+6.5rem)] left-1/2 z-30 flex -translate-x-1/2 items-center rounded-full bg-[var(--surface-primary-light)] px-3 py-2 text-[var(--text-primary)] shadow-lg">
       <div className="flex -space-x-2">
         {players.slice(0, 7).map((player) => (
-          <span key={player.id} className={`grid size-7 place-items-center rounded-full border border-[var(--surface-primary-light)] bg-[var(--surface-primary)] transition-opacity ${completedIds.includes(player.id) ? "opacity-100" : "opacity-20"}`}>
-            <Avatar avatarId={player.avatarId ?? 1} name={player.name} size="sm" tone="white" />
+          <span key={player.id} className="grid size-7 place-items-center rounded-full border border-[var(--surface-primary-light)] bg-[var(--surface-inverted-light)] transition-colors">
+            <Avatar avatarId={player.avatarId ?? 1} name={player.name} size="sm" tone={completedIds.includes(player.id) ? "black" : "muted"} />
           </span>
         ))}
       </div>
@@ -219,8 +219,8 @@ export function WaitingOrbit({
   return (
     <div className="relative mx-auto h-[420px] w-full max-w-[25rem]">
       {players.slice(0, 6).map((player, index) => (
-        <div key={player.id} className={`absolute ${positions[index]} animate-float ${completedIds.includes(player.id) ? "opacity-100" : "opacity-20"}`} style={{ animationDelay: `${index * 180}ms` }}>
-          <Avatar avatarId={player.avatarId ?? 1} name={player.name} size="lg" tone="blue" />
+        <div key={player.id} className={`absolute ${positions[index]} animate-float`} style={{ animationDelay: `${index * 180}ms` }}>
+          <Avatar avatarId={player.avatarId ?? 1} name={player.name} size="lg" tone={completedIds.includes(player.id) ? "accent" : "muted"} />
         </div>
       ))}
       <div className="absolute inset-0 grid place-items-center text-center">

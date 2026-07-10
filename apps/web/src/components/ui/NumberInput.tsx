@@ -148,7 +148,7 @@ export function NumberInput({
           className={cx(
             "text-title-md-semibold text-center transition-all duration-300 ease-out",
             resolvedState === "joining" && "text-[var(--text-inverted)] opacity-20",
-            resolvedState === "joined" && "text-[var(--primitive-blue-800)]",
+            resolvedState === "joined" && "text-[var(--button-secondary-surface)]",
             resolvedState === "wrong-code" && "text-[var(--text-inverted)]"
           )}
         >

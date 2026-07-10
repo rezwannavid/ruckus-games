@@ -35,6 +35,12 @@ app.use(cors({
 
 app.use(express.json());
 
+app.use((_req, res, next) => {
+  const sendJson = res.json.bind(res);
+  res.json = ((payload: unknown) => sendJson(sanitizeResponsePayload(payload))) as typeof res.json;
+  next();
+});
+
 const server = http.createServer(app);
 
 const io = new Server(server, {
@@ -57,7 +63,10 @@ type GameParticipant = {
   id: string;
   name: string;
   avatarId?: number;
+  status?: "active" | "eliminated" | "disconnected" | "spectating";
 };
+
+type GameWinner = "players" | "imposters" | null;
 
 type Game = {
   slug: string;
@@ -84,6 +93,14 @@ type ImposterGameState = {
   round: number;
   numberOfImposters: number;
   answerRevealed: boolean;
+  eliminatedPlayerIds: string[];
+  usedPromptIds: string[];
+  currentPromptId: string;
+  gameOver: boolean;
+  winner: GameWinner;
+  lastEliminatedPlayerId: string | null;
+  lastGuessWasImposter: boolean;
+  lastTopVotedPlayerIds: string[];
 };
 
 type ImposterCodeGameState = {
@@ -104,18 +121,39 @@ type ImposterCodeGameState = {
   votes: Record<string, string>;
   round: number;
   answerRevealed: boolean;
+  eliminatedPlayerIds: string[];
+  usedPromptIds: string[];
+  currentPromptId: string;
+  gameOver: boolean;
+  winner: GameWinner;
+  lastEliminatedPlayerId: string | null;
+  lastGuessWasImposter: boolean;
+  lastTopVotedPlayerIds: string[];
+};
+
+type WavelengthRoundSummary = {
+  round: number;
+  target: number;
+  guess: number | null;
+  guesserId: string | null;
+  distance: number | null;
+  roundScore: number;
+  clueGiverPoints: number;
+  activeTeamId: "team-1" | "team-2" | null;
+  guesses: Array<{ playerId: string; guess: number; distance: number; points: number }>;
 };
 
 type WavelengthGameState = {
   type: "wavelength";
   playMode: "multiplayer" | "single_device";
-  phase: "clue" | "guess" | "results";
+  phase: "announcement" | "clue" | "guess" | "results";
   players: GameParticipant[];
-  mode: "teams" | "everyone";
+  mode: "teams" | "single";
   clueGiverId: string;
   clueGiverName: string;
   activeTeamId: "team-1" | "team-2" | null;
   teams: Record<"team-1" | "team-2", string[]>;
+  teamNames: Record<"team-1" | "team-2", string>;
   scaleLeft: string;
   scaleRight: string;
   scalePack: string;
@@ -123,6 +161,7 @@ type WavelengthGameState = {
   clue: string | null;
   guess: number | null;
   guesses: Record<string, number>;
+  acceptedGuessPlayerId: string | null;
   roundTimerSeconds: number;
   startedAt: string;
   endsAt: string;
@@ -131,6 +170,12 @@ type WavelengthGameState = {
   playerScores: Record<string, number>;
   maxRounds: number;
   round: number;
+  usedPromptIds: string[];
+  currentPromptId: string;
+  roundHistory: WavelengthRoundSummary[];
+  lastRoundScore: number;
+  lastClueGiverPoints: number;
+  isComplete: boolean;
 };
 
 type GameState = ImposterGameState | ImposterCodeGameState | WavelengthGameState;
@@ -140,6 +185,8 @@ type PromptPack<T> = {
   subcategories: Record<string, { name: string; items: T[] }>;
 };
 
+type IdentifiedPrompt<T> = { id: string; item: T };
+
 type Room = {
   code: string;
   name?: string;
@@ -148,6 +195,36 @@ type Room = {
   selectedGame?: Game;
   gameState?: GameState;
 };
+
+function getPublicRoom(room: Room): Room {
+  const publicRoom = structuredClone(room);
+  const state = publicRoom.gameState;
+  if (!state) return publicRoom;
+
+  if (state.type === "imposter") {
+    state.word = "";
+    state.imposterPlayerId = "";
+    state.imposterPlayerIds = [];
+  } else if (state.type === "imposter-code") {
+    state.question = "";
+    state.imposterQuestion = "";
+    state.imposterPlayerId = "";
+    state.imposterPlayerIds = [];
+  } else {
+    state.secretNumber = -1;
+  }
+  return publicRoom;
+}
+
+function sanitizeResponsePayload(payload: unknown) {
+  if (!payload || typeof payload !== "object" || !("room" in payload)) return payload;
+  const body = payload as Record<string, unknown> & { room?: Room };
+  return body.room ? { ...body, room: getPublicRoom(body.room) } : payload;
+}
+
+function emitRoomState(code: string, room: Room) {
+  io.to(code).emit("room:state", getPublicRoom(room));
+}
 
 const roomsFilePath = path.join(process.cwd(), "rooms.dev.json");
 
@@ -186,6 +263,37 @@ function loadRooms() {
         legacyState.round ??= 1;
         legacyState.numberOfImposters ??= legacyState.imposterPlayerIds?.length || 1;
         legacyState.answerRevealed ??= legacyPhase === "revealed";
+        legacyState.eliminatedPlayerIds ??= [];
+        legacyState.usedPromptIds ??= [];
+        legacyState.currentPromptId ??= `legacy:${legacyState.wordCategory}:${legacyState.word}`;
+        legacyState.gameOver ??= false;
+        legacyState.winner ??= null;
+        legacyState.lastEliminatedPlayerId ??= null;
+        legacyState.lastGuessWasImposter ??= false;
+        legacyState.lastTopVotedPlayerIds ??= [];
+      }
+
+      if (room.gameState?.type === "imposter-code") {
+        room.gameState.eliminatedPlayerIds ??= [];
+        room.gameState.usedPromptIds ??= [];
+        room.gameState.currentPromptId ??= `legacy:${room.gameState.questionPack}:${room.gameState.question}`;
+        room.gameState.gameOver ??= false;
+        room.gameState.winner ??= null;
+        room.gameState.lastEliminatedPlayerId ??= null;
+        room.gameState.lastGuessWasImposter ??= false;
+        room.gameState.lastTopVotedPlayerIds ??= [];
+      }
+
+      if (room.gameState?.type === "wavelength") {
+        if ((room.gameState.mode as string) === "everyone") room.gameState.mode = "single";
+        room.gameState.teamNames ??= getTeamNames(room.gameState.players, room.gameState.teams);
+        room.gameState.usedPromptIds ??= [];
+        room.gameState.currentPromptId ??= `legacy:${room.gameState.scalePack}:${room.gameState.scaleLeft}:${room.gameState.scaleRight}`;
+        room.gameState.roundHistory ??= [];
+        room.gameState.lastRoundScore ??= 0;
+        room.gameState.lastClueGiverPoints ??= 0;
+        room.gameState.acceptedGuessPlayerId ??= null;
+        room.gameState.isComplete ??= room.gameState.round >= room.gameState.maxRounds;
       }
 
       loadedRooms.set(code, room);
@@ -216,6 +324,7 @@ function saveRooms() {
 }
 
 const rooms = loadRooms();
+const connectedPlayerSockets = new Map<string, Set<string>>();
 
 const games: Game[] = [
   {
@@ -415,23 +524,27 @@ function getPackItems<T>(
   const packId = packs[requestedPack] ? requestedPack : fallbackPack;
   const pack = packs[packId];
   const subcategory = requestedSubcategory ? pack.subcategories[requestedSubcategory] : undefined;
-  const items = subcategory
-    ? subcategory.items
-    : Object.values(pack.subcategories).flatMap((entry) => entry.items);
+  const entries: IdentifiedPrompt<T>[] = subcategory
+    ? subcategory.items.map((item, index) => ({ id: `${packId}:${requestedSubcategory}:${index}`, item }))
+    : Object.entries(pack.subcategories).flatMap(([subcategoryId, entry]) =>
+        entry.items.map((item, index) => ({ id: `${packId}:${subcategoryId}:${index}`, item }))
+      );
 
   return {
     selection: subcategory ? `${packId}:${requestedSubcategory}` : packId,
     pack: packId,
     subcategory: subcategory ? requestedSubcategory : null,
-    items
+    items: entries.map((entry) => entry.item),
+    entries
   };
 }
 
 function getImposterWordList(category: unknown) {
-  const { selection, items } = getPackItems(category, imposterWordPacks, "classic");
+  const { selection, items, entries } = getPackItems(category, imposterWordPacks, "classic");
   return {
     category: selection,
-    words: items
+    words: items,
+    entries
   };
 }
 
@@ -439,7 +552,8 @@ function getImposterCodePromptList(pack: unknown) {
   const result = getPackItems(pack, imposterCodePromptPacks, "casual");
   return {
     pack: result.selection,
-    prompts: result.items
+    prompts: result.items,
+    entries: result.entries
   };
 }
 
@@ -447,8 +561,41 @@ function getWavelengthScaleList(pack: unknown) {
   const result = getPackItems(pack, wavelengthScalePacks, "casual");
   return {
     pack: result.selection,
-    scales: result.items
+    scales: result.items,
+    entries: result.entries
   };
+}
+
+function pickUnusedPrompt<T>(entries: IdentifiedPrompt<T>[], usedIds: string[], allowReset: boolean) {
+  if (entries.length === 0) throw new Error("The selected category has no available prompts.");
+  let available = entries.filter((entry) => !usedIds.includes(entry.id));
+  let nextUsedIds = [...usedIds];
+
+  if (available.length === 0) {
+    available = entries;
+    if (allowReset) nextUsedIds = [];
+  }
+
+  const previousId = usedIds.at(-1);
+  const withoutImmediateRepeat = available.filter((entry) => entry.id !== previousId);
+  const selected = pickRandomItem(withoutImmediateRepeat.length > 0 ? withoutImmediateRepeat : available);
+  return { selected, usedIds: [...nextUsedIds, selected.id] };
+}
+
+function serializePromptPacks<T>(packs: Record<string, PromptPack<T>>) {
+  return Object.fromEntries(Object.entries(packs).map(([packId, pack]) => [
+    packId,
+    {
+      name: pack.name,
+      subcategories: Object.fromEntries(Object.entries(pack.subcategories).map(([subcategoryId, subcategory]) => [
+        subcategoryId,
+        {
+          name: subcategory.name,
+          items: subcategory.items.map((item, index) => ({ id: `${packId}:${subcategoryId}:${index}`, value: item }))
+        }
+      ]))
+    }
+  ]));
 }
 
 function getPlayModeSetting(value: unknown) {
@@ -463,7 +610,7 @@ function getTimerSetting(value: unknown, fallback = 90) {
 }
 
 function getWavelengthMode(value: unknown) {
-  return value === "teams" ? "teams" : "everyone";
+  return value === "teams" ? "teams" : "single";
 }
 
 function getManualParticipants(value: unknown) {
@@ -511,6 +658,103 @@ function getBalancedTeams(players: GameParticipant[]) {
   );
 }
 
+function getTeamNames(players: GameParticipant[], teams: Record<"team-1" | "team-2", string[]>) {
+  const nameFor = (teamId: "team-1" | "team-2") => {
+    const teamPlayers = players.filter((player) => teams[teamId].includes(player.id));
+    const selected = pickRandomItem(teamPlayers);
+    return `${selected?.name ?? (teamId === "team-1" ? "First" : "Second")}’s Team`;
+  };
+  const first = nameFor("team-1");
+  let second = nameFor("team-2");
+  if (second === first) second = `${second} 2`;
+  return { "team-1": first, "team-2": second };
+}
+
+function getActivePlayers<T extends { players: GameParticipant[]; eliminatedPlayerIds: string[] }>(state: T) {
+  return state.players.filter((player) => !state.eliminatedPlayerIds.includes(player.id) && player.status !== "disconnected" && player.status !== "spectating");
+}
+
+function getEliminationOutcome(
+  players: GameParticipant[],
+  votes: Record<string, string>,
+  imposterIds: string[],
+  eliminatedPlayerIds: string[]
+) {
+  const activeIds = new Set(players.filter((player) => !eliminatedPlayerIds.includes(player.id)).map((player) => player.id));
+  const totals: Record<string, number> = {};
+  Object.entries(votes).forEach(([voterId, targetId]) => {
+    if (!activeIds.has(voterId) || !activeIds.has(targetId)) return;
+    totals[targetId] = (totals[targetId] ?? 0) + 1;
+  });
+  const highestVoteCount = Math.max(0, ...Object.values(totals));
+  const topVotedPlayerIds = Object.entries(totals).filter(([, count]) => count === highestVoteCount).map(([id]) => id);
+  const eliminatedPlayerId = highestVoteCount > 0 && topVotedPlayerIds.length === 1 ? topVotedPlayerIds[0] : null;
+  return {
+    totals,
+    highestVoteCount,
+    topVotedPlayerIds,
+    eliminatedPlayerId,
+    caughtImposter: Boolean(eliminatedPlayerId && imposterIds.includes(eliminatedPlayerId))
+  };
+}
+
+function getImposterWinState(players: GameParticipant[], imposterIds: string[], eliminatedIds: string[]) {
+  const activeIds = new Set(players.filter((player) => !eliminatedIds.includes(player.id)).map((player) => player.id));
+  const activeImposters = imposterIds.filter((id) => activeIds.has(id)).length;
+  const activeNonImposters = activeIds.size - activeImposters;
+  if (activeImposters === 0) return { gameOver: true, winner: "players" as const };
+  if (activeImposters >= activeNonImposters) return { gameOver: true, winner: "imposters" as const };
+  return { gameOver: false, winner: null };
+}
+
+type DeductionGameState = ImposterGameState | ImposterCodeGameState;
+
+function resolveDeductionVote(state: DeductionGameState) {
+  const outcome = getEliminationOutcome(state.players, state.votes, state.imposterPlayerIds, state.eliminatedPlayerIds);
+  if (outcome.eliminatedPlayerId && !state.eliminatedPlayerIds.includes(outcome.eliminatedPlayerId)) {
+    state.eliminatedPlayerIds.push(outcome.eliminatedPlayerId);
+    const eliminated = state.players.find((player) => player.id === outcome.eliminatedPlayerId);
+    if (eliminated) eliminated.status = "eliminated";
+  }
+  const winState = getImposterWinState(state.players, state.imposterPlayerIds, state.eliminatedPlayerIds);
+  state.phase = "results";
+  state.gameOver = winState.gameOver;
+  state.winner = winState.winner;
+  state.answerRevealed = winState.gameOver;
+  state.lastEliminatedPlayerId = outcome.eliminatedPlayerId;
+  state.lastGuessWasImposter = outcome.caughtImposter;
+  state.lastTopVotedPlayerIds = outcome.topVotedPlayerIds;
+  return outcome;
+}
+
+function startAnotherDeductionGuess(state: DeductionGameState) {
+  if (state.phase !== "results" || state.answerRevealed) {
+    throw new Error("Another guess is not available.");
+  }
+  const activePlayers = getActivePlayers(state);
+  if (activePlayers.length < 2) throw new Error("Not enough active players remain for another guess.");
+  const startedAt = new Date();
+  state.phase = "voting";
+  state.votes = {};
+  state.startedAt = startedAt.toISOString();
+  state.endsAt = state.roundTimerSeconds > 0
+    ? new Date(startedAt.getTime() + state.roundTimerSeconds * 1000).toISOString()
+    : startedAt.toISOString();
+}
+
+function revealDeductionResult(state: DeductionGameState) {
+  if (state.phase !== "results") throw new Error("Results are not available.");
+  state.answerRevealed = true;
+  state.gameOver = true;
+}
+
+function resetParticipantEliminations(players: GameParticipant[]) {
+  return players.map((player) => ({
+    ...player,
+    status: player.status === "disconnected" ? "disconnected" as const : "active" as const
+  }));
+}
+
 function getPlayerTeamId(state: WavelengthGameState, playerId: string) {
   if (state.teams["team-1"].includes(playerId)) return "team-1";
   if (state.teams["team-2"].includes(playerId)) return "team-2";
@@ -518,13 +762,27 @@ function getPlayerTeamId(state: WavelengthGameState, playerId: string) {
 }
 
 function getWavelengthEligibleGuesserIds(state: WavelengthGameState) {
+  const connectedIds = new Set(state.players.filter((player) => player.status !== "disconnected" && player.status !== "spectating").map((player) => player.id));
   if (state.mode === "teams") {
     const activeTeamIds = state.activeTeamId ? state.teams[state.activeTeamId] : [];
-    return activeTeamIds.filter((playerId) => playerId !== state.clueGiverId);
+    return activeTeamIds.filter((playerId) => playerId !== state.clueGiverId && connectedIds.has(playerId));
   }
   return state.players
     .map((player) => player.id)
-    .filter((playerId) => playerId !== state.clueGiverId);
+    .filter((playerId) => playerId !== state.clueGiverId && connectedIds.has(playerId));
+}
+
+function replaceDisconnectedClueGiver(state: WavelengthGameState) {
+  const current = state.players.find((player) => player.id === state.clueGiverId);
+  if (current?.status !== "disconnected" || state.clue) return;
+  const pool = state.mode === "teams" && state.activeTeamId
+    ? state.players.filter((player) => state.teams[state.activeTeamId!].includes(player.id))
+    : state.players;
+  const replacement = pool.find((player) => player.status !== "disconnected" && player.id !== state.clueGiverId);
+  if (replacement) {
+    state.clueGiverId = replacement.id;
+    state.clueGiverName = replacement.name;
+  }
 }
 
 function getWavelengthGuessSummary(state: WavelengthGameState) {
@@ -538,21 +796,38 @@ function getWavelengthGuessSummary(state: WavelengthGameState) {
 
 function applyWavelengthScores(state: WavelengthGameState) {
   const guessSummary = getWavelengthGuessSummary(state);
+  const accepted = state.acceptedGuessPlayerId
+    ? guessSummary.find((guess) => guess.playerId === state.acceptedGuessPlayerId)
+    : guessSummary.sort((a, b) => a.distance - b.distance)[0];
+  const roundScore = accepted?.points ?? 0;
+  const clueGiverPoints = Math.max(0, roundScore - 1);
 
   if (state.mode === "teams" && state.activeTeamId) {
-    const bestDistance = Math.min(...guessSummary.map((guess) => guess.distance));
-    const teamPoints = Number.isFinite(bestDistance) ? Math.max(0, 10 - Math.floor(bestDistance / 5)) : 0;
-    state.teamScores[state.activeTeamId] += teamPoints;
+    state.teamScores[state.activeTeamId] += roundScore;
+    state.playerScores[state.clueGiverId] = (state.playerScores[state.clueGiverId] ?? 0) + clueGiverPoints;
     state.score = state.teamScores["team-1"] + state.teamScores["team-2"];
-    return;
+  } else {
+    guessSummary.forEach((guess) => {
+      state.playerScores[guess.playerId] = (state.playerScores[guess.playerId] ?? 0) + guess.points;
+    });
+    state.playerScores[state.clueGiverId] = (state.playerScores[state.clueGiverId] ?? 0) + clueGiverPoints;
+    state.score = Object.values(state.playerScores).reduce((total, value) => total + value, 0);
   }
 
-  guessSummary.forEach((guess) => {
-    state.playerScores[guess.playerId] = (state.playerScores[guess.playerId] ?? 0) + guess.points;
+  state.lastRoundScore = roundScore;
+  state.lastClueGiverPoints = clueGiverPoints;
+  state.roundHistory.push({
+    round: state.round,
+    target: state.secretNumber,
+    guess: accepted?.guess ?? null,
+    guesserId: accepted?.playerId ?? null,
+    distance: accepted?.distance ?? null,
+    roundScore,
+    clueGiverPoints,
+    activeTeamId: state.activeTeamId,
+    guesses: guessSummary
   });
-  const bestPoints = Math.max(0, ...guessSummary.map((guess) => guess.points));
-  state.playerScores[state.clueGiverId] = (state.playerScores[state.clueGiverId] ?? 0) + bestPoints;
-  state.score = Object.values(state.playerScores).reduce((total, value) => total + value, 0);
+  state.isComplete = state.round >= state.maxRounds;
 }
 
 function getImposterReveal(room: Room, state: ImposterGameState) {
@@ -575,32 +850,38 @@ function getImposterReveal(room: Room, state: ImposterGameState) {
 }
 
 function getVoteOutcome(state: ImposterGameState) {
-  const totals: Record<string, number> = {};
-  Object.values(state.votes).forEach((targetId) => {
-    totals[targetId] = (totals[targetId] ?? 0) + 1;
-  });
-  const highestVoteCount = Math.max(0, ...Object.values(totals));
-  const topVotedPlayerIds = Object.entries(totals)
-    .filter(([, count]) => count === highestVoteCount)
-    .map(([playerId]) => playerId);
-  const caughtImposter =
-    highestVoteCount > 0 &&
-    topVotedPlayerIds.length === 1 &&
-    state.imposterPlayerIds.includes(topVotedPlayerIds[0]);
-
-  return { totals, highestVoteCount, topVotedPlayerIds, caughtImposter };
+  return getEliminationOutcome(state.players, state.votes, state.imposterPlayerIds, state.eliminatedPlayerIds);
 }
 
-function resetImposterRound(state: ImposterGameState) {
+function startNewImposterRound(state: ImposterGameState) {
   const startedAt = new Date();
-  const endsAt = new Date(startedAt.getTime() + state.roundTimerSeconds * 1000);
-
-  state.phase = "discussion";
+  const { entries } = getImposterWordList(state.wordCategory);
+  const promptChoice = pickUnusedPrompt(entries, state.usedPromptIds, false);
+  state.players = resetParticipantEliminations(state.players);
+  const eligiblePlayers = state.players.filter((player) => player.status !== "disconnected");
+  const imposters = pickRandomItems(
+    eligiblePlayers,
+    getNumberSetting(state.numberOfImposters, 1, 1, Math.max(1, eligiblePlayers.length - 1))
+  );
+  state.phase = "role_reveal";
+  state.word = promptChoice.selected.item;
+  state.currentPromptId = promptChoice.selected.id;
+  state.usedPromptIds = promptChoice.usedIds;
   state.startedAt = startedAt.toISOString();
-  state.endsAt = endsAt.toISOString();
-  state.readyPlayerIds = state.players.map((player) => player.id);
+  state.endsAt = state.roundTimerSeconds > 0
+    ? new Date(startedAt.getTime() + state.roundTimerSeconds * 1000).toISOString()
+    : startedAt.toISOString();
+  state.imposterPlayerId = imposters[0].id;
+  state.imposterPlayerIds = imposters.map((player) => player.id);
+  state.readyPlayerIds = [];
   state.votes = {};
+  state.eliminatedPlayerIds = [];
   state.answerRevealed = false;
+  state.gameOver = false;
+  state.winner = null;
+  state.lastEliminatedPlayerId = null;
+  state.lastGuessWasImposter = false;
+  state.lastTopVotedPlayerIds = [];
   state.round += 1;
 }
 
@@ -610,21 +891,22 @@ function createImposterCodeState(
   round = 1,
   numberOfImposters = 1,
   questionPack: unknown = "casual",
-  roundTimerSeconds = 90
+  roundTimerSeconds = 90,
+  history?: Pick<ImposterCodeGameState, "usedPromptIds">
 ): ImposterCodeGameState {
-  const { pack, prompts } = getImposterCodePromptList(questionPack);
-  const prompt = pickRandomItem(prompts);
-  const imposters = pickRandomItems(
-    gameParticipants,
-    getNumberSetting(numberOfImposters, 1, 1, Math.max(1, gameParticipants.length - 1))
-  );
+  const { pack, entries } = getImposterCodePromptList(questionPack);
+  const promptChoice = pickUnusedPrompt(entries, history?.usedPromptIds ?? [], false);
+  const prompt = promptChoice.selected.item;
+  const resetPlayers = resetParticipantEliminations(gameParticipants);
+  const eligiblePlayers = resetPlayers.filter((player) => player.status !== "disconnected");
+  const imposters = pickRandomItems(eligiblePlayers, getNumberSetting(numberOfImposters, 1, 1, Math.max(1, eligiblePlayers.length - 1)));
   const startedAt = new Date();
 
   return {
     type: "imposter-code",
     playMode,
     phase: "answering",
-    players: gameParticipants,
+    players: resetPlayers,
     question: prompt.question,
     imposterQuestion: prompt.imposterQuestion,
     questionPack: pack,
@@ -637,7 +919,15 @@ function createImposterCodeState(
     answers: {},
     votes: {},
     round,
-    answerRevealed: false
+    answerRevealed: false,
+    eliminatedPlayerIds: [],
+    usedPromptIds: promptChoice.usedIds,
+    currentPromptId: promptChoice.selected.id,
+    gameOver: false,
+    winner: null,
+    lastEliminatedPlayerId: null,
+    lastGuessWasImposter: false,
+    lastTopVotedPlayerIds: []
   };
 }
 
@@ -647,12 +937,13 @@ function createWavelengthState(
   round = 1,
   score = 0,
   scalePack: unknown = "casual",
-  mode: "teams" | "everyone" = "everyone",
+  mode: "teams" | "single" = "single",
   maxRounds = 6,
   roundTimerSeconds = 90,
   existingTeamScores: Record<"team-1" | "team-2", number> = { "team-1": 0, "team-2": 0 },
   existingPlayerScores?: Record<string, number>,
   existingTeams?: Record<"team-1" | "team-2", string[]>
+  ,existing?: Pick<WavelengthGameState, "teamNames" | "usedPromptIds" | "roundHistory">
 ): WavelengthGameState {
   const teams = existingTeams ?? getBalancedTeams(gameParticipants);
   const activeTeamId = mode === "teams" ? (round % 2 === 1 ? "team-1" : "team-2") : null;
@@ -661,21 +952,23 @@ function createWavelengthState(
       ? gameParticipants.filter((player) => teams[activeTeamId].includes(player.id))
       : gameParticipants;
   const clueGiver = cluePool[(Math.floor((round - 1) / (mode === "teams" ? 2 : 1))) % cluePool.length] ?? gameParticipants[0];
-  const { pack, scales } = getWavelengthScaleList(scalePack);
-  const [scaleLeft, scaleRight] = pickRandomItem(scales);
+  const { pack, entries } = getWavelengthScaleList(scalePack);
+  const promptChoice = pickUnusedPrompt(entries, existing?.usedPromptIds ?? [], true);
+  const [scaleLeft, scaleRight] = promptChoice.selected.item;
   const startedAt = new Date();
   const timer = roundTimerSeconds;
 
   return {
     type: "wavelength",
     playMode,
-    phase: "clue",
+    phase: mode === "teams" ? "announcement" : "clue",
     players: gameParticipants,
     mode,
     clueGiverId: clueGiver.id,
     clueGiverName: clueGiver.name,
     activeTeamId,
     teams,
+    teamNames: existing?.teamNames ?? getTeamNames(gameParticipants, teams),
     scaleLeft,
     scaleRight,
     scalePack: pack,
@@ -683,6 +976,7 @@ function createWavelengthState(
     clue: null,
     guess: null,
     guesses: {},
+    acceptedGuessPlayerId: null,
     roundTimerSeconds: timer,
     startedAt: startedAt.toISOString(),
     endsAt: timer > 0 ? new Date(startedAt.getTime() + timer * 1000).toISOString() : startedAt.toISOString(),
@@ -690,31 +984,29 @@ function createWavelengthState(
     teamScores: existingTeamScores,
     playerScores: existingPlayerScores ?? Object.fromEntries(gameParticipants.map((player) => [player.id, 0])),
     maxRounds,
-    round
+    round,
+    usedPromptIds: promptChoice.usedIds,
+    currentPromptId: promptChoice.selected.id,
+    roundHistory: existing?.roundHistory ?? [],
+    lastRoundScore: 0,
+    lastClueGiverPoints: 0,
+    isComplete: false
   };
 }
 
 function getImposterCodeOutcome(state: ImposterCodeGameState) {
-  const totals: Record<string, number> = {};
-  Object.values(state.votes).forEach((targetId) => {
-    totals[targetId] = (totals[targetId] ?? 0) + 1;
-  });
-  const highestVoteCount = Math.max(0, ...Object.values(totals));
-  const topVotedPlayerIds = Object.entries(totals)
-    .filter(([, count]) => count === highestVoteCount)
-    .map(([playerId]) => playerId);
-  const caughtImposter =
-    highestVoteCount > 0 &&
-    topVotedPlayerIds.length === 1 &&
-    state.imposterPlayerIds.includes(topVotedPlayerIds[0]);
-
-  return { totals, highestVoteCount, topVotedPlayerIds, caughtImposter };
+  return getEliminationOutcome(state.players, state.votes, state.imposterPlayerIds, state.eliminatedPlayerIds);
 }
 
 function getWavelengthRoundScore(secretNumber: number, guess: number | null) {
   if (guess === null) return 0;
   const distance = Math.abs(secretNumber - guess);
-  return Math.max(0, 10 - Math.floor(distance / 5));
+  if (distance <= 3) return 5;
+  if (distance <= 6) return 4;
+  if (distance <= 9) return 3;
+  if (distance <= 12) return 2;
+  if (distance <= 15) return 1;
+  return 0;
 }
 
 function generateRoomCode() {
@@ -727,6 +1019,14 @@ app.get("/health", (_req, res) => {
 
 app.get("/games", (_req, res) => {
   res.json({ games });
+});
+
+app.get("/game-content", (_req, res) => {
+  res.json({
+    imposter: serializePromptPacks(imposterWordPacks),
+    "imposter-code": serializePromptPacks(imposterCodePromptPacks),
+    wavelength: serializePromptPacks(wavelengthScalePacks)
+  });
 });
 
 app.post("/rooms", (req, res) => {
@@ -783,6 +1083,14 @@ app.post("/rooms/:code/join", (req, res) => {
     return res.status(400).json({ message: "Room has ended." });
   }
 
+  if (room.status === "in_game") {
+    return res.status(409).json({ message: "This room is already in a game." });
+  }
+
+  if (room.players.length >= 12) {
+    return res.status(409).json({ message: "This room is full." });
+  }
+
   if (!playerName || playerName.trim().length === 0) {
     return res.status(400).json({ message: "Player name is required." });
   }
@@ -809,7 +1117,7 @@ app.post("/rooms/:code/join", (req, res) => {
   rooms.set(code, room);
   saveRooms();
 
-  io.to(code).emit("room:state", room);
+  emitRoomState(code, room);
 
   return res.json({ room, player });
 });
@@ -870,7 +1178,7 @@ app.post("/rooms/:code/leave", (req, res) => {
   rooms.set(code, room);
   saveRooms();
 
-  io.to(code).emit("room:state", room);
+  emitRoomState(code, room);
 
   return res.json({
     message: "Left room.",
@@ -903,7 +1211,7 @@ app.delete("/rooms/:code/players/:targetPlayerId", (req, res) => {
     playerId: targetPlayerId,
     message: "The room owner removed you."
   });
-  io.to(code).emit("room:state", room);
+  emitRoomState(code, room);
   return res.json({ room });
 });
 
@@ -959,7 +1267,7 @@ app.post("/rooms/:code/games/select", (req, res) => {
   rooms.set(code, room);
   saveRooms();
 
-  io.to(code).emit("room:state", room);
+  emitRoomState(code, room);
 
   return res.json({
     message: `${game.name} selected.`,
@@ -1050,11 +1358,12 @@ app.post("/rooms/:code/games/start", (req, res) => {
       settings?.roundTimer,
       60
     );
-    const { category: wordCategory, words } = getImposterWordList(
+    const { category: wordCategory, entries } = getImposterWordList(
       settings?.wordCategory
     );
     const imposters = pickRandomItems(gameParticipants, numberOfImposters);
-    const word = pickRandomItem(words);
+    const promptChoice = pickUnusedPrompt(entries, [], false);
+    const word = promptChoice.selected.item;
     const startedAt = new Date();
     const endsAt = new Date(startedAt.getTime() + roundTimerSeconds * 1000);
 
@@ -1074,7 +1383,15 @@ app.post("/rooms/:code/games/start", (req, res) => {
       votes: {},
       round: 1,
       numberOfImposters,
-      answerRevealed: false
+      answerRevealed: false,
+      eliminatedPlayerIds: [],
+      usedPromptIds: promptChoice.usedIds,
+      currentPromptId: promptChoice.selected.id,
+      gameOver: false,
+      winner: null,
+      lastEliminatedPlayerId: null,
+      lastGuessWasImposter: false,
+      lastTopVotedPlayerIds: []
     };
   } else if (room.selectedGame.slug === "imposter-code") {
     const maxImposters = Math.max(1, gameParticipants.length - 1);
@@ -1104,7 +1421,9 @@ app.post("/rooms/:code/games/start", (req, res) => {
       0,
       settings?.scalePack,
       wavelengthMode,
-      getNumberSetting(settings?.maxRounds, 6, 1, 20),
+      wavelengthMode === "single"
+        ? gameParticipants.length
+        : getNumberSetting(settings?.maxRounds, 6, 1, 20),
       getTimerSetting(settings?.roundTimer, 90)
     );
   } else {
@@ -1114,7 +1433,7 @@ app.post("/rooms/:code/games/start", (req, res) => {
   rooms.set(code, room);
   saveRooms();
 
-  io.to(code).emit("room:state", room);
+  emitRoomState(code, room);
   io.to(code).emit("game:started", {
     roomCode: room.code,
     game: room.selectedGame,
@@ -1178,7 +1497,7 @@ app.post("/rooms/:code/games/end", (req, res) => {
   rooms.set(code, room);
   saveRooms();
 
-  io.to(code).emit("room:state", room);
+  emitRoomState(code, room);
   io.to(code).emit("game:ended", {
     roomCode: room.code,
     game: endedGame
@@ -1198,10 +1517,10 @@ app.post("/rooms/:code/games/imposter/ready", (req, res) => {
 
   if (!room) return res.status(404).json({ message: "Room not found." });
   if (!playerId) return res.status(400).json({ message: "Player ID is required." });
-  if (!room.gameState || room.gameState.type !== "imposter") {
+  if (!room.gameState || room.gameState.type !== "imposter" || room.gameState.phase !== "role_reveal") {
     return res.status(400).json({ message: "Imposter game state not available." });
   }
-  if (!room.gameState.players.some((player) => player.id === playerId)) {
+  if (!room.gameState.players.some((player) => player.id === playerId) || room.gameState.eliminatedPlayerIds.includes(playerId)) {
     return res.status(404).json({ message: "Player not found in this game." });
   }
   if (!room.gameState.readyPlayerIds.includes(playerId)) {
@@ -1209,7 +1528,7 @@ app.post("/rooms/:code/games/imposter/ready", (req, res) => {
   }
   rooms.set(code, room);
   saveRooms();
-  io.to(code).emit("room:state", room);
+  emitRoomState(code, room);
 
   return res.json({ room, readyCount: room.gameState.readyPlayerIds.length });
 });
@@ -1222,10 +1541,10 @@ app.post("/rooms/:code/games/imposter/start-round", (req, res) => {
 
   if (!room) return res.status(404).json({ message: "Room not found." });
   if (!player?.isHost) return res.status(403).json({ message: "Only the host can start the round." });
-  if (!room.gameState || room.gameState.type !== "imposter") {
+  if (!room.gameState || room.gameState.type !== "imposter" || room.gameState.phase !== "role_reveal") {
     return res.status(400).json({ message: "Imposter game state not available." });
   }
-  if (room.gameState.readyPlayerIds.length < room.gameState.players.length) {
+  if (room.gameState.readyPlayerIds.length < getActivePlayers(room.gameState).length) {
     return res.status(400).json({ message: "Wait until every player is ready." });
   }
 
@@ -1237,7 +1556,7 @@ app.post("/rooms/:code/games/imposter/start-round", (req, res) => {
   ).toISOString();
   rooms.set(code, room);
   saveRooms();
-  io.to(code).emit("room:state", room);
+  emitRoomState(code, room);
 
   return res.json({ room });
 });
@@ -1250,7 +1569,7 @@ app.post("/rooms/:code/games/imposter/start-voting", (req, res) => {
 
   if (!room) return res.status(404).json({ message: "Room not found." });
   if (!player?.isHost) return res.status(403).json({ message: "Only the host can start voting." });
-  if (!room.gameState || room.gameState.type !== "imposter") {
+  if (!room.gameState || room.gameState.type !== "imposter" || room.gameState.phase !== "discussion") {
     return res.status(400).json({ message: "Imposter game state not available." });
   }
 
@@ -1258,7 +1577,7 @@ app.post("/rooms/:code/games/imposter/start-voting", (req, res) => {
   room.gameState.votes = {};
   rooms.set(code, room);
   saveRooms();
-  io.to(code).emit("room:state", room);
+  emitRoomState(code, room);
 
   return res.json({ room });
 });
@@ -1278,17 +1597,20 @@ app.post("/rooms/:code/games/imposter/vote", (req, res) => {
   if (!room.gameState || room.gameState.type !== "imposter" || room.gameState.phase !== "voting") {
     return res.status(400).json({ message: "Voting is not active." });
   }
-  if (!room.gameState.players.some((player) => player.id === playerId)) {
+  if (!room.gameState.players.some((player) => player.id === playerId) || room.gameState.eliminatedPlayerIds.includes(playerId)) {
     return res.status(404).json({ message: "Player not found in this game." });
   }
-  if (!room.gameState.players.some((player) => player.id === targetPlayerId)) {
+  if (!room.gameState.players.some((player) => player.id === targetPlayerId) || room.gameState.eliminatedPlayerIds.includes(targetPlayerId)) {
     return res.status(404).json({ message: "Vote target not found." });
+  }
+  if (room.gameState.votes[playerId] !== undefined) {
+    return res.status(409).json({ message: "Vote already submitted." });
   }
 
   room.gameState.votes[playerId] = targetPlayerId;
   rooms.set(code, room);
   saveRooms();
-  io.to(code).emit("room:state", room);
+  emitRoomState(code, room);
 
   return res.json({ room, voteCount: Object.keys(room.gameState.votes).length });
 });
@@ -1304,12 +1626,33 @@ app.post("/rooms/:code/games/imposter/next-round", (req, res) => {
   if (!room.gameState || room.gameState.type !== "imposter") {
     return res.status(400).json({ message: "Imposter game state not available." });
   }
-
-  resetImposterRound(room.gameState);
+  if (room.gameState.phase !== "results" || !room.gameState.answerRevealed) {
+    return res.status(409).json({ message: "Reveal the complete result before starting another round." });
+  }
+  startNewImposterRound(room.gameState);
   rooms.set(code, room);
   saveRooms();
-  io.to(code).emit("room:state", room);
+  emitRoomState(code, room);
 
+  return res.json({ room });
+});
+
+app.post("/rooms/:code/games/imposter/another-guess", (req, res) => {
+  const code = req.params.code.toUpperCase();
+  const { playerId } = req.body as { playerId?: string };
+  const room = rooms.get(code);
+  const player = room?.players.find((roomPlayer) => roomPlayer.id === playerId);
+  if (!room) return res.status(404).json({ message: "Room not found." });
+  if (!player?.isHost) return res.status(403).json({ message: "Only the host can start another guess." });
+  if (!room.gameState || room.gameState.type !== "imposter") return res.status(400).json({ message: "Imposter state not available." });
+  try {
+    startAnotherDeductionGuess(room.gameState);
+  } catch (error) {
+    return res.status(409).json({ message: error instanceof Error ? error.message : "Another guess is unavailable." });
+  }
+  rooms.set(code, room);
+  saveRooms();
+  emitRoomState(code, room);
   return res.json({ room });
 });
 
@@ -1349,14 +1692,16 @@ app.post("/rooms/:code/games/imposter/reveal", (req, res) => {
     return res.status(400).json({ message: "Imposter game state not available." });
   }
 
-  const outcome = getVoteOutcome(room.gameState);
-  room.gameState.phase = "results";
-  room.gameState.answerRevealed = outcome.caughtImposter;
+  if (Object.keys(room.gameState.votes).length < getActivePlayers(room.gameState).length) {
+    return res.status(400).json({ message: "Wait until every active player votes." });
+  }
+
+  const outcome = resolveDeductionVote(room.gameState);
 
   rooms.set(code, room);
   saveRooms();
 
-  io.to(code).emit("room:state", room);
+  emitRoomState(code, room);
 
   return res.json({
     message: outcome.caughtImposter ? "The imposter was voted out." : "The vote missed the imposter.",
@@ -1377,12 +1722,12 @@ app.post("/rooms/:code/games/imposter/reveal-answer", (req, res) => {
     return res.status(400).json({ message: "Results are not available." });
   }
 
-  room.gameState.answerRevealed = true;
+  revealDeductionResult(room.gameState);
   rooms.set(code, room);
   saveRooms();
   const reveal = getImposterReveal(room, room.gameState);
   io.to(code).emit("imposter:revealed", reveal);
-  io.to(code).emit("room:state", room);
+  emitRoomState(code, room);
   return res.json({ room, reveal });
 });
 
@@ -1396,7 +1741,7 @@ app.post("/rooms/:code/games/imposter-code/submit-answer", (req, res) => {
   if (!room.gameState || room.gameState.type !== "imposter-code" || room.gameState.phase !== "answering") {
     return res.status(400).json({ message: "Answers are not being collected." });
   }
-  if (!room.gameState.players.some((player) => player.id === playerId)) {
+  if (!room.gameState.players.some((player) => player.id === playerId) || room.gameState.eliminatedPlayerIds.includes(playerId)) {
     return res.status(404).json({ message: "Player not found in this game." });
   }
   if (room.gameState.answers[playerId] !== undefined) {
@@ -1404,12 +1749,12 @@ app.post("/rooms/:code/games/imposter-code/submit-answer", (req, res) => {
   }
 
   room.gameState.answers[playerId] = answer.trim().slice(0, 120);
-  if (Object.keys(room.gameState.answers).length >= room.gameState.players.length) {
+  if (Object.keys(room.gameState.answers).length >= getActivePlayers(room.gameState).length) {
     room.gameState.phase = "answers";
   }
   rooms.set(code, room);
   saveRooms();
-  io.to(code).emit("room:state", room);
+  emitRoomState(code, room);
   return res.json({ room });
 });
 
@@ -1429,7 +1774,7 @@ app.post("/rooms/:code/games/imposter-code/start-voting", (req, res) => {
   room.gameState.votes = {};
   rooms.set(code, room);
   saveRooms();
-  io.to(code).emit("room:state", room);
+  emitRoomState(code, room);
   return res.json({ room });
 });
 
@@ -1443,17 +1788,20 @@ app.post("/rooms/:code/games/imposter-code/vote", (req, res) => {
   if (!room.gameState || room.gameState.type !== "imposter-code" || room.gameState.phase !== "voting") {
     return res.status(400).json({ message: "Voting is not active." });
   }
-  if (!room.gameState.players.some((player) => player.id === playerId)) {
+  if (!room.gameState.players.some((player) => player.id === playerId) || room.gameState.eliminatedPlayerIds.includes(playerId)) {
     return res.status(404).json({ message: "Player not found in this game." });
   }
-  if (!room.gameState.players.some((player) => player.id === targetPlayerId)) {
+  if (!room.gameState.players.some((player) => player.id === targetPlayerId) || room.gameState.eliminatedPlayerIds.includes(targetPlayerId)) {
     return res.status(404).json({ message: "Vote target not found." });
+  }
+  if (room.gameState.votes[playerId] !== undefined) {
+    return res.status(409).json({ message: "Vote already submitted." });
   }
 
   room.gameState.votes[playerId] = targetPlayerId;
   rooms.set(code, room);
   saveRooms();
-  io.to(code).emit("room:state", room);
+  emitRoomState(code, room);
   return res.json({ room });
 });
 
@@ -1468,16 +1816,14 @@ app.post("/rooms/:code/games/imposter-code/reveal", (req, res) => {
   if (!room.gameState || room.gameState.type !== "imposter-code" || room.gameState.phase !== "voting") {
     return res.status(400).json({ message: "Voting is not active." });
   }
-  if (Object.keys(room.gameState.votes).length < room.gameState.players.length) {
+  if (Object.keys(room.gameState.votes).length < getActivePlayers(room.gameState).length) {
     return res.status(400).json({ message: "Wait until every player votes." });
   }
 
-  const outcome = getImposterCodeOutcome(room.gameState);
-  room.gameState.phase = "results";
-  room.gameState.answerRevealed = outcome.caughtImposter;
+  const outcome = resolveDeductionVote(room.gameState);
   rooms.set(code, room);
   saveRooms();
-  io.to(code).emit("room:state", room);
+  emitRoomState(code, room);
   return res.json({ room, outcome });
 });
 
@@ -1493,10 +1839,10 @@ app.post("/rooms/:code/games/imposter-code/reveal-answer", (req, res) => {
     return res.status(400).json({ message: "Results are not available." });
   }
 
-  room.gameState.answerRevealed = true;
+  revealDeductionResult(room.gameState);
   rooms.set(code, room);
   saveRooms();
-  io.to(code).emit("room:state", room);
+  emitRoomState(code, room);
   return res.json({ room });
 });
 
@@ -1512,17 +1858,41 @@ app.post("/rooms/:code/games/imposter-code/next-round", (req, res) => {
     return res.status(400).json({ message: "Imposter Code state not available." });
   }
 
+  if (room.gameState.phase !== "results" || !room.gameState.answerRevealed) {
+    return res.status(409).json({ message: "Reveal the complete result before starting another round." });
+  }
+  const previousState = room.gameState;
   room.gameState = createImposterCodeState(
-    room.gameState.players,
-    room.gameState.playMode,
-    room.gameState.round + 1,
-    room.gameState.numberOfImposters,
-    room.gameState.questionPack,
-    room.gameState.roundTimerSeconds
+    previousState.players,
+    previousState.playMode,
+    previousState.round + 1,
+    previousState.numberOfImposters,
+    previousState.questionPack,
+    previousState.roundTimerSeconds,
+    { usedPromptIds: previousState.usedPromptIds }
   );
   rooms.set(code, room);
   saveRooms();
-  io.to(code).emit("room:state", room);
+  emitRoomState(code, room);
+  return res.json({ room });
+});
+
+app.post("/rooms/:code/games/imposter-code/another-guess", (req, res) => {
+  const code = req.params.code.toUpperCase();
+  const { playerId } = req.body as { playerId?: string };
+  const room = rooms.get(code);
+  const player = room?.players.find((roomPlayer) => roomPlayer.id === playerId);
+  if (!room) return res.status(404).json({ message: "Room not found." });
+  if (!player?.isHost) return res.status(403).json({ message: "Only the host can start another guess." });
+  if (!room.gameState || room.gameState.type !== "imposter-code") return res.status(400).json({ message: "Imposter Code state not available." });
+  try {
+    startAnotherDeductionGuess(room.gameState);
+  } catch (error) {
+    return res.status(409).json({ message: error instanceof Error ? error.message : "Another guess is unavailable." });
+  }
+  rooms.set(code, room);
+  saveRooms();
+  emitRoomState(code, room);
   return res.json({ room });
 });
 
@@ -1551,7 +1921,24 @@ app.post("/rooms/:code/games/wavelength/submit-clue", (req, res) => {
       : startedAt.toISOString();
   rooms.set(code, room);
   saveRooms();
-  io.to(code).emit("room:state", room);
+  emitRoomState(code, room);
+  return res.json({ room });
+});
+
+app.post("/rooms/:code/games/wavelength/start-round", (req, res) => {
+  const code = req.params.code.toUpperCase();
+  const { playerId } = req.body as { playerId?: string };
+  const room = rooms.get(code);
+  const player = room?.players.find((roomPlayer) => roomPlayer.id === playerId);
+  if (!room) return res.status(404).json({ message: "Room not found." });
+  if (!player?.isHost) return res.status(403).json({ message: "Only the host can start the round." });
+  if (!room.gameState || room.gameState.type !== "wavelength" || room.gameState.phase !== "announcement") {
+    return res.status(400).json({ message: "Round announcement is not active." });
+  }
+  room.gameState.phase = "clue";
+  rooms.set(code, room);
+  saveRooms();
+  emitRoomState(code, room);
   return res.json({ room });
 });
 
@@ -1575,17 +1962,24 @@ app.post("/rooms/:code/games/wavelength/submit-guess", (req, res) => {
   if (room.gameState.guesses[playerId] !== undefined) {
     return res.status(400).json({ message: "Guess already submitted." });
   }
+  if (room.gameState.mode === "teams" && room.gameState.acceptedGuessPlayerId) {
+    return res.status(409).json({ message: "A teammate already submitted the round guess." });
+  }
 
   const nextGuess = getNumberSetting(guess, 50, 0, 100);
   room.gameState.guess = nextGuess;
   room.gameState.guesses[playerId] = nextGuess;
-  if (eligibleGuesserIds.every((eligiblePlayerId) => room.gameState?.type === "wavelength" && room.gameState.guesses[eligiblePlayerId] !== undefined)) {
+  if (room.gameState.mode === "teams") {
+    room.gameState.acceptedGuessPlayerId = playerId;
+    applyWavelengthScores(room.gameState);
+    room.gameState.phase = "results";
+  } else if (eligibleGuesserIds.every((eligiblePlayerId) => room.gameState?.type === "wavelength" && room.gameState.guesses[eligiblePlayerId] !== undefined)) {
     applyWavelengthScores(room.gameState);
     room.gameState.phase = "results";
   }
   rooms.set(code, room);
   saveRooms();
-  io.to(code).emit("room:state", room);
+  emitRoomState(code, room);
   return res.json({ room });
 });
 
@@ -1604,22 +1998,24 @@ app.post("/rooms/:code/games/wavelength/next-round", (req, res) => {
     return res.status(400).json({ message: "Final round reached." });
   }
 
+  const previousState = room.gameState;
   room.gameState = createWavelengthState(
-    room.gameState.players,
-    room.gameState.playMode,
-    room.gameState.round + 1,
-    room.gameState.score,
-    room.gameState.scalePack,
-    room.gameState.mode,
-    room.gameState.maxRounds,
-    room.gameState.roundTimerSeconds,
-    room.gameState.teamScores,
-    room.gameState.playerScores,
-    room.gameState.teams
+    previousState.players,
+    previousState.playMode,
+    previousState.round + 1,
+    previousState.score,
+    previousState.scalePack,
+    previousState.mode,
+    previousState.maxRounds,
+    previousState.roundTimerSeconds,
+    previousState.teamScores,
+    previousState.playerScores,
+    previousState.teams,
+    previousState
   );
   rooms.set(code, room);
   saveRooms();
-  io.to(code).emit("room:state", room);
+  emitRoomState(code, room);
   return res.json({ room });
 });
 
@@ -1659,35 +2055,42 @@ app.get("/rooms/:code/game-state/:playerId", (req, res) => {
     const imposters = gameParticipants.filter((gameParticipant) =>
       imposterIds.includes(gameParticipant.id)
     );
-    const imposter = imposters[0];
+    const confirmedImposterIds = room.gameState.answerRevealed
+      ? imposterIds
+      : imposterIds.filter((id) => room.gameState?.type === "imposter" && room.gameState.eliminatedPlayerIds.includes(id));
+    const confirmedImposters = imposters.filter((imposterPlayer) => confirmedImposterIds.includes(imposterPlayer.id));
 
     const sharedState = {
       readyPlayerIds: room.gameState.readyPlayerIds,
       votes: room.gameState.votes,
       round: room.gameState.round,
-      answerRevealed: room.gameState.answerRevealed ?? false
+      answerRevealed: room.gameState.answerRevealed ?? false,
+      eliminatedPlayerIds: room.gameState.eliminatedPlayerIds,
+      isEliminated: room.gameState.eliminatedPlayerIds.includes(player.id),
+      gameOver: room.gameState.gameOver,
+      winner: room.gameState.winner
     };
 
     if (room.gameState.phase === "results") {
-      const outcome = getVoteOutcome(room.gameState);
-      const mayRevealAnswer = room.gameState.answerRevealed || outcome.caughtImposter;
+      const mayRevealWord = room.gameState.answerRevealed || !isImposter || room.gameState.eliminatedPlayerIds.includes(player.id);
       return res.json({
         gameSlug: room.selectedGame.slug,
         playMode: room.gameState.playMode,
         players: gameParticipants,
         phase: room.gameState.phase,
         role: isImposter ? "imposter" : "player",
-        word: mayRevealAnswer || !isImposter ? room.gameState.word : null,
+        word: mayRevealWord ? room.gameState.word : null,
         wordCategory: room.gameState.wordCategory,
         roundTimerSeconds: room.gameState.roundTimerSeconds,
         startedAt: room.gameState.startedAt,
         endsAt: room.gameState.endsAt,
-        imposterPlayerId: mayRevealAnswer ? imposter?.id ?? room.gameState.imposterPlayerId : null,
-        imposterPlayerName: mayRevealAnswer ? imposter?.name ?? "Unknown Player" : null,
-        imposterPlayerIds: mayRevealAnswer ? imposterIds : null,
-        imposterPlayerNames: mayRevealAnswer ? imposters.map((imposterPlayer) => imposterPlayer.name) : null,
-        caughtImposter: outcome.caughtImposter,
-        topVotedPlayerIds: outcome.topVotedPlayerIds,
+        imposterPlayerId: confirmedImposters[0]?.id ?? null,
+        imposterPlayerName: confirmedImposters[0]?.name ?? null,
+        imposterPlayerIds: confirmedImposterIds,
+        imposterPlayerNames: confirmedImposters.map((imposterPlayer) => imposterPlayer.name),
+        caughtImposter: room.gameState.lastGuessWasImposter,
+        topVotedPlayerIds: room.gameState.lastTopVotedPlayerIds,
+        eliminatedPlayerId: room.gameState.lastEliminatedPlayerId,
         ...sharedState
       });
     }
@@ -1724,8 +2127,10 @@ app.get("/rooms/:code/game-state/:playerId", (req, res) => {
 
     const imposterIds = room.gameState.imposterPlayerIds ?? [room.gameState.imposterPlayerId];
     const isImposter = imposterIds.includes(player.id);
-    const outcome = room.gameState.phase === "results" ? getImposterCodeOutcome(room.gameState) : null;
-    const answerVisible = Boolean(room.gameState.answerRevealed || outcome?.caughtImposter);
+    const fullResultVisible = room.gameState.answerRevealed;
+    const confirmedImposterIds = fullResultVisible
+      ? imposterIds
+      : imposterIds.filter((id) => room.gameState?.type === "imposter-code" && room.gameState.eliminatedPlayerIds.includes(id));
     const imposters = gameParticipants.filter((gameParticipant) =>
       imposterIds.includes(gameParticipant.id)
     );
@@ -1740,7 +2145,7 @@ app.get("/rooms/:code/game-state/:playerId", (req, res) => {
       role: isImposter ? "imposter" : "player",
       prompt: isImposter ? room.gameState.imposterQuestion : room.gameState.question,
       question: room.gameState.phase === "answering" ? null : room.gameState.question,
-      imposterQuestion: answerVisible ? room.gameState.imposterQuestion : null,
+      imposterQuestion: fullResultVisible ? room.gameState.imposterQuestion : null,
       questionPack: room.gameState.questionPack,
       numberOfImposters: room.gameState.numberOfImposters,
       roundTimerSeconds: room.gameState.roundTimerSeconds,
@@ -1752,10 +2157,15 @@ app.get("/rooms/:code/game-state/:playerId", (req, res) => {
       votes: room.gameState.votes,
       round: room.gameState.round,
       answerRevealed: room.gameState.answerRevealed,
-      imposterPlayerIds: answerVisible ? imposterIds : null,
-      imposterPlayerNames: answerVisible ? imposters.map((imposterPlayer) => imposterPlayer.name) : null,
-      caughtImposter: outcome?.caughtImposter ?? false,
-      topVotedPlayerIds: outcome?.topVotedPlayerIds ?? []
+      imposterPlayerIds: confirmedImposterIds,
+      imposterPlayerNames: imposters.filter((imposterPlayer) => confirmedImposterIds.includes(imposterPlayer.id)).map((imposterPlayer) => imposterPlayer.name),
+      caughtImposter: room.gameState.lastGuessWasImposter,
+      topVotedPlayerIds: room.gameState.lastTopVotedPlayerIds,
+      eliminatedPlayerId: room.gameState.lastEliminatedPlayerId,
+      eliminatedPlayerIds: room.gameState.eliminatedPlayerIds,
+      isEliminated: room.gameState.eliminatedPlayerIds.includes(player.id),
+      gameOver: room.gameState.gameOver,
+      winner: room.gameState.winner
     });
   }
 
@@ -1789,6 +2199,7 @@ app.get("/rooms/:code/game-state/:playerId", (req, res) => {
       activeTeamId: room.gameState.activeTeamId,
       playerTeamId,
       teams: room.gameState.teams,
+      teamNames: room.gameState.teamNames,
       scaleLeft: room.gameState.scaleLeft,
       scaleRight: room.gameState.scaleRight,
       scalePack: room.gameState.scalePack,
@@ -1797,6 +2208,7 @@ app.get("/rooms/:code/game-state/:playerId", (req, res) => {
       guess: room.gameState.guess,
       guesses: room.gameState.phase === "results" ? room.gameState.guesses : {},
       guessSummary: room.gameState.phase === "results" ? guessSummary : [],
+      acceptedGuessPlayerId: room.gameState.acceptedGuessPlayerId,
       eligibleGuesserIds,
       roundTimerSeconds: room.gameState.roundTimerSeconds,
       startedAt: room.gameState.startedAt,
@@ -1805,7 +2217,11 @@ app.get("/rooms/:code/game-state/:playerId", (req, res) => {
       teamScores: room.gameState.teamScores,
       playerScores: room.gameState.playerScores,
       maxRounds: room.gameState.maxRounds,
-      round: room.gameState.round
+      round: room.gameState.round,
+      lastRoundScore: room.gameState.lastRoundScore,
+      lastClueGiverPoints: room.gameState.lastClueGiverPoints,
+      roundHistory: room.gameState.roundHistory,
+      isComplete: room.gameState.isComplete
     });
   }
 
@@ -1849,7 +2265,7 @@ app.get("/rooms/:code/single-device-game-state", (req, res) => {
 });
 
 io.on("connection", socket => {
-  socket.on("room:subscribe", ({ roomCode }: { roomCode: string }) => {
+  socket.on("room:subscribe", ({ roomCode, playerId }: { roomCode: string; playerId?: string | null }) => {
     const code = roomCode.toUpperCase();
     const room = rooms.get(code);
 
@@ -1858,12 +2274,40 @@ io.on("connection", socket => {
       return;
     }
 
+    socket.data.roomCode = code;
+    socket.data.playerId = playerId ?? null;
+    if (playerId) {
+      const key = `${code}:${playerId}`;
+      const sockets = connectedPlayerSockets.get(key) ?? new Set<string>();
+      sockets.add(socket.id);
+      connectedPlayerSockets.set(key, sockets);
+      const participant = room.gameState?.players.find((item) => item.id === playerId);
+      if (participant && participant.status === "disconnected") participant.status = "active";
+    }
     socket.join(code);
-    socket.emit("room:state", room);
+    socket.emit("room:state", getPublicRoom(room));
+    emitRoomState(code, room);
   });
 
   socket.on("disconnect", () => {
-    // Later: handle disconnect/reconnect properly.
+    const code = socket.data.roomCode as string | undefined;
+    const playerId = socket.data.playerId as string | null | undefined;
+    if (!code || !playerId) return;
+    const key = `${code}:${playerId}`;
+    const sockets = connectedPlayerSockets.get(key);
+    sockets?.delete(socket.id);
+    if (sockets && sockets.size > 0) return;
+    connectedPlayerSockets.delete(key);
+    const room = rooms.get(code);
+    const participant = room?.gameState?.players.find((item) => item.id === playerId);
+    const state = room?.gameState;
+    const isEliminated = state && "eliminatedPlayerIds" in state && state.eliminatedPlayerIds.includes(playerId);
+    if (room && state && participant && !isEliminated) {
+      participant.status = "disconnected";
+      if (state.type === "wavelength") replaceDisconnectedClueGiver(state);
+      saveRooms();
+      emitRoomState(code, room);
+    }
   });
 });
 

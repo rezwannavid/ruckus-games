@@ -7,9 +7,10 @@ type BrandNavProps = {
   title?: string;
   tone?: "dark" | "light";
   onBack?: () => void;
+  centerTitle?: boolean;
 };
 
-export function BrandNav({ title, tone = "dark", onBack }: BrandNavProps) {
+export function BrandNav({ title, tone = "dark", onBack, centerTitle = false }: BrandNavProps) {
   const isLight = tone === "light";
 
   return (
@@ -20,13 +21,13 @@ export function BrandNav({ title, tone = "dark", onBack }: BrandNavProps) {
           : "text-[var(--text-primary)]"
       }
     >
-      <div className="flex min-w-0 items-center gap-4 px-4">
+      <div className={`${centerTitle ? "relative flex justify-center" : "flex gap-4"} min-w-0 items-center px-4`}>
         {onBack && (
           <button
             type="button"
             onClick={onBack}
             aria-label="Go back"
-            className="flex size-8 shrink-0 items-center justify-center rounded-full transition active:scale-90"
+            className={`${centerTitle ? "absolute left-4" : ""} flex size-8 shrink-0 items-center justify-center rounded-full transition active:scale-90`}
           >
             <ArrowLeft aria-hidden className="size-6" />
           </button>
@@ -43,7 +44,7 @@ export function BrandNav({ title, tone = "dark", onBack }: BrandNavProps) {
       </div>
 
       {title && (
-        <h1 className={`${onBack ? "pl-[4rem]" : "pl-4"} mt-1 w-full pr-4 text-title-sm-extrabold leading-tight`}>
+        <h1 className={`${centerTitle ? "px-14 text-center" : onBack ? "pl-[4rem] pr-4" : "px-4"} mt-1 w-full truncate text-title-sm-extrabold leading-tight`}>
           {title}
         </h1>
       )}

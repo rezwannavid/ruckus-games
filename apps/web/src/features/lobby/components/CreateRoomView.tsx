@@ -1,15 +1,15 @@
 "use client";
 
 import { ArrowRight, DoorOpen } from "lucide-react";
-import { AvatarPicker } from "@/components/ui/AvatarPicker";
 import { Button } from "@/components/ui/Button";
 import { BrandNav } from "@/features/lobby/components/BrandNav";
+import { CharacterSelectionScreen } from "@/features/lobby/components/CharacterSelectionScreen";
 import type { Game } from "@/features/lobby/types/room";
 
 type CreateRoomViewProps = {
   step: "name" | "avatar";
   playerName: string;
-  avatarId: number;
+  avatarId: number | null;
   pendingGame?: Game;
   error?: string;
   onPlayerNameChange: (value: string) => void;
@@ -31,8 +31,23 @@ export function CreateRoomView({
 }: CreateRoomViewProps) {
   const isName = step === "name";
 
+  if (!isName) {
+    return (
+      <CharacterSelectionScreen
+        value={avatarId}
+        onChange={onAvatarChange}
+        onBack={onBack}
+        onContinue={onContinue}
+        actionLabel="Create Room"
+        actionIcon={<DoorOpen />}
+        error={error}
+        eyebrow={pendingGame ? `Setting up ${pendingGame.name}` : undefined}
+      />
+    );
+  }
+
   return (
-    <main className="min-h-screen overflow-hidden bg-[var(--surface-secondary)] px-4 py-8 text-[var(--text-inverted-plus)]">
+    <main className="min-screen-safe overflow-hidden bg-[var(--surface-secondary)] px-4 pb-safe pt-safe text-[var(--text-inverted-plus)] [--page-background:var(--surface-secondary)]">
       <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-[25rem] flex-col">
         <BrandNav title={isName ? "Enter your Name" : "Choose your Character"} tone="light" onBack={onBack} />
 
@@ -42,7 +57,6 @@ export function CreateRoomView({
           </p>
         )}
 
-        {isName ? (
           <section className="flex flex-1 items-center justify-center">
             <label className="w-full">
               <span className="sr-only">Your name</span>
@@ -60,27 +74,19 @@ export function CreateRoomView({
               />
             </label>
           </section>
-        ) : (
-          <section className="flex flex-1 flex-col justify-center">
-            <div className="rounded-[28px] bg-black/8 p-5">
-              <AvatarPicker value={avatarId} onChange={onAvatarChange} label="Choose a player icon" />
-            </div>
-            <p className="mt-5 text-center text-title-sm-bold">{playerName}</p>
-          </section>
-        )}
 
         {error && <p role="alert" className="mb-4 rounded-[16px] bg-[var(--surface-primary)] px-4 py-3 text-footnote-semibold text-[var(--text-primary)]">{error}</p>}
 
         <Button
           onClick={onContinue}
-          disabled={isName && !playerName.trim()}
+          disabled={!playerName.trim()}
           variant="inverted"
           size="lg"
           showLeftIcon={false}
-          rightIcon={isName ? <ArrowRight /> : <DoorOpen />}
+          rightIcon={<ArrowRight />}
           className="w-full"
         >
-          {isName ? "Enter" : "Create Room"}
+          Enter
         </Button>
       </div>
     </main>

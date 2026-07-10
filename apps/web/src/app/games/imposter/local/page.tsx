@@ -2,21 +2,41 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
-import { BriefcaseBusiness, MapPin, Minus, Play, Plus, RotateCcw, Shapes, Shuffle, Skull, Utensils, Vote } from "lucide-react";
+import { MapPin, Minus, Play, Plus, RotateCcw, Shuffle, Skull, Vote } from "lucide-react";
+import { Avatar } from "@/components/ui/AvatarPicker";
 import { Button } from "@/components/ui/Button";
-import { AppScreen, VoteCard } from "@/components/ui/GameUI";
+import { AppScreen } from "@/components/ui/GameUI";
 import { BrandNav } from "@/features/lobby/components/BrandNav";
 import { imposterWords } from "@/features/imposter/data/words";
 
-type LocalPlayer = { id: string; name: string; avatarId: number; isImposter?: boolean };
+type LocalPlayer = { id: string; name: string; avatarId: number; isImposter?: boolean; eliminated?: boolean };
 type Phase = "setup" | "pass" | "role" | "ready" | "discussion" | "voting" | "result";
+
+const localPacks = [
+  { id: "classic", label: "Classic", Icon: Shuffle, categories: [["objects", "Things"], ["places", "Places"], ["food", "Food"], ["animals", "Animals"], ["actions", "Actions"], ["social", "Social"]] },
+  { id: "desi", label: "Desi", Icon: MapPin, categories: [["dhaka", "Dhaka"], ["desi-food", "Bangladeshi Food"], ["eid", "Eid"], ["school", "School"], ["family", "Family"], ["cricket", "Cricket"]] }
+] as const;
+
+const desiWords: Record<string, string[]> = {
+  dhaka: ["Old Dhaka", "Dhanmondi", "Gulshan", "Banani", "New Market", "Farmgate", "Mirpur", "Hatirjheel", "CNG", "Rickshaw", "Traffic Jam", "Metro Rail"],
+  "desi-food": ["Fuchka", "Chotpoti", "Kacchi", "Tehari", "Haleem", "Singara", "Jhalmuri", "Mishti Doi", "Panta Bhat", "Hilsa Fry", "Cha", "Borhani"],
+  eid: ["Eid Salami", "Panjabi", "Mehendi", "Eid Namaz", "Shemai", "Cow Haat", "Family Photo", "New Clothes", "Iftar Plan", "Eid Traffic"],
+  school: ["Tiffin Box", "Coaching Center", "Exam Hall", "Class Captain", "Private Tutor", "School Van", "Report Card", "Assembly", "Campus Adda"],
+  family: ["Aunty", "Cousin", "Family Dinner", "Wedding Invite", "Biye Bari", "Gaye Holud", "Nosy Relative", "Family WhatsApp", "Village House"],
+  cricket: ["Cricket Bat", "Tape Tennis", "Sakib", "Mirpur Stadium", "Six", "Run Out", "Street Cricket", "Powerplay", "World Cup Match"]
+};
+
+function wordsForSelection(selection: string) {
+  if (selection === "classic") return ["objects", "places", "food", "animals", "actions", "social"].flatMap((key) => imposterWords[key]);
+  if (selection === "desi") return Object.values(desiWords).flat();
+  return desiWords[selection] ?? imposterWords[selection] ?? imposterWords.random;
+}
 
 export default function LocalImposterPage() {
   const router = useRouter();
   const [players, setPlayers] = useState<LocalPlayer[]>([]);
   const [newName, setNewName] = useState("");
-  const [category, setCategory] = useState("random");
+  const [category, setCategory] = useState("classic");
   const [imposterCount, setImposterCount] = useState(1);
   const [hints, setHints] = useState(false);
   const [phase, setPhase] = useState<Phase>("setup");
@@ -27,7 +47,10 @@ export default function LocalImposterPage() {
   const [hasSeenRole, setHasSeenRole] = useState(false);
   const [answerRevealed, setAnswerRevealed] = useState(false);
   const [timeLeft, setTimeLeft] = useState(90);
-  const current = players[index];
+  const [roundTimer, setRoundTimer] = useState(90);
+  const [usedWords, setUsedWords] = useState<string[]>([]);
+  const activePlayers = players.filter((player) => !player.eliminated);
+  const current = activePlayers[index];
 
   useEffect(() => {
     if (phase !== "voting") return;
@@ -45,21 +68,24 @@ export default function LocalImposterPage() {
   function startGame() {
     const shuffled = [...players].sort(() => Math.random() - 0.5);
     const imposters = new Set(shuffled.slice(0, imposterCount).map((player) => player.id));
-    const words = imposterWords[category];
-    setWord(words[Math.floor(Math.random() * words.length)]);
-    setPlayers((list) => list.map((player) => ({ ...player, isImposter: imposters.has(player.id) })));
+    const words = wordsForSelection(category);
+    const available = words.filter((item) => !usedWords.includes(`${category}:${item}`));
+    const nextWord = (available.length > 0 ? available : words)[Math.floor(Math.random() * (available.length > 0 ? available.length : words.length))];
+    setWord(nextWord);
+    setUsedWords((history) => [...history, `${category}:${nextWord}`]);
+    setPlayers((list) => list.map((player) => ({ ...player, isImposter: imposters.has(player.id), eliminated: false })));
     setIndex(0);
     setSelectedVote("");
     setHoldingReveal(false);
     setHasSeenRole(false);
     setAnswerRevealed(false);
-    setTimeLeft(90);
+    setTimeLeft(roundTimer);
     setPhase("pass");
   }
 
   function nextRole() {
     setHasSeenRole(false);
-    if (index + 1 >= players.length) {
+    if (index + 1 >= activePlayers.length) {
       setIndex(0);
       setPhase("ready");
     } else {
@@ -68,14 +94,16 @@ export default function LocalImposterPage() {
     }
   }
 
-  function restartRound() {
-    setIndex(0);
+  function anotherGuess() {
     setSelectedVote("");
-    setHoldingReveal(false);
-    setHasSeenRole(false);
-    setAnswerRevealed(false);
-    setTimeLeft(90);
-    setPhase("discussion");
+    setTimeLeft(roundTimer);
+    setPhase("voting");
+  }
+
+  function castVote() {
+    if (!selectedVote) return;
+    setPlayers((list) => list.map((player) => player.id === selectedVote ? { ...player, eliminated: true } : player));
+    setPhase("result");
   }
 
   if (phase === "setup") {
@@ -86,9 +114,9 @@ export default function LocalImposterPage() {
 
           {players.length < 3 && (
             <div className="mt-7 flex items-center justify-center gap-4 text-center text-[var(--text-highlight)]">
-              <Image src="/PlayerIcon2.svg" alt="" width={56} height={56} className="size-14 -rotate-12 brightness-0 invert" />
+              <span className="-rotate-12"><Avatar avatarId={2} size="lg" tone="accent" /></span>
               <p className="text-headline-md-bold">Add at least<br />3 players</p>
-              <Image src="/PlayerIcon5.svg" alt="" width={56} height={56} className="size-14 rotate-12 brightness-0 invert" />
+              <span className="rotate-12"><Avatar avatarId={5} size="lg" tone="accent" /></span>
             </div>
           )}
           {players.length > 0 && (
@@ -120,23 +148,30 @@ export default function LocalImposterPage() {
           </section>
 
           <section className="mt-5">
+            <h2 className="text-center text-body-regular">Timer</h2>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {[30, 60, 90, 120, 180].map((seconds) => <button key={seconds} type="button" onClick={() => setRoundTimer(seconds)} aria-pressed={roundTimer === seconds} className="interactive-pop h-12 rounded-[18px] bg-[var(--surface-primary-light)] text-footnote-semibold aria-pressed:bg-[var(--color-game-accent)] aria-pressed:text-[var(--text-inverted)]">{seconds < 60 ? `${seconds}s` : `${seconds / 60}m`}</button>)}
+            </div>
+          </section>
+
+          <section className="mt-5">
             <h2 className="text-center text-body-regular">Game Pack</h2>
             <div className="-mx-4 mt-4 flex snap-x gap-3 overflow-x-auto px-[112px] pb-3 [scrollbar-width:none]">
-              {[
-                ["random", "Random", Shuffle],
-                ["objects", "Things", Shapes],
-                ["food", "Food", Utensils],
-                ["places", "Places", MapPin],
-                ["jobs", "Jobs", BriefcaseBusiness]
-              ].map(([value, label, Icon]) => {
-                const selected = category === value;
+              {localPacks.map((pack) => {
+                const selected = category === pack.id || pack.categories.some(([id]) => id === category);
+                const Icon = pack.Icon;
                 return (
-                  <button key={String(value)} type="button" onClick={() => setCategory(String(value))} className={`flex h-[182px] w-[180px] shrink-0 snap-center flex-col items-center justify-center rounded-[40px] ${selected ? "bg-[var(--surface-inverted)] text-[var(--text-inverted)]" : "bg-[var(--surface-primary-light)]"}`}>
-                    <Icon size={62} className={selected ? "text-[var(--surface-secondary)]" : ""} />
-                    <span className="mt-4 text-headline-md-bold">{String(label)}</span>
+                  <button key={pack.id} type="button" onClick={() => setCategory(pack.id)} aria-pressed={selected} className="interactive-pop flex h-[182px] w-[180px] shrink-0 snap-center flex-col items-center justify-center rounded-[40px] border-4 border-transparent bg-[var(--surface-primary-light)] aria-pressed:border-[var(--color-game-accent)]">
+                    <Icon size={62} className="text-[var(--color-game-accent)]" />
+                    <span className="mt-4 text-headline-md-bold">{pack.label}</span>
                   </button>
                 );
               })}
+            </div>
+            <div className="mt-2 flex flex-wrap justify-center gap-2">
+              {(localPacks.find((pack) => pack.id === category || pack.categories.some(([id]) => id === category)) ?? localPacks[0]).categories.map(([id, label]) => (
+                <button key={id} type="button" onClick={() => setCategory(id)} aria-pressed={category === id} className="interactive-pop rounded-full border-2 border-[var(--surface-primary-light)] px-4 py-2 text-footnote-semibold aria-pressed:border-[var(--color-game-accent)] aria-pressed:text-[var(--color-game-accent)]">{label}</button>
+              ))}
             </div>
           </section>
 
@@ -193,7 +228,7 @@ export default function LocalImposterPage() {
 
   if (phase === "ready") {
     return (
-      <AppScreen tone="blue" className="grid place-items-center">
+      <AppScreen tone="accent" className="grid place-items-center">
         <section className="w-full max-w-[25rem] text-center">
           <h1 className="text-title-lg-bold">All Players Done</h1>
           <p className="mt-3 text-body-medium opacity-65">Put the phone down and start the discussion.</p>
@@ -205,7 +240,7 @@ export default function LocalImposterPage() {
 
   if (phase === "discussion") {
     return (
-      <AppScreen tone="blue" className="grid place-items-center">
+      <AppScreen tone="accent" className="grid place-items-center">
         <section className="w-full max-w-[25rem] text-center">
           <p className="text-footnote-semibold">Go clockwise</p>
           <h1 className="mt-2 text-display-md-semibold">Start from<br />{players[0]?.name}</h1>
@@ -221,8 +256,8 @@ export default function LocalImposterPage() {
         <div className="mx-auto max-w-[25rem]">
           <BrandNav title="Cast your Vote" tone="light" />
           <p className="mt-5 text-center text-title-sm-bold tabular-nums">{Math.floor(timeLeft / 60)}m {String(timeLeft % 60).padStart(2, "0")}s</p>
-          <div className="mt-5 grid grid-cols-2 gap-3">{players.map((player) => <VoteCard key={player.id} player={player} selected={selectedVote === player.id} onClick={() => setSelectedVote(player.id)} />)}</div>
-          <Button onClick={() => setPhase("result")} disabled={!selectedVote} variant="tertiary" size="lg" showLeftIcon={false} rightIcon={<Vote />} className="sticky bottom-4 mt-6 w-full">Cast Vote</Button>
+          <div className="mt-5 space-y-2">{activePlayers.map((player) => <button key={player.id} type="button" onClick={() => setSelectedVote(player.id)} aria-pressed={selectedVote === player.id} className="interactive-pop flex h-[68px] w-full items-center justify-center rounded-[24px] border-2 border-transparent bg-[var(--surface-inverted-light)] text-headline-md-semibold aria-pressed:border-[var(--color-game-accent)] aria-pressed:bg-[var(--color-game-accent)]">{player.name}</button>)}</div>
+          <Button onClick={castVote} disabled={!selectedVote} variant="tertiary" size="lg" showLeftIcon={false} rightIcon={<Vote />} className="sticky bottom-4 mt-6 w-full">Cast Vote</Button>
         </div>
       </AppScreen>
     );
@@ -231,10 +266,14 @@ export default function LocalImposterPage() {
   const selectedPlayer = players.find((player) => player.id === selectedVote);
   const imposters = players.filter((player) => player.isImposter);
   const guessedCorrectly = Boolean(selectedPlayer?.isImposter);
-  const showAnswer = guessedCorrectly || answerRevealed;
+  const remainingPlayers = players.filter((player) => !player.eliminated && player.id !== selectedVote);
+  const remainingImposters = remainingPlayers.filter((player) => player.isImposter).length;
+  const remainingRegulars = remainingPlayers.length - remainingImposters;
+  const gameOver = remainingImposters === 0 || remainingImposters >= remainingRegulars;
+  const showAnswer = gameOver || answerRevealed;
 
   return (
-    <AppScreen tone={showAnswer ? "blue" : "light"} className="!p-0">
+    <AppScreen tone={showAnswer ? "accent" : "light"} className="!p-0">
       <div className={`mx-auto flex min-h-screen max-w-[25rem] flex-col rounded-[48px] px-5 pb-7 pt-16 text-center ${showAnswer ? "" : "bg-[var(--surface-inverted)]"}`}>
         <BrandNav title="Results" tone="light" />
         <div className="flex flex-1 flex-col items-center justify-center">
@@ -243,15 +282,20 @@ export default function LocalImposterPage() {
               <h1 className="text-title-lg-bold">{imposters.map((player) => player.name).join(", ")} {imposters.length === 1 ? "is" : "are"} the <span className="text-[var(--surface-inverted-light)]">imposter</span></h1>
               <p className="mt-4 text-headline-md-bold">The word was {word}</p>
             </>
+          ) : guessedCorrectly ? (
+            <h1 className="text-title-lg-bold">{selectedPlayer?.name} is an <span className="text-[var(--text-highlight)]">imposter</span></h1>
           ) : (
             <h1 className="text-title-lg-bold">{selectedPlayer?.name} is <span className="text-[var(--text-highlight)]">not</span><br />the imposter</h1>
           )}
         </div>
-        <Button onClick={restartRound} variant={showAnswer ? "primary" : "inverted"} size="lg" showLeftIcon={false} rightIcon={<RotateCcw />} className="w-full">Another Round</Button>
+        {!showAnswer && <Button onClick={anotherGuess} variant="primary" size="lg" showLeftIcon={false} rightIcon={<RotateCcw />} className="w-full">Another Guess</Button>}
+        {showAnswer ? (
+          <Button onClick={startGame} variant="primary" size="lg" showLeftIcon={false} rightIcon={<RotateCcw />} className="w-full">Another Round</Button>
+        ) : null}
         {showAnswer ? (
           <Button onClick={() => router.push("/")} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Skull />} className="mt-2 w-full">End Game</Button>
         ) : (
-          <Button onClick={() => setAnswerRevealed(true)} variant="tertiary" size="lg" showLeftIcon={false} rightIcon={<Skull />} className="mt-2 w-full">Reveal Answer</Button>
+          <Button onClick={() => setAnswerRevealed(true)} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Skull />} className="mt-2 w-full">Reveal Result</Button>
         )}
       </div>
     </AppScreen>

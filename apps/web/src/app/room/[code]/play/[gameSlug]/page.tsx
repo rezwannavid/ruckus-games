@@ -3,15 +3,16 @@
 import { use, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { io } from "socket.io-client";
-import { ArrowLeft, Braces, Eye, EyeOff, Flag, Play, RadioTower, Send, Skull, Vote } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Flag, Play, Send, Skull, Vote } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/AvatarPicker";
 import { AppScreen, ErrorState, LoadingState, PlayerStatusPill, WaitingOrbit } from "@/components/ui/GameUI";
 import { BrandNav } from "@/features/lobby/components/BrandNav";
+import { GameArtwork } from "@/features/lobby/components/GameArtwork";
 import { serverUrl } from "@/lib/config";
 import { clearRoomSession, getStoredSession } from "@/lib/session";
 
-type Player = { id: string; name: string; avatarId?: number; isHost?: boolean };
+type Player = { id: string; name: string; avatarId?: number; isHost?: boolean; status?: "active" | "eliminated" | "disconnected" | "spectating" };
 type GameState = {
   type: "imposter" | "imposter-code" | "wavelength";
   playMode: "multiplayer" | "single_device";
@@ -33,9 +34,10 @@ type GameState = {
   imposterQuestion?: string | null;
   clueGiverId?: string;
   clueGiverName?: string;
-  mode?: "teams" | "everyone";
+  mode?: "teams" | "single";
   activeTeamId?: "team-1" | "team-2" | null;
   teams?: Record<"team-1" | "team-2", string[]>;
+  teamNames?: Record<"team-1" | "team-2", string>;
   scaleLeft?: string;
   scaleRight?: string;
   secretNumber?: number | null;
@@ -48,6 +50,16 @@ type GameState = {
   teamScores?: Record<"team-1" | "team-2", number>;
   playerScores?: Record<string, number>;
   maxRounds?: number;
+  isComplete?: boolean;
+  eliminatedPlayerIds?: string[];
+  eliminatedPlayerId?: string | null;
+  isEliminated?: boolean;
+  gameOver?: boolean;
+  winner?: "players" | "imposters" | null;
+  acceptedGuessPlayerId?: string | null;
+  lastRoundScore?: number;
+  lastClueGiverPoints?: number;
+  roundHistory?: Array<{ round: number; target: number; guess: number | null; distance: number | null; roundScore: number; clueGiverPoints: number }>;
 };
 type Room = {
   code: string;
@@ -119,7 +131,7 @@ function WavelengthScale({
         ))}
         {showAnswer && (
           <div
-            className="absolute top-1/2 h-14 w-2 -translate-y-1/2 rounded-full bg-[var(--surface-secondary)] shadow-[0_0_18px_rgba(65,160,229,.7)] transition-all duration-500"
+            className="absolute top-1/2 h-14 w-2 -translate-y-1/2 rounded-full bg-[var(--surface-secondary)] shadow-xl transition-all duration-500"
             style={{ left: `calc(${answer}% - 4px)` }}
           />
         )}
@@ -150,6 +162,46 @@ function WavelengthScale({
   );
 }
 
+function DeductionActions({
+  isHost,
+  fullResult,
+  pendingAction,
+  onAnotherGuess,
+  onRevealResult,
+  onAnotherRound,
+  onEndGame,
+  onLeave
+}: {
+  isHost: boolean;
+  fullResult: boolean;
+  pendingAction: string | null;
+  onAnotherGuess: () => void;
+  onRevealResult: () => void;
+  onAnotherRound: () => void;
+  onEndGame: () => void;
+  onLeave: () => void;
+}) {
+  if (!isHost) {
+    return <Button onClick={onLeave} variant="inverted" size="lg" showLeftIcon={false} className="w-full">Leave Game</Button>;
+  }
+
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      {fullResult ? (
+        <>
+          <Button onClick={onAnotherRound} disabled={pendingAction !== null} variant="primary" size="lg" showLeftIcon={false} showRightIcon={false}>{pendingAction === "next-round" ? "Starting..." : "Another round"}</Button>
+          <Button onClick={onEndGame} disabled={pendingAction !== null} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Flag />}>{pendingAction === "end-game" ? "Ending..." : "End game"}</Button>
+        </>
+      ) : (
+        <>
+          <Button onClick={onAnotherGuess} disabled={pendingAction !== null} variant="primary" size="lg" showLeftIcon={false} showRightIcon={false}>{pendingAction === "another-guess" ? "Starting..." : "Another guess"}</Button>
+          <Button onClick={onRevealResult} disabled={pendingAction !== null} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Eye />}>{pendingAction === "reveal-answer" ? "Revealing..." : "Reveal result"}</Button>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function PlayGamePage({ params }: { params: Promise<{ code: string; gameSlug: string }> }) {
   const router = useRouter();
   const { code, gameSlug } = use(params);
@@ -168,16 +220,18 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
   const [timeLeft, setTimeLeft] = useState(0);
   const [error, setError] = useState("");
   const [ended, setEnded] = useState(false);
+  const [pendingAction, setPendingAction] = useState<string | null>(null);
 
   const gameState = room?.gameState;
   const currentPlayer = room?.players.find((player) => player.id === currentPlayerId);
   const isHost = Boolean(currentPlayer?.isHost);
   const hasVoted = Boolean(currentPlayerId && gameState?.votes?.[currentPlayerId]);
   const readyCount = gameState?.readyPlayerIds?.length ?? 0;
-  const playerCount = gameState?.players.length ?? 0;
   const voteCount = gameState ? Object.keys(gameState.votes ?? {}).length : 0;
-  const allReady = playerCount > 0 && readyCount === playerCount;
-  const allVoted = playerCount > 0 && voteCount === playerCount;
+  const activePlayers = gameState?.players.filter((player) => !gameState.eliminatedPlayerIds?.includes(player.id)) ?? [];
+  const activePlayerCount = activePlayers.length;
+  const allReady = activePlayerCount > 0 && readyCount === activePlayerCount;
+  const allVoted = activePlayerCount > 0 && voteCount === activePlayerCount;
 
   const voteTotals = useMemo(() => {
     const totals: Record<string, number> = {};
@@ -191,7 +245,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
 
   useEffect(() => {
     const socket = io(serverUrl);
-    socket.emit("room:subscribe", { roomCode });
+    socket.emit("room:subscribe", { roomCode, playerId: currentPlayerId });
     socket.on("room:state", (nextRoom: Room) => {
       setRoom(nextRoom);
       setError("");
@@ -205,7 +259,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
     return () => {
       socket.disconnect();
     };
-  }, [roomCode, router]);
+  }, [currentPlayerId, roomCode, router]);
 
   useEffect(() => {
     if (!currentPlayerId || !gameState) return;
@@ -241,10 +295,14 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
   }
 
   async function perform(action: string, body?: Record<string, unknown>) {
+    if (pendingAction) return;
+    setPendingAction(action);
     try {
       await post(action, body);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "That action failed.");
+    } finally {
+      setPendingAction(null);
     }
   }
 
@@ -262,7 +320,8 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
   }
 
   async function endGame() {
-    if (!currentPlayerId) return;
+    if (!currentPlayerId || pendingAction) return;
+    setPendingAction("end-game");
     try {
       const response = await fetch(`${serverUrl}/rooms/${roomCode}/games/end`, {
         method: "POST",
@@ -274,12 +333,14 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
       setEnded(true);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Could not end game.");
+    } finally {
+      setPendingAction(null);
     }
   }
 
   if (ended) {
     return (
-      <AppScreen tone="blue" className="grid place-items-center">
+      <AppScreen tone="accent" className="grid place-items-center">
         <section className="w-full max-w-[25rem] text-center">
           <Flag className="mx-auto" size={48} />
           <h1 className="mt-5 text-title-lg-bold">Game Ended</h1>
@@ -298,15 +359,28 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
   const ready = Boolean(currentPlayerId && gameState.readyPlayerIds?.includes(currentPlayerId));
   const firstPlayer = gameState.players[gameState.round % gameState.players.length]?.name ?? gameState.players[0]?.name;
 
+  if (personal.isEliminated && gameState.phase !== "results") {
+    return (
+      <AppScreen tone="dark" className="grid place-items-center">
+        <section className="w-full max-w-[25rem] text-center">
+          <Avatar avatarId={currentPlayer?.avatarId ?? 1} name={currentPlayer?.name} size="lg" tone="accent" className="mx-auto !size-[132px] opacity-55" />
+          <h1 className="mt-7 text-title-lg-bold">You are eliminated.</h1>
+          <p className="mt-3 text-body-semibold opacity-60">You are still in the room and can watch the rest of the game.</p>
+          <div className="mt-8 rounded-full bg-[var(--surface-primary-light)] px-5 py-3 text-footnote-semibold text-[var(--text-highlight)]">Round {gameState.round} · Spectating</div>
+        </section>
+      </AppScreen>
+    );
+  }
+
   if (gameState.type === "imposter-code") {
     const answers = personal.answers ?? {};
     const submittedAnswer = Boolean(personal.submittedAnswer || (currentPlayerId && answers[currentPlayerId]));
     const answeredPlayerIds = personal.answeredPlayerIds ?? Object.keys(answers);
     const answerCount = answeredPlayerIds.length;
-    const answerVisible = Boolean(personal.answerRevealed || personal.caughtImposter);
+    const fullResult = Boolean(personal.answerRevealed);
+    const guessedImposter = Boolean(personal.caughtImposter);
     const topVotedPlayer = gameState.players.find((player) => personal.topVotedPlayerIds?.includes(player.id));
     const revealedNames = personal.imposterPlayerNames ?? [];
-    const sortedPlayers = [...gameState.players].sort((a, b) => (voteTotals[b.id] ?? 0) - (voteTotals[a.id] ?? 0));
 
     if (gameState.phase === "answering" && submittedAnswer) {
       return (
@@ -314,7 +388,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
           <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-20 text-center">
             <BrandNav tone="dark" />
             <div className="flex flex-1 items-center">
-              <WaitingOrbit players={gameState.players} completedIds={answeredPlayerIds} title="Answer submitted" subtitle={`${answerCount}/${playerCount} Players Answered`} />
+              <WaitingOrbit players={activePlayers} completedIds={answeredPlayerIds} title="Answer submitted" subtitle={`${answerCount}/${activePlayerCount} Players Answered`} />
             </div>
             <Button disabled variant="primary" size="lg" showLeftIcon={false} className="w-full">Answers locked</Button>
           </section>
@@ -326,9 +400,9 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
       return (
         <AppScreen tone="dark" className="!p-0">
           <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-20">
-            <BrandNav title="Answer Privately" tone="dark" />
+            <BrandNav title="Answer Privately" tone="dark" centerTitle />
             <div className="mt-16 text-center">
-              <Braces className="mx-auto text-[var(--surface-secondary)]" size={58} />
+              <div className="mx-auto w-24"><GameArtwork gameSlug="imposter-code" tone="light" /></div>
               <p className="mt-6 text-title-md-extrabold text-[var(--text-highlight)]">{personal.prompt}</p>
             </div>
             <label className="mt-10 block">
@@ -358,12 +432,12 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
 
     if (gameState.phase === "answers") {
       return (
-        <AppScreen tone="blue" className="!p-0">
+        <AppScreen tone="accent" className="!p-0">
           <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-16 text-center">
-            <BrandNav title="Answers" tone="light" />
+            <BrandNav title="Answers" tone="light" centerTitle />
             <h1 className="mt-8 text-title-sm-bold">{personal.question}</h1>
             <div className="mt-7 space-y-2 text-left">
-              {gameState.players.map((player) => (
+              {activePlayers.map((player) => (
                 <div key={player.id} className="animate-pop rounded-[24px] bg-[var(--surface-inverted-light)] p-5 text-[var(--text-inverted)]">
                   <div className="flex items-center gap-3">
                     <Avatar avatarId={player.avatarId ?? 1} name={player.name} tone="black" />
@@ -375,7 +449,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
             </div>
             <div className="mt-auto pt-6">
               {isHost ? (
-                <Button onClick={() => perform("start-voting")} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Vote />} className="w-full">Start Voting</Button>
+                <Button onClick={() => perform("start-voting")} disabled={pendingAction !== null} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Vote />} className="w-full">{pendingAction === "start-voting" ? "Starting..." : "Start Voting"}</Button>
               ) : (
                 <p className="pb-6 text-body-semibold opacity-60">Waiting for the room owner</p>
               )}
@@ -387,12 +461,12 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
 
     if (gameState.phase === "voting" && hasVoted && allVoted) {
       return (
-        <AppScreen tone="blue" className="!p-0">
+        <AppScreen tone="accent" className="!p-0">
           <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-20 text-center">
             <BrandNav tone="light" />
             <h1 className="my-auto text-title-md-extrabold">All Players<br />Voted</h1>
             {isHost ? (
-              <Button onClick={() => perform("reveal")} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Eye />} className="w-full">See Result</Button>
+              <Button onClick={() => perform("reveal")} disabled={pendingAction !== null} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Eye />} className="w-full">{pendingAction === "reveal" ? "Revealing..." : "See Result"}</Button>
             ) : (
               <Button disabled variant="inverted" size="lg" showLeftIcon={false} className="w-full">Waiting for Host</Button>
             )}
@@ -407,7 +481,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
           <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-20 text-center">
             <BrandNav tone="dark" />
             <div className="flex flex-1 items-center">
-              <WaitingOrbit players={gameState.players} completedIds={Object.keys(gameState.votes ?? {})} title="Waiting for others" subtitle={`${voteCount}/${playerCount} Players Voted`} />
+              <WaitingOrbit players={activePlayers} completedIds={Object.keys(gameState.votes ?? {})} title="Waiting for others" subtitle={`${voteCount}/${activePlayerCount} Players Voted`} />
             </div>
             <Button disabled variant="primary" size="lg" showLeftIcon={false} className="w-full">Vote locked</Button>
           </section>
@@ -419,10 +493,10 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
       return (
         <AppScreen tone="dark" className="!p-0">
           <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-20">
-            <BrandNav title="Cast your Vote" tone="dark" />
+            <BrandNav title="Cast your Vote" tone="dark" centerTitle />
             <p className="mt-8 text-center text-body-semibold opacity-60">Who had the odd answer?</p>
             <div className="mt-10 space-y-2">
-              {gameState.players.map((player) => (
+              {activePlayers.map((player) => (
                 <button key={player.id} type="button" onClick={() => setSelectedVote(player.id)} aria-pressed={selectedVote === player.id} className="flex h-[68px] w-full items-center justify-center gap-4 rounded-[24px] border-2 border-transparent bg-[var(--surface-primary-light)] text-headline-md-semibold transition aria-pressed:border-[var(--surface-secondary)] aria-pressed:scale-[0.99]">
                   <Avatar avatarId={player.avatarId ?? 1} name={player.name} tone="white" />
                   <span>{player.name}</span>
@@ -430,8 +504,8 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
               ))}
             </div>
             <div className="mt-auto">
-              <PlayerStatusPill players={gameState.players} completedIds={Object.keys(gameState.votes ?? {})} label={`${voteCount}/${playerCount} players voted`} />
-              <Button onClick={() => perform("vote", { targetPlayerId: selectedVote })} disabled={!selectedVote} variant="primary" size="lg" showLeftIcon={false} className="w-full">Cast Vote</Button>
+              <PlayerStatusPill players={activePlayers} completedIds={Object.keys(gameState.votes ?? {})} label={`${voteCount}/${activePlayerCount} players voted`} />
+              <Button onClick={() => perform("vote", { targetPlayerId: selectedVote })} disabled={!selectedVote || pendingAction !== null} variant="primary" size="lg" showLeftIcon={false} className="w-full">{pendingAction === "vote" ? "Submitting..." : "Cast Vote"}</Button>
             </div>
           </section>
         </AppScreen>
@@ -439,31 +513,35 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
     }
 
     return (
-      <AppScreen tone={answerVisible ? "blue" : "light"} className="!p-0">
+      <AppScreen tone={fullResult || guessedImposter ? "accent" : "light"} className="!p-0">
         <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-16 text-center">
-          <BrandNav title="Results" tone="light" />
+          <BrandNav title="Results" tone="light" centerTitle />
           <div className="mt-10">
-            <Avatar avatarId={(answerVisible ? gameState.players.find((player) => personal.imposterPlayerIds?.includes(player.id)) : topVotedPlayer)?.avatarId ?? 1} name={answerVisible ? revealedNames[0] : topVotedPlayer?.name} size="lg" tone={answerVisible ? "black" : "blue"} className="mx-auto !size-[132px]" />
-            {answerVisible ? (
+            <Avatar avatarId={topVotedPlayer?.avatarId ?? 1} name={topVotedPlayer?.name} size="lg" tone={fullResult || guessedImposter ? "black" : "accent"} className="mx-auto !size-[132px] animate-spring-in" />
+            {fullResult ? (
               <>
                 <h1 className="mt-5 text-title-lg-bold">{revealedNames.join(", ")} {revealedNames.length === 1 ? "had" : "had"} the <span className="text-[var(--surface-inverted-light)]">imposter code</span></h1>
                 <p className="mt-3 text-body-bold">Real prompt: {personal.question}</p>
                 <p className="mt-1 text-body-semibold opacity-70">Imposter prompt: {personal.imposterQuestion}</p>
               </>
+            ) : guessedImposter ? (
+              <h1 className="mt-5 text-title-lg-bold">{topVotedPlayer?.name ?? "That player"} had the <span className="text-[var(--surface-inverted-light)]">imposter code</span></h1>
             ) : (
               <h1 className="mt-5 text-title-lg-bold">{topVotedPlayer?.name ?? "That player"} is <span className="text-[var(--text-highlight)]">not</span><br />the imposter</h1>
             )}
           </div>
           <div className="mt-8 space-y-2">
-            {sortedPlayers.map((player) => {
+            {gameState.players.map((player) => {
               const votes = voteTotals[player.id] ?? 0;
+              const eliminated = gameState.eliminatedPlayerIds?.includes(player.id);
               return (
-                <div key={player.id} className={`rounded-[24px] p-4 text-left ${answerVisible ? "bg-[var(--primitive-blue-800)] text-[var(--text-primary)]" : "bg-[var(--surface-inverted-light)]"} ${votes === 0 ? "opacity-40" : ""}`}>
+                <div key={player.id} className={`rounded-[24px] p-4 text-left transition duration-300 ${eliminated ? "bg-[#dededb] text-[#777773]" : "bg-[var(--surface-inverted-light)] text-[var(--text-inverted)]"} ${personal.topVotedPlayerIds?.includes(player.id) ? "ring-[3px] ring-[var(--color-game-accent)]" : ""}`}>
                   <div className="flex items-center gap-3">
-                    <Avatar avatarId={player.avatarId ?? 1} name={player.name} tone={answerVisible ? "white" : "black"} />
+                    <Avatar avatarId={player.avatarId ?? 1} name={player.name} tone={eliminated ? "muted" : "black"} />
                     <div>
                       <p className="text-headline-md-semibold">{player.name}</p>
                       <p className="text-caption-semibold text-[var(--text-highlight)]">{votes} Vote{votes === 1 ? "" : "s"}</p>
+                      {eliminated && <p className="text-caption-semibold">Eliminated</p>}
                     </div>
                   </div>
                   <p className="mt-3 text-body-semibold">{answers[player.id]}</p>
@@ -471,19 +549,17 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
               );
             })}
           </div>
-          <div className="mt-auto grid grid-cols-2 gap-2 pt-8">
-            {isHost ? (
-              <>
-                <Button onClick={() => { setSelectedVote(""); perform("next-round"); }} variant={answerVisible ? "primary" : "inverted"} size="lg" showLeftIcon={false} showRightIcon={false}>Another Round</Button>
-                {answerVisible ? (
-                  <Button onClick={endGame} variant={answerVisible ? "primary" : "inverted"} size="lg" showLeftIcon={false} rightIcon={<Flag />}>End Game</Button>
-                ) : (
-                  <Button onClick={() => perform("reveal-answer")} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Eye />}>Reveal</Button>
-                )}
-              </>
-            ) : (
-              <Button onClick={() => router.push(`/room/${roomCode}`)} variant="inverted" size="lg" showLeftIcon={false} className="col-span-2 w-full">Leave Game</Button>
-            )}
+          <div className="mt-auto pt-8">
+            <DeductionActions
+              isHost={isHost}
+              fullResult={fullResult}
+              pendingAction={pendingAction}
+              onAnotherGuess={() => { setSelectedVote(""); perform("another-guess"); }}
+              onRevealResult={() => perform("reveal-answer")}
+              onAnotherRound={() => { setSelectedVote(""); perform("next-round"); }}
+              onEndGame={endGame}
+              onLeave={() => router.push(`/room/${roomCode}`)}
+            />
           </div>
         </section>
       </AppScreen>
@@ -494,23 +570,47 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
     const secretNumber = personal.secretNumber ?? gameState.secretNumber ?? 50;
     const submittedGuessIds = Object.keys(gameState.guesses ?? {});
     const eligibleGuesserIds = gameState.eligibleGuesserIds ?? [];
-    const activeTeamName = gameState.activeTeamId === "team-1" ? "Team 1" : "Team 2";
-    const finalRound = (gameState.round ?? 1) >= (gameState.maxRounds ?? 1);
+    const activeTeamName = gameState.activeTeamId ? gameState.teamNames?.[gameState.activeTeamId] ?? "Active Team" : "Everyone";
+    const finalRound = Boolean(personal.isComplete) || (gameState.round ?? 1) >= (gameState.maxRounds ?? 1);
     const scoreRows = gameState.mode === "teams"
       ? [
-          { id: "team-1", name: "Team 1", score: gameState.teamScores?.["team-1"] ?? 0 },
-          { id: "team-2", name: "Team 2", score: gameState.teamScores?.["team-2"] ?? 0 }
+          { id: "team-1", name: gameState.teamNames?.["team-1"] ?? "First Team", score: gameState.teamScores?.["team-1"] ?? 0, members: (gameState.teams?.["team-1"] ?? []).map((id) => gameState.players.find((player) => player.id === id)?.name).filter(Boolean) },
+          { id: "team-2", name: gameState.teamNames?.["team-2"] ?? "Second Team", score: gameState.teamScores?.["team-2"] ?? 0, members: (gameState.teams?.["team-2"] ?? []).map((id) => gameState.players.find((player) => player.id === id)?.name).filter(Boolean) }
         ]
       : gameState.players
-          .map((player) => ({ id: player.id, name: player.name, score: gameState.playerScores?.[player.id] ?? 0, avatarId: player.avatarId }))
+          .map((player) => ({ id: player.id, name: player.name, score: gameState.playerScores?.[player.id] ?? 0, avatarId: player.avatarId, roundPoints: gameState.guessSummary?.find((summary) => summary.playerId === player.id)?.points ?? 0 }))
           .sort((a, b) => b.score - a.score);
+    const rankedScoreRows = [...scoreRows].sort((a, b) => b.score - a.score);
+    const winningScore = rankedScoreRows[0]?.score ?? 0;
+    const winnerNames = rankedScoreRows.filter((row) => row.score === winningScore).map((row) => row.name);
+
+    if (gameState.phase === "announcement") {
+      return (
+        <AppScreen tone="accent" className="!p-0">
+          <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col px-4 pb-safe pt-16 text-center">
+            <BrandNav title="Round Start" tone="light" centerTitle />
+            <div className="my-auto animate-spring-in">
+              <div className="mx-auto mb-7 flex w-fit -space-x-3">
+                {(gameState.activeTeamId ? gameState.teams?.[gameState.activeTeamId] ?? [] : []).map((id) => {
+                  const player = gameState.players.find((item) => item.id === id);
+                  return player ? <span key={id} className="grid size-16 place-items-center rounded-full bg-[var(--surface-inverted-light)]"><Avatar avatarId={player.avatarId ?? 1} name={player.name} size="lg" /></span> : null;
+                })}
+              </div>
+              <h1 className="text-title-lg-bold">{activeTeamName} is guessing this round.</h1>
+              <p className="mt-4 text-body-semibold opacity-70">{gameState.clueGiverName} gives the clue. The first eligible teammate to submit locks the guess.</p>
+            </div>
+            {isHost ? <Button onClick={() => perform("start-round")} disabled={pendingAction !== null} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Play />} className="w-full">{pendingAction === "start-round" ? "Starting..." : "Start Round"}</Button> : <Button disabled variant="inverted" size="lg" showLeftIcon={false} className="w-full">Waiting for Host</Button>}
+          </section>
+        </AppScreen>
+      );
+    }
 
     if (gameState.phase === "clue") {
       return (
         <AppScreen tone="dark" className="!p-0">
           <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-20 text-center">
-            <BrandNav title="Wavelength" tone="dark" />
-            <RadioTower className="mx-auto mt-10 text-[var(--surface-secondary)]" size={62} />
+            <BrandNav title="Wavelength" tone="dark" centerTitle />
+            <div className="mx-auto mt-8 w-24"><GameArtwork gameSlug="wavelength" tone="light" /></div>
             <p className="mt-8 text-body-semibold opacity-60">Scale</p>
             <h1 className="mt-2 text-title-lg-bold text-[var(--text-highlight)]">{gameState.scaleLeft} ↔ {gameState.scaleRight}</h1>
             {personal.isClueGiver ? (
@@ -524,7 +624,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
                 </div>
                 <Button onClick={() => setSecretVisible((value) => !value)} variant="inverted" size="md" showLeftIcon={false} rightIcon={secretVisible ? <EyeOff /> : <Eye />} className="mx-auto mt-4">{secretVisible ? "Hide" : "Reveal"}</Button>
                 <input value={clueText} onChange={(event) => setClueText(event.target.value)} placeholder="Give a clue..." maxLength={80} className="mt-8 h-16 w-full rounded-[24px] bg-[var(--surface-primary-light)] px-5 text-center text-headline-md-bold outline-none placeholder:text-white/20 focus-visible:outline-3 focus-visible:outline-[var(--surface-secondary)]" />
-                <Button onClick={() => { perform("submit-clue", { clue: clueText }); setClueText(""); setSecretVisible(false); }} disabled={!clueText.trim()} variant="tertiary" size="lg" showLeftIcon={false} rightIcon={<Send />} className="mt-auto w-full">Send Clue</Button>
+                <Button onClick={() => { perform("submit-clue", { clue: clueText }); setClueText(""); setSecretVisible(false); }} disabled={!clueText.trim() || pendingAction !== null} variant="tertiary" size="lg" showLeftIcon={false} rightIcon={<Send />} className="mt-auto w-full">{pendingAction === "submit-clue" ? "Sending..." : "Send Clue"}</Button>
               </>
             ) : (
               <>
@@ -532,7 +632,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
                 <p className="mt-2 text-body-semibold opacity-60">
                   {gameState.mode === "teams" ? `${activeTeamName} is giving this clue.` : "The clue-giver is preparing the scale."}
                 </p>
-                <div className="mt-auto"><Button disabled variant="primary" size="lg" showLeftIcon={false} className="w-full">Waiting for clue</Button></div>
+                <div className="mt-auto"><Button disabled variant="inverted" size="lg" showLeftIcon={false} className="w-full">Waiting for clue</Button></div>
               </>
             )}
           </section>
@@ -545,7 +645,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
         return (
           <AppScreen tone="dark" className="!p-0">
             <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-20 text-center">
-              <BrandNav title="Wavelength" tone="dark" />
+              <BrandNav title="Wavelength" tone="dark" centerTitle />
               <div className="mt-16">
                 <p className="text-footnote-semibold opacity-40">Time</p>
                 <p className="text-title-lg-semibold tabular-nums">{formattedTime}</p>
@@ -558,7 +658,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
                   subtitle={`${submittedGuessIds.length}/${eligibleGuesserIds.length} Players Guessed`}
                 />
               </div>
-              <Button disabled variant="primary" size="lg" showLeftIcon={false} className="w-full">
+              <Button disabled variant="inverted" size="lg" showLeftIcon={false} className="w-full">
                 {personal.hasSubmittedGuess ? "Guess locked" : "Waiting"}
               </Button>
             </section>
@@ -569,7 +669,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
       return (
         <AppScreen tone="dark" className="!p-0">
           <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-16 text-center">
-            <BrandNav title="Make a Guess" tone="dark" />
+            <BrandNav title="Make a Guess" tone="dark" centerTitle />
             <div className="mt-10">
               <p className="text-footnote-semibold opacity-40">Time</p>
               <p className="text-title-lg-semibold tabular-nums">{formattedTime}</p>
@@ -581,7 +681,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
             </div>
             <div className="mt-auto">
               <PlayerStatusPill players={gameState.players} completedIds={submittedGuessIds} label={`${submittedGuessIds.length}/${eligibleGuesserIds.length} guessed`} />
-              <Button onClick={() => perform("submit-guess", { guess })} variant="primary" size="lg" showLeftIcon={false} rightIcon={<Flag />} className="w-full">Submit Guess</Button>
+              <Button onClick={() => perform("submit-guess", { guess })} disabled={pendingAction !== null} variant="primary" size="lg" showLeftIcon={false} rightIcon={<Flag />} className="w-full">{pendingAction === "submit-guess" ? "Locking..." : "Submit Guess"}</Button>
             </div>
           </section>
         </AppScreen>
@@ -589,10 +689,11 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
     }
 
     return (
-      <AppScreen tone="blue" className="!p-0">
+      <AppScreen tone="accent" className="!p-0">
         <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-16 text-center">
-          <BrandNav title="Results" tone="light" />
-          <h1 className="mt-12 text-title-lg-bold">{gameState.scaleLeft} ↔ {gameState.scaleRight}</h1>
+          <BrandNav title="Results" tone="light" centerTitle />
+          {finalRound && <p className="mt-8 animate-pop text-headline-md-bold">{winnerNames.length > 1 ? `Tie: ${winnerNames.join(" & ")}` : `${winnerNames[0]} wins!`}</p>}
+          <h1 className={`${finalRound ? "mt-5" : "mt-12"} text-title-lg-bold`}>{gameState.scaleLeft} ↔ {gameState.scaleRight}</h1>
           <p className="mt-3 text-headline-md-bold">Clue: {gameState.clue}</p>
           <div className="mt-12 animate-pop">
             <WavelengthScale
@@ -603,21 +704,30 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
               summaries={gameState.guessSummary ?? []}
             />
           </div>
-          <p className="mt-3 text-footnote-semibold opacity-70">Round {gameState.round}/{gameState.maxRounds}</p>
+          <p className="mt-3 text-footnote-semibold opacity-70">{finalRound ? "Final standings" : `Round ${gameState.round}/${gameState.maxRounds}`}</p>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <div className="rounded-[22px] bg-[var(--surface-primary)] px-4 py-4 text-[var(--text-primary)]"><p className="text-caption-semibold opacity-60">Round Score</p><p className="mt-1 text-title-md-extrabold">+{gameState.lastRoundScore ?? 0}</p></div>
+            <div className="rounded-[22px] bg-[var(--surface-primary)] px-4 py-4 text-[var(--text-primary)]"><p className="text-caption-semibold opacity-60">Clue-Giver Bonus</p><p className="mt-1 text-title-md-extrabold">+{gameState.lastClueGiverPoints ?? 0}</p></div>
+          </div>
           <div className="mt-7 space-y-2">
-            {scoreRows.map((row) => (
-              <div key={row.id} className="flex h-[64px] items-center rounded-[24px] bg-[var(--surface-inverted-light)] px-4 text-[var(--text-inverted)]">
+            {rankedScoreRows.map((row) => (
+              <div key={row.id} className="flex min-h-[64px] items-center rounded-[24px] bg-[var(--surface-inverted-light)] px-4 py-2 text-[var(--text-inverted)] transition-transform duration-300">
+                <span className="w-7 text-left text-body-bold">{rankedScoreRows.findIndex((candidate) => candidate.score === row.score) + 1}</span>
                 {"avatarId" in row && <Avatar avatarId={row.avatarId ?? 1} name={row.name} tone="black" />}
-                <span className="ml-3 flex-1 text-left text-headline-md-semibold">{row.name}</span>
+                <span className="ml-3 flex-1 text-left">
+                  <span className="block text-headline-md-semibold">{row.name}</span>
+                  {"members" in row && <span className="block text-caption-regular opacity-60">{row.members.join(", ")}</span>}
+                  {"roundPoints" in row && gameState.phase === "results" && <span className="block text-caption-semibold text-[var(--text-highlight)]">+{row.roundPoints} this round</span>}
+                </span>
                 <span className="text-title-sm-bold">{row.score}</span>
               </div>
             ))}
           </div>
-          <div className="mt-auto grid grid-cols-2 gap-2 pt-6">
+          <div className={`mt-auto grid gap-2 pt-6 ${finalRound ? "grid-cols-1" : "grid-cols-2"}`}>
             {isHost ? (
               <>
-                <Button onClick={() => perform("next-round")} disabled={finalRound} variant="primary" size="lg" showLeftIcon={false} showRightIcon={false}>{finalRound ? "Final Round" : "Next Round"}</Button>
-                <Button onClick={endGame} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Flag />}>End Game</Button>
+                {!finalRound && <Button onClick={() => perform("next-round")} disabled={pendingAction !== null} variant="primary" size="lg" showLeftIcon={false} showRightIcon={false}>{pendingAction === "next-round" ? "Starting..." : "Next Round"}</Button>}
+                <Button onClick={endGame} disabled={pendingAction !== null} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Flag />}>{pendingAction === "end-game" ? "Ending..." : "End Game"}</Button>
               </>
             ) : (
               <Button onClick={() => router.push(`/room/${roomCode}`)} variant="inverted" size="lg" showLeftIcon={false} className="col-span-2 w-full">Leave Game</Button>
@@ -654,9 +764,12 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
             )}
             <div className="absolute left-1/2 top-[144px] flex -translate-x-1/2 items-center rounded-full bg-[var(--surface-inverted)] px-3 py-2 text-[var(--text-inverted)]">
               <div className="flex -space-x-2">
-                {gameState.players.map((player) => <span key={player.id} className={`grid size-7 place-items-center rounded-full bg-[var(--surface-inverted-light)] ${gameState.readyPlayerIds?.includes(player.id) ? "opacity-100" : "opacity-20"}`}><Avatar avatarId={player.avatarId ?? 1} size="sm" /></span>)}
+                {activePlayers.map((player) => {
+                  const isReady = gameState.readyPlayerIds?.includes(player.id);
+                  return <span key={player.id} className="grid size-7 place-items-center rounded-full bg-[var(--surface-inverted-light)]"><Avatar avatarId={player.avatarId ?? 1} size="sm" tone={isReady ? "black" : "muted"} /></span>;
+                })}
               </div>
-              <span className="ml-2 whitespace-nowrap text-caption-semibold">{readyCount}/{playerCount} players ready</span>
+              <span className="ml-2 whitespace-nowrap text-caption-semibold">{readyCount}/{activePlayerCount} players ready</span>
             </div>
             {!ready && !hasSeenRole && <p className="text-title-md-extrabold">Swipe up to<br />reveal your word</p>}
             {!ready && hasSeenRole && !holdingReveal && <p className="text-title-md-extrabold">Press ready when<br />you are</p>}
@@ -666,9 +779,9 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
 
           <div className="relative z-20 mt-auto px-4">
             {!ready ? (
-              <Button onClick={() => perform("ready")} disabled={!hasSeenRole || holdingReveal} variant="primary" size="lg" showLeftIcon={false} className="w-full">I&apos;m Ready</Button>
+              <Button onClick={() => perform("ready")} disabled={!hasSeenRole || holdingReveal || pendingAction !== null} variant="primary" size="lg" showLeftIcon={false} className="w-full">{pendingAction === "ready" ? "Saving..." : "I'm Ready"}</Button>
             ) : allReady && isHost ? (
-              <Button onClick={() => perform("start-round")} variant="tertiary" size="lg" showLeftIcon={false} rightIcon={<Play />} className="w-full">Start Round</Button>
+              <Button onClick={() => perform("start-round")} disabled={pendingAction !== null} variant="tertiary" size="lg" showLeftIcon={false} rightIcon={<Play />} className="w-full">{pendingAction === "start-round" ? "Starting..." : "Start Round"}</Button>
             ) : (
               <Button disabled variant="primary" size="lg" showLeftIcon={false} className="w-full">Waiting...</Button>
             )}
@@ -690,12 +803,12 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
           )}
           <div className="flex flex-1 flex-col items-center justify-center">
             <Avatar avatarId={gameState.players.find((player) => player.name === firstPlayer)?.avatarId ?? 1} name={firstPlayer} size="lg" />
-            <h1 className="mt-7 text-title-lg-bold text-[var(--text-highlight)]">Start from<br />{firstPlayer}</h1>
-            <p className="mt-3 text-headline-md-bold text-[var(--text-highlight)]">Go clockwise</p>
+            <h1 className="mt-7 text-title-lg-bold text-[var(--text-inverted-plus)]">Start from<br />{firstPlayer}</h1>
+            <p className="mt-3 text-headline-md-bold text-[var(--text-inverted-plus)]">Go clockwise</p>
             <p className="mt-8 text-title-sm-bold tabular-nums">{formattedTime}</p>
           </div>
           {isHost ? (
-            <Button onClick={() => perform("start-voting")} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Vote />} className="w-full">Start Voting Round</Button>
+            <Button onClick={() => perform("start-voting")} disabled={pendingAction !== null} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Vote />} className="w-full">{pendingAction === "start-voting" ? "Starting..." : "Start Voting Round"}</Button>
           ) : (
             <p className="pb-6 text-body-semibold opacity-60">Waiting for the room owner</p>
           )}
@@ -706,12 +819,12 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
 
   if (gameState.phase === "voting" && hasVoted && allVoted) {
     return (
-      <AppScreen tone="blue" className="!p-0">
+      <AppScreen tone="accent" className="!p-0">
         <section className="mx-auto flex min-h-screen w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-7 pt-20 text-center">
           <BrandNav tone="light" />
           <h1 className="my-auto text-title-md-extrabold">All Players<br />Voted</h1>
           {isHost ? (
-            <Button onClick={() => perform("reveal")} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Eye />} className="w-full">See Imposter</Button>
+            <Button onClick={() => perform("reveal")} disabled={pendingAction !== null} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Eye />} className="w-full">{pendingAction === "reveal" ? "Revealing..." : "See Imposter"}</Button>
           ) : (
             <Button disabled variant="inverted" size="lg" showLeftIcon={false} className="w-full">Waiting for Host</Button>
           )}
@@ -730,7 +843,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
             <p className="text-title-lg-semibold tabular-nums">{formattedTime}</p>
           </div>
           <div className="flex flex-1 items-center">
-            <WaitingOrbit players={gameState.players} completedIds={Object.keys(gameState.votes ?? {})} title="Waiting for others" subtitle={`${voteCount}/${playerCount} Players Voted`} />
+            <WaitingOrbit players={activePlayers} completedIds={Object.keys(gameState.votes ?? {})} title="Waiting for others" subtitle={`${voteCount}/${activePlayerCount} Players Voted`} />
           </div>
           <Button disabled variant="primary" size="lg" showLeftIcon={false} className="w-full">See Imposter</Button>
         </section>
@@ -742,13 +855,13 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
     return (
       <AppScreen tone="dark" className="!p-0">
         <section className="mx-auto flex min-h-screen w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-7 pt-20">
-          <BrandNav title="Cast your Vote" tone="dark" />
+          <BrandNav title="Cast your Vote" tone="dark" centerTitle />
           <div className="mt-14 text-center">
             <p className="text-footnote-semibold opacity-40">Time</p>
             <p className="text-title-lg-semibold tabular-nums">{formattedTime}</p>
           </div>
           <div className="mt-16 space-y-2">
-            {gameState.players.map((player) => (
+            {activePlayers.map((player) => (
               <button
                 key={player.id}
                 type="button"
@@ -762,41 +875,41 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
             ))}
           </div>
           <div className="mt-auto">
-            <PlayerStatusPill players={gameState.players} completedIds={Object.keys(gameState.votes ?? {})} label={`${voteCount}/${playerCount} players voted`} />
-            <Button onClick={() => perform("vote", { targetPlayerId: selectedVote })} disabled={!selectedVote} variant="primary" size="lg" showLeftIcon={false} className="w-full">Cast Vote</Button>
+            <PlayerStatusPill players={activePlayers} completedIds={Object.keys(gameState.votes ?? {})} label={`${voteCount}/${activePlayerCount} players voted`} />
+            <Button onClick={() => perform("vote", { targetPlayerId: selectedVote })} disabled={!selectedVote || pendingAction !== null} variant="primary" size="lg" showLeftIcon={false} className="w-full">{pendingAction === "vote" ? "Submitting..." : "Cast Vote"}</Button>
           </div>
         </section>
       </AppScreen>
     );
   }
 
-  const answerVisible = personal.answerRevealed || personal.caughtImposter;
+  const fullResult = Boolean(personal.answerRevealed);
+  const guessedImposter = Boolean(personal.caughtImposter);
   const topVotedPlayer = gameState.players.find((player) => personal.topVotedPlayerIds?.includes(player.id));
-  const sortedPlayers = [...gameState.players].sort((a, b) => (voteTotals[b.id] ?? 0) - (voteTotals[a.id] ?? 0));
   const revealedNames = personal.imposterPlayerNames ?? [];
-  const resultTone = answerVisible ? "blue" : "light";
+  const resultTone = fullResult || guessedImposter ? "accent" : "light";
 
   return (
     <AppScreen tone={resultTone} className="!p-0">
       <section className="mx-auto flex min-h-screen w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-7 pt-16 text-center">
-        <BrandNav title="Results" tone="light" />
+        <BrandNav title="Results" tone="light" centerTitle />
         <div className="mt-10">
           <Avatar
-            avatarId={(answerVisible
-              ? gameState.players.find((player) => personal.imposterPlayerIds?.includes(player.id))
-              : topVotedPlayer)?.avatarId ?? 1}
-            name={answerVisible ? revealedNames[0] : topVotedPlayer?.name}
+            avatarId={topVotedPlayer?.avatarId ?? 1}
+            name={topVotedPlayer?.name}
             size="lg"
-            tone={answerVisible ? "black" : "blue"}
-            className="mx-auto !size-[132px]"
+            tone={fullResult || guessedImposter ? "black" : "accent"}
+            className="mx-auto !size-[132px] animate-spring-in"
           />
-          {answerVisible ? (
+          {fullResult ? (
             <>
               <h1 className="mt-5 text-title-lg-bold">
                 {revealedNames.join(", ")} {revealedNames.length === 1 ? "is" : "are"} the <span className="text-[var(--surface-inverted-light)]">imposter</span>
               </h1>
               <p className="mt-3 text-headline-md-bold">The word was {personal.word}</p>
             </>
+          ) : guessedImposter ? (
+            <h1 className="mt-5 text-title-lg-bold">{topVotedPlayer?.name ?? "That player"} is an <span className="text-[var(--surface-inverted-light)]">imposter</span></h1>
           ) : (
             <h1 className="mt-5 text-title-lg-bold">
               {topVotedPlayer?.name ?? "That player"} is <span className="text-[var(--text-highlight)]">not</span><br />the imposter
@@ -805,36 +918,36 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
         </div>
 
         <div className="mt-8 space-y-2">
-          {sortedPlayers.map((player) => {
+          {gameState.players.map((player) => {
             const votes = voteTotals[player.id] ?? 0;
+            const eliminated = gameState.eliminatedPlayerIds?.includes(player.id);
             return (
               <div
                 key={player.id}
-                className={`flex h-[68px] items-center justify-center gap-4 rounded-[24px] ${answerVisible ? "bg-[var(--primitive-blue-800)] text-[var(--text-primary)]" : "bg-[var(--surface-inverted-light)]"} ${votes === 0 ? "opacity-40" : ""}`}
+                className={`flex min-h-[68px] items-center justify-center gap-4 rounded-[24px] px-4 py-3 transition duration-300 ${eliminated ? "bg-[#dededb] text-[#777773]" : "bg-[var(--surface-inverted-light)] text-[var(--text-inverted)]"} ${personal.topVotedPlayerIds?.includes(player.id) ? "ring-[3px] ring-[var(--color-game-accent)]" : ""}`}
               >
-                <Avatar avatarId={player.avatarId ?? 1} name={player.name} tone={answerVisible ? "white" : "black"} />
+                <Avatar avatarId={player.avatarId ?? 1} name={player.name} tone={eliminated ? "muted" : "black"} />
                 <div className="text-left">
                   <p className="text-headline-md-semibold">{player.name}</p>
                   {votes > 0 && <p className="text-caption-semibold text-[var(--text-highlight)]">{votes} Vote{votes === 1 ? "" : "s"}</p>}
+                  {eliminated && <p className="text-caption-semibold">Eliminated</p>}
                 </div>
               </div>
             );
           })}
         </div>
 
-        <div className="mt-auto grid grid-cols-2 gap-2 pt-8">
-          {isHost ? (
-            <>
-              <Button onClick={() => { setSelectedVote(""); perform("next-round"); }} variant={answerVisible ? "primary" : "inverted"} size="lg" showLeftIcon={false} showRightIcon={false}>Another Round</Button>
-              {answerVisible ? (
-                <Button onClick={endGame} variant={answerVisible ? "primary" : "inverted"} size="lg" showLeftIcon={false} rightIcon={<Flag />}>End Game</Button>
-              ) : (
-                <Button onClick={() => perform("reveal-answer")} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Skull />}>Reveal</Button>
-              )}
-            </>
-          ) : (
-            <Button onClick={() => router.push(`/room/${roomCode}`)} variant="inverted" size="lg" showLeftIcon={false} className="col-span-2 w-full">Leave Game</Button>
-          )}
+        <div className="mt-auto pt-8">
+          <DeductionActions
+            isHost={isHost}
+            fullResult={fullResult}
+            pendingAction={pendingAction}
+            onAnotherGuess={() => { setSelectedVote(""); perform("another-guess"); }}
+            onRevealResult={() => perform("reveal-answer")}
+            onAnotherRound={() => { setSelectedVote(""); perform("next-round"); }}
+            onEndGame={endGame}
+            onLeave={() => router.push(`/room/${roomCode}`)}
+          />
         </div>
       </section>
     </AppScreen>

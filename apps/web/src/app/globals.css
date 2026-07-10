@@ -30,7 +30,7 @@
 html {
   min-height: 100%;
   min-height: 100dvh;
-  background: var(--background);
+  background: var(--page-background, var(--background));
   overflow-x: hidden;
 }
 
@@ -38,7 +38,7 @@ body {
   min-height: 100%;
   min-height: 100dvh;
   margin: 0;
-  background: var(--background);
+  background: var(--page-background, var(--background));
   color: var(--foreground);
   font-family: var(--font-primary);
   overflow-x: hidden;
@@ -120,6 +120,19 @@ a {
   }
 }
 
+@keyframes ruckus-spring-in {
+  0% { opacity: 0; transform: translateY(18px) scale(0.9); }
+  65% { opacity: 1; transform: translateY(-3px) scale(1.035); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes ruckus-celebrate {
+  0%, 100% { transform: rotate(0) scale(1); }
+  25% { transform: rotate(-4deg) scale(1.08); }
+  55% { transform: rotate(4deg) scale(1.12); }
+  78% { transform: rotate(-2deg) scale(1.04); }
+}
+
 @keyframes ruckus-float {
   0%, 100% {
     transform: translateY(0) rotate(-1deg);
@@ -159,6 +172,56 @@ a {
 .animate-pop {
   animation: ruckus-pop 260ms ease-out both;
 }
+
+.animate-spring-in {
+  animation: ruckus-spring-in var(--motion-bouncy) cubic-bezier(.2,.9,.25,1.2) both;
+}
+
+.animate-celebrate {
+  animation: ruckus-celebrate 620ms cubic-bezier(.2,.9,.25,1.2) both;
+}
+
+.stagger-children > * {
+  animation: ruckus-fade-up 320ms ease-out both;
+}
+
+.stagger-children > *:nth-child(2) { animation-delay: 45ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 90ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 135ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 180ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 225ms; }
+
+.page-light {
+  --page-background: var(--surface-inverted);
+  background: var(--surface-inverted);
+}
+
+.page-accent {
+  --page-background: var(--surface-secondary);
+  background: var(--surface-secondary);
+}
+
+html:has(.page-light),
+body:has(.page-light) {
+  background: var(--surface-inverted);
+}
+
+html:has(.page-accent),
+body:has(.page-accent) {
+  background: var(--surface-secondary);
+}
+
+.button-content-disabled:disabled > * {
+  opacity: 0.35;
+}
+
+.interactive-pop {
+  transition: transform var(--motion-fast) ease, filter var(--motion-fast) ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.interactive-pop:hover { transform: translateY(-2px); filter: brightness(1.05); }
+.interactive-pop:active { transform: translateY(1px) scale(0.97); filter: brightness(0.92); }
 
 .animate-float {
   animation: ruckus-float 2.8s ease-in-out infinite;

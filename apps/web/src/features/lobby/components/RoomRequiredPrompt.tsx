@@ -1,9 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import { Button } from "@/components/ui/Button";
-import { ModeSelector } from "@/components/ui/GameUI";
 import { BrandNav } from "@/features/lobby/components/BrandNav";
-import { DoorEnterIcon } from "@/features/lobby/components/icons";
+import { DoorEnterIcon, DoorOpenIcon } from "@/features/lobby/components/icons";
 import type { Game } from "@/features/lobby/types/room";
 
 type RoomRequiredPromptProps = {
@@ -22,36 +22,27 @@ export function RoomRequiredPrompt({
   onSingleDevice
 }: RoomRequiredPromptProps) {
   return (
-    <main className="min-h-screen bg-[var(--surface-inverted)] px-4 py-8 text-[var(--text-inverted)]">
-      <div className="mx-auto max-w-[25rem]">
-        <BrandNav title="Select Game Mode" tone="light" onBack={onBack} />
+    <main className="min-screen-safe bg-[var(--surface-primary)] px-4 pb-safe pt-safe text-[var(--text-primary)]">
+      <div className="mx-auto max-w-[393px]">
+        <BrandNav title="Select Game Mode" tone="dark" onBack={onBack} />
 
-        <section className="mt-12 text-center">
-          <p className="text-footnote-semibold uppercase tracking-[0.18em] text-[var(--text-highlight)]">
-            {game.name}
-          </p>
-          <h1 className="mt-3 text-title-md-extrabold">
-            How do you want to play?
-          </h1>
-          <p className="mt-3 text-body-regular">
-            {game.name} supports the following game modes.
-          </p>
-        </section>
-
-        <div className="mt-8 grid gap-3">
+        <div className="stagger-children mt-7 grid gap-4">
           {game.supportsSingleDevice && onSingleDevice && (
-            <ModeSelector title="Play with a single phone" description="Pass one device around. No room needed." icon="single" onClick={onSingleDevice} />
+            <button type="button" onClick={onSingleDevice} className="interactive-pop flex min-h-[294px] w-full flex-col items-center justify-center rounded-[54px] bg-[var(--surface-primary-light)] px-6 text-center focus-visible:outline-3 focus-visible:outline-[var(--color-game-accent)]">
+              <div className="grid h-[180px] w-full place-items-center"><Image src="/singlephone.svg" alt="" width={171} height={171} className="max-h-[171px] w-auto" priority /></div>
+              <span className="mt-1 text-headline-md-bold">Play with a single phone</span>
+            </button>
           )}
-          <ModeSelector title="Play multiplayer" description="Create a room so everyone can join on their phone." icon="multi" onClick={onCreateRoom} />
-          <Button
-            onClick={onJoinRoom}
-            variant="primary"
-            size="md"
-            showLeftIcon={false}
-            rightIcon={<DoorEnterIcon className="size-5" />}
-          >
-            Join an Existing Room
-          </Button>
+
+          <section className="rounded-[54px] bg-[var(--surface-primary-light)] px-5 py-6 text-center">
+            <p className="mx-auto max-w-[13rem] text-footnote-semibold">Create a room to play with multiple phones</p>
+            <div className="mx-auto mt-4 grid h-[112px] w-[239px] place-items-center"><Image src="/multiphone.svg" alt="" width={239} height={107} className="max-h-[107px] w-auto" priority /></div>
+            <h2 className="mt-2 text-headline-md-bold">Play multiplayer</h2>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <Button onClick={onCreateRoom} variant="tertiary" size="md" showLeftIcon={false} rightIcon={<DoorOpenIcon className="size-5" />} className="w-full px-3">Create Room</Button>
+              <Button onClick={onJoinRoom} variant="primary" size="md" showLeftIcon={false} rightIcon={<DoorEnterIcon className="size-5" />} className="w-full px-3">Join Room</Button>
+            </div>
+          </section>
         </div>
       </div>
     </main>

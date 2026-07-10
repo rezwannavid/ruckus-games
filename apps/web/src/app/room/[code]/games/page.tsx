@@ -29,7 +29,7 @@ export default function RoomGamesPage({ params }: { params: Promise<{ code: stri
       setRoom(data.room);
     }).catch((reason) => setError(reason instanceof Error ? reason.message : "Could not load room."));
     const socket = io(serverUrl);
-    socket.emit("room:subscribe", { roomCode });
+    socket.emit("room:subscribe", { roomCode, playerId: currentPlayerId });
     socket.on("room:state", (nextRoom: Room) => {
       setRoom(nextRoom);
       if (nextRoom.status === "in_game" && nextRoom.selectedGame?.slug) {
@@ -38,7 +38,7 @@ export default function RoomGamesPage({ params }: { params: Promise<{ code: stri
     });
     socket.on("game:started", (payload: { game: { slug: string } }) => router.push(`/room/${roomCode}/play/${payload.game.slug}`));
     return () => { socket.disconnect(); };
-  }, [roomCode, router]);
+  }, [currentPlayerId, roomCode, router]);
 
   async function chooseGame(gameSlug: string) {
     if (!currentPlayerId || !isHost || !playableGameSlugs.has(gameSlug)) return;

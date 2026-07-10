@@ -7,6 +7,10 @@
   --primitive-black-500: #1C1C1C;
   --primitive-black-800: #101010;
 
+  /* Product accents */
+  --color-game-accent: var(--primitive-blue-500);
+  --color-player-accent: var(--primitive-blue-500);
+
   /* Semantic surfaces */
   --surface-primary: var(--primitive-black-800);
   --surface-primary-light: var(--primitive-black-500);
@@ -44,6 +48,7 @@
   --icon-inverted: var(--primitive-white-800);
   --icon-inverted-plus: var(--primitive-white-500);
   --icon-secondary: var(--primitive-blue-500);
+  --icon-muted: #8a8a86;
 
   /* Icon sizes */
   --icon-size-md: 20px;
@@ -83,4 +88,5 @@
   /* Motion tokens */
   --motion-fast: 150ms;
   --motion-medium: 220ms;
+  --motion-bouncy: 420ms;
 }

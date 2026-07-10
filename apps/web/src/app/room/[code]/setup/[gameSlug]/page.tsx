@@ -4,11 +4,12 @@ import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { io } from "socket.io-client";
 import type { LucideIcon } from "lucide-react";
-import { Braces, Building2, Coffee, Film, Laugh, MapPin, Minus, Play, Plus, RadioTower, Shuffle, Skull, Sparkles, UsersRound } from "lucide-react";
+import { Building2, Coffee, Film, Laugh, MapPin, Minus, Play, Plus, Shuffle, Skull, Sparkles, UsersRound } from "lucide-react";
 import { Avatar } from "@/components/ui/AvatarPicker";
 import { Button } from "@/components/ui/Button";
 import { ErrorState, LoadingState, AppScreen } from "@/components/ui/GameUI";
 import { BrandNav } from "@/features/lobby/components/BrandNav";
+import { GameArtwork } from "@/features/lobby/components/GameArtwork";
 import type { Room } from "@/features/lobby/types/room";
 import { serverUrl } from "@/lib/config";
 import { clearRoomSession, getStoredSession } from "@/lib/session";
@@ -112,11 +113,10 @@ function PackPicker({
               type="button"
               onClick={() => onChange(id)}
               aria-pressed={value === id}
-              className={`group flex h-[158px] w-[150px] shrink-0 snap-start flex-col items-center justify-center rounded-[36px] border-2 border-transparent text-center transition duration-200 hover:-translate-y-1 active:scale-[0.98] aria-pressed:scale-[1.02] ${selected ? "bg-[var(--surface-inverted)] text-[var(--text-inverted)]" : "bg-[var(--surface-primary-light)] text-[var(--text-primary)]"}`}
+              className={`interactive-pop group flex h-[158px] w-[150px] shrink-0 snap-start flex-col items-center justify-center rounded-[36px] border-[4px] bg-[var(--surface-primary-light)] text-center text-[var(--text-primary)] ${selected ? "border-[var(--color-game-accent)]" : "border-transparent"}`}
             >
-              <Icon size={54} strokeWidth={2.4} className={`transition-transform duration-300 group-hover:rotate-3 group-hover:scale-110 ${selected ? "text-[var(--surface-secondary)]" : ""}`} />
+              <Icon size={54} strokeWidth={2.4} className="text-[var(--color-game-accent)] transition-transform duration-300 group-hover:rotate-3 group-hover:scale-110" />
               <span className="mt-4 text-headline-md-bold">{label}</span>
-              <span className="mt-1 text-caption-semibold opacity-60">{selected ? "Selected" : "Tap pack"}</span>
             </button>
           );
         })}
@@ -170,7 +170,7 @@ export default function GameSetupPage({ params }: { params: Promise<{ code: stri
   const [wordCategory, setWordCategory] = useState("classic");
   const [questionPack, setQuestionPack] = useState("casual");
   const [scalePack, setScalePack] = useState("casual");
-  const [wavelengthMode, setWavelengthMode] = useState<"everyone" | "teams">("everyone");
+  const [wavelengthMode, setWavelengthMode] = useState<"single" | "teams">("single");
   const [maxRounds, setMaxRounds] = useState(6);
   const [hintsEnabled, setHintsEnabled] = useState(true);
   const [error, setError] = useState("");
@@ -203,7 +203,7 @@ export default function GameSetupPage({ params }: { params: Promise<{ code: stri
       .catch((reason) => setError(reason instanceof Error ? reason.message : "Could not load room."));
 
     const socket = io(serverUrl);
-    socket.emit("room:subscribe", { roomCode });
+    socket.emit("room:subscribe", { roomCode, playerId: currentPlayerId });
     socket.on("room:state", setRoom);
     socket.on("game:started", (payload: { game: { slug: string } }) => router.push(`/room/${roomCode}/play/${payload.game.slug}`));
     socket.on("room:ended", () => {
@@ -213,7 +213,7 @@ export default function GameSetupPage({ params }: { params: Promise<{ code: stri
     return () => {
       socket.disconnect();
     };
-  }, [roomCode, router]);
+  }, [currentPlayerId, roomCode, router]);
 
   async function startGame() {
     if (!currentPlayerId) return;
@@ -290,7 +290,7 @@ export default function GameSetupPage({ params }: { params: Promise<{ code: stri
             </>
           ) : (
             <div className="rounded-[32px] bg-[var(--surface-primary-light)] p-6 text-center">
-              {selectedGame.slug === "imposter-code" ? <Braces className="mx-auto text-[var(--surface-secondary)]" size={58} /> : <RadioTower className="mx-auto text-[var(--surface-secondary)]" size={58} />}
+              <div className="mx-auto w-24"><GameArtwork gameSlug={selectedGame.slug} tone="light" /></div>
               <h2 className="mt-4 text-title-sm-bold">{selectedGame.name}</h2>
               <p className="mt-2 text-body-medium opacity-70">
                 {selectedGame.slug === "imposter-code"
@@ -323,13 +323,13 @@ export default function GameSetupPage({ params }: { params: Promise<{ code: stri
             <h2 className="text-center text-body-regular">Wavelength Mode</h2>
             <div className="grid grid-cols-2 gap-2">
               {[
-                ["everyone", "Everyone Guesses"],
+                ["single", "Single"],
                 ["teams", "Team Mode"]
               ].map(([value, label]) => (
                 <button
                   key={value}
                   type="button"
-                  onClick={() => setWavelengthMode(value as "everyone" | "teams")}
+                  onClick={() => setWavelengthMode(value as "single" | "teams")}
                   aria-pressed={wavelengthMode === value}
                   className="min-h-14 rounded-[20px] bg-[var(--surface-primary-light)] px-3 text-footnote-semibold transition aria-pressed:bg-[var(--surface-secondary)] aria-pressed:text-[var(--text-inverted-plus)] disabled:opacity-30"
                   disabled={value === "teams" && room.players.length < 4}

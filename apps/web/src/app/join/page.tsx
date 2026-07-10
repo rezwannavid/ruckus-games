@@ -3,12 +3,12 @@
 import { Suspense, useState, useSyncExternalStore } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { LogIn, MoveLeft } from "lucide-react";
-import { AvatarPicker } from "@/components/ui/AvatarPicker";
 import { Button } from "@/components/ui/Button";
 import { LoadingState } from "@/components/ui/GameUI";
 import { NumberInput } from "@/components/ui/NumberInput";
 import { BrandNav } from "@/features/lobby/components/BrandNav";
 import { NumericKeypad } from "@/features/lobby/components/NumericKeypad";
+import { CharacterSelectionScreen } from "@/features/lobby/components/CharacterSelectionScreen";
 import { serverUrl } from "@/lib/config";
 import { joinRoom } from "@/lib/rooms";
 import { getStoredSession, saveRoomSession } from "@/lib/session";
@@ -25,7 +25,6 @@ function JoinContent() {
   const searchParams = useSearchParams();
   const pendingGame = searchParams.get("game");
   const storedName = useSyncExternalStore(() => () => {}, () => getStoredSession().playerName ?? "", () => "");
-  const storedAvatar = useSyncExternalStore(() => () => {}, () => getStoredSession().avatarId, () => 1);
   const [step, setStep] = useState<Step>("code");
   const [roomCode, setRoomCode] = useState("");
   const [codeState, setCodeState] = useState<CodeState>("initial");
@@ -33,7 +32,7 @@ function JoinContent() {
   const [avatarOverride, setAvatarOverride] = useState<number | null>(null);
   const [error, setError] = useState("");
   const playerName = (nameOverride ?? storedName).slice(0, 16);
-  const avatarId = avatarOverride ?? storedAvatar;
+  const avatarId = avatarOverride;
 
   async function validateCode(code: string) {
     setCodeState("joining");
@@ -65,6 +64,7 @@ function JoinContent() {
   }
 
   async function join() {
+    if (avatarId === null) return;
     setStep("joining");
     setError("");
     try {
@@ -86,7 +86,7 @@ function JoinContent() {
 
   if (step === "code") {
     return (
-      <main className="min-h-screen overflow-hidden bg-[var(--surface-inverted)] pt-8 text-[var(--text-inverted)]">
+      <main className="page-light min-h-screen overflow-hidden bg-[var(--surface-inverted)] pt-8 text-[var(--text-inverted)]">
         <div className="mx-auto flex min-h-screen max-w-[25rem] flex-col">
           <BrandNav title="Enter Room Code" tone="light" onBack={() => router.push("/")} />
           <section className="flex flex-1 items-center justify-center px-4 pb-[22rem]">
@@ -133,7 +133,7 @@ function JoinContent() {
             </div>
           </div>
 
-          <label className="absolute left-1/2 top-[298px] flex h-[64px] w-[360px] -translate-x-1/2 items-center justify-center">
+          <label className="absolute left-1/2 top-[298px] flex h-[72px] w-[calc(100%-2rem)] max-w-[360px] -translate-x-1/2 items-center justify-center">
             <span className="sr-only">Your name</span>
             <input
               autoFocus
@@ -142,12 +142,7 @@ function JoinContent() {
               onKeyDown={(event) => { if (event.key === "Enter" && playerName.trim()) setStep("avatar"); }}
               maxLength={16}
               placeholder=""
-              className="h-[64px] w-full appearance-none border-0 bg-transparent p-0 text-center !text-[64px] font-bold leading-[60px] !text-white caret-transparent shadow-none outline-none ring-0 placeholder:text-transparent focus:border-0 focus:outline-none focus:ring-0"
-            />
-            <span
-              aria-hidden="true"
-              className="pointer-events-none absolute top-0 h-16 w-1 rounded-full bg-white/35"
-              style={{ left: `calc(50% + ${Math.min(playerName.length, 8) * 20}px)` }}
+              className="h-[72px] w-full appearance-none border-0 bg-transparent px-2 text-center !text-[56px] font-extrabold leading-none !text-white caret-white shadow-none outline-none ring-0 placeholder:text-transparent focus:border-0 focus:outline-none focus:ring-0"
             />
           </label>
 
@@ -167,19 +162,5 @@ function JoinContent() {
     );
   }
 
-  return (
-    <main className="min-h-screen bg-[var(--surface-secondary)] px-4 py-8 text-[var(--text-inverted-plus)]">
-      <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-[25rem] flex-col">
-        <BrandNav title="Choose your Character" tone="light" onBack={() => setStep("name")} />
-        <section className="flex flex-1 flex-col justify-center">
-          <div className="rounded-[28px] bg-black/8 p-5"><AvatarPicker value={avatarId} onChange={setAvatarOverride} label="Choose a player icon" /></div>
-          <p className="mt-5 text-center text-title-sm-bold">{playerName}</p>
-        </section>
-        {error && <p role="alert" className="mb-4 rounded-[16px] bg-[var(--surface-primary)] px-4 py-3 text-footnote-semibold text-[var(--text-primary)]">{error}</p>}
-        <Button onClick={join} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<LogIn />} className="w-full">
-          Join Room
-        </Button>
-      </div>
-    </main>
-  );
+  return <CharacterSelectionScreen value={avatarId} onChange={setAvatarOverride} onBack={() => setStep("name")} onContinue={join} actionLabel="Join Room" actionIcon={<LogIn />} error={error} eyebrow={playerName} />;
 }

@@ -1,47 +1,67 @@
 "use client";
 
-import Image from "next/image";
-
 export const AVATAR_IDS = Array.from({ length: 14 }, (_, index) => index + 1);
 
 type AvatarProps = {
   avatarId: number;
   name?: string;
   size?: "sm" | "md" | "lg";
-  tone?: "black" | "white" | "blue";
+  tone?: "black" | "white" | "accent" | "muted";
   className?: string;
 };
 
 export function Avatar({ avatarId, name = "", size = "md", tone = "black", className = "" }: AvatarProps) {
   const dimension = size === "sm" ? 32 : size === "lg" ? 72 : 40;
-  const toneClass = {
-    black: "brightness-0",
-    white: "brightness-0 invert",
-    blue: "[filter:brightness(0)_saturate(100%)_invert(58%)_sepia(54%)_saturate(1224%)_hue-rotate(172deg)_brightness(94%)_contrast(89%)]"
-  }[tone];
+  const color = tone === "white"
+    ? "var(--icon-inverted-plus)"
+    : tone === "muted"
+      ? "var(--icon-muted)"
+    : tone === "accent"
+      ? "var(--color-player-accent)"
+      : "var(--icon-primary)";
 
   return (
-    <Image
-      src={`/PlayerIcon${Math.min(14, Math.max(1, avatarId || 1))}.svg`}
-      alt={name ? `${name}'s avatar` : ""}
-      width={dimension}
-      height={dimension}
-      className={`shrink-0 object-contain ${toneClass} ${className}`}
+    <span
+      role={name ? "img" : undefined}
+      aria-label={name ? `${name}'s avatar` : undefined}
+      aria-hidden={name ? undefined : true}
+      className={`inline-block shrink-0 ${className}`}
+      style={{
+        width: dimension,
+        height: dimension,
+        backgroundColor: color,
+        WebkitMaskImage: `url('/PlayerIcon${Math.min(14, Math.max(1, avatarId || 1))}.svg')`,
+        maskImage: `url('/PlayerIcon${Math.min(14, Math.max(1, avatarId || 1))}.svg')`,
+        WebkitMaskRepeat: "no-repeat",
+        maskRepeat: "no-repeat",
+        WebkitMaskPosition: "center",
+        maskPosition: "center",
+        WebkitMaskSize: "contain",
+        maskSize: "contain"
+      }}
     />
   );
 }
 
 type AvatarPickerProps = {
-  value: number;
+  value: number | null;
   onChange: (avatarId: number) => void;
   label?: string;
 };
 
 export function AvatarPicker({ value, onChange, label = "Choose your avatar" }: AvatarPickerProps) {
+  const positions = [
+    "left-[8%] top-[4%]", "left-[36%] top-[9%]", "right-[7%] top-0",
+    "left-[3%] top-[24%]", "left-[39%] top-[28%]", "right-[3%] top-[22%]",
+    "left-[1%] top-[45%]", "left-[39%] top-[48%]", "right-[3%] top-[43%]",
+    "left-[8%] top-[66%]", "right-[10%] top-[65%]", "left-[38%] top-[72%]",
+    "left-[7%] top-[86%]", "right-[6%] top-[86%]"
+  ];
+
   return (
-    <fieldset>
-      <legend className="text-footnote-semibold">{label}</legend>
-      <div className="mt-3 grid grid-cols-7 gap-2">
+    <fieldset className="w-full">
+      <legend className="sr-only">{label}</legend>
+      <div className="relative mx-auto h-[min(590px,63dvh)] min-h-[450px] w-full max-w-[360px]">
         {AVATAR_IDS.map((avatarId) => (
           <button
             key={avatarId}
@@ -49,9 +69,10 @@ export function AvatarPicker({ value, onChange, label = "Choose your avatar" }: 
             onClick={() => onChange(avatarId)}
             aria-label={`Choose avatar ${avatarId}`}
             aria-pressed={value === avatarId}
-            className="flex aspect-square items-center justify-center rounded-[var(--radius-md)] border-2 border-transparent bg-[var(--surface-inverted-light)] p-1 transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--surface-primary)] aria-pressed:border-[var(--surface-primary)] aria-pressed:bg-[var(--surface-inverted)]"
+            className={`interactive-pop absolute z-10 grid size-[82px] place-items-center rounded-full focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-[var(--surface-inverted-light)] aria-pressed:z-20 aria-pressed:bg-[var(--surface-inverted-light)] aria-pressed:scale-[1.28] ${positions[avatarId - 1]}`}
+            style={{ animationDelay: `${avatarId * 28}ms` }}
           >
-            <Avatar avatarId={avatarId} size="sm" />
+            <Avatar avatarId={avatarId} size="lg" className={value === avatarId ? "animate-celebrate" : "animate-spring-in"} />
           </button>
         ))}
       </div>
