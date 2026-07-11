@@ -63,7 +63,8 @@ type GameParticipant = {
   id: string;
   name: string;
   avatarId?: number;
-  status?: "active" | "eliminated" | "disconnected" | "spectating";
+  status?: "active" | "eliminated" | "disconnected" | "spectating" | "left" | "kicked";
+  removedByHost?: boolean;
 };
 
 type GameWinner = "players" | "imposters" | null;
@@ -79,7 +80,7 @@ type Game = {
 type ImposterGameState = {
   type: "imposter";
   playMode: "multiplayer" | "single_device";
-  phase: "role_reveal" | "discussion" | "voting" | "results";
+  phase: "rules" | "role_reveal" | "discussion" | "voting" | "results";
   players: GameParticipant[];
   word: string;
   wordCategory: string;
@@ -106,7 +107,7 @@ type ImposterGameState = {
 type ImposterCodeGameState = {
   type: "imposter-code";
   playMode: "multiplayer" | "single_device";
-  phase: "answering" | "answers" | "voting" | "results";
+  phase: "rules" | "answering" | "answers" | "voting" | "results";
   players: GameParticipant[];
   question: string;
   imposterQuestion: string;
@@ -143,10 +144,26 @@ type WavelengthRoundSummary = {
   guesses: Array<{ playerId: string; guess: number; distance: number; points: number }>;
 };
 
+type WavelengthGuessResult = {
+  playerId: string;
+  playerName: string;
+  avatarId?: number;
+  teamId: "team-1" | "team-2" | null;
+  teamName: string | null;
+  guess: number;
+  target: number;
+  distance: number;
+  roundPoints: number;
+  totalPoints: number;
+  rank: number;
+  isClosest: boolean;
+  isTied: boolean;
+};
+
 type WavelengthGameState = {
   type: "wavelength";
   playMode: "multiplayer" | "single_device";
-  phase: "announcement" | "clue" | "guess" | "results";
+  phase: "rules" | "announcement" | "clue" | "guess" | "results";
   players: GameParticipant[];
   mode: "teams" | "single";
   clueGiverId: string;
@@ -194,6 +211,8 @@ type Room = {
   status: "waiting" | "in_game" | "ended";
   selectedGame?: Game;
   gameState?: GameState;
+  lastGameEndedByHost?: boolean;
+  lastGameEndedAt?: string;
 };
 
 function getPublicRoom(room: Room): Room {
@@ -396,9 +415,9 @@ const imposterCodePromptPacks: Record<string, PromptPack<{ question: string; imp
     name: "Casual",
     subcategories: {
       objects: { name: "Objects", items: [
-        { question: "What would you bring to a beach day?", imposterQuestion: "What would you bring to a snowstorm?" },
-        { question: "What object would survive a power cut?", imposterQuestion: "What object would make a power cut worse?" },
-        { question: "What item belongs in every backpack?", imposterQuestion: "What item should never be in a backpack?" }
+        { question: "What would you bring to a beach day?", imposterQuestion: "What would you bring to a pool day?" },
+        { question: "What object helps during a power cut?", imposterQuestion: "What object helps during a camping trip?" },
+        { question: "What item belongs in every backpack?", imposterQuestion: "What item belongs in every travel bag?" }
       ] },
       internet: { name: "Internet", items: [
         { question: "What app do you open when you are bored?", imposterQuestion: "What app do you open when you are lost?" },
@@ -406,9 +425,9 @@ const imposterCodePromptPacks: Record<string, PromptPack<{ question: string; imp
         { question: "What online habit is harmless?", imposterQuestion: "What online habit is suspicious?" }
       ] },
       funny: { name: "Funny", items: [
-        { question: "What animal would be a chaotic roommate?", imposterQuestion: "What animal would be a calm roommate?" },
-        { question: "What object would be funniest if it talked?", imposterQuestion: "What object would be terrifying if it talked?" },
-        { question: "What job would be hardest to fake?", imposterQuestion: "What job sounds easiest to fake?" }
+        { question: "What animal would be a chaotic roommate?", imposterQuestion: "What animal would be a messy roommate?" },
+        { question: "What object would be funniest if it talked?", imposterQuestion: "What object would be strangest if it talked?" },
+        { question: "What job would be hardest to fake?", imposterQuestion: "What job would be hardest without training?" }
       ] }
     }
   },
@@ -417,8 +436,8 @@ const imposterCodePromptPacks: Record<string, PromptPack<{ question: string; imp
     subcategories: {
       food: { name: "Food", items: [
         { question: "What food belongs at a birthday party?", imposterQuestion: "What food belongs in a lunchbox?" },
-        { question: "What snack disappears first at a hangout?", imposterQuestion: "What snack survives until the end?" },
-        { question: "What drink feels refreshing in summer?", imposterQuestion: "What drink feels cozy in winter?" }
+        { question: "What snack disappears first at a hangout?", imposterQuestion: "What snack disappears first at a movie night?" },
+        { question: "What drink feels refreshing in summer?", imposterQuestion: "What drink feels refreshing after exercise?" }
       ] },
       school: { name: "School", items: [
         { question: "What subject creates the most homework?", imposterQuestion: "What subject creates the least homework?" },
@@ -497,7 +516,11 @@ function pickRandomItem<T>(items: readonly T[]) {
 }
 
 function pickRandomItems<T>(items: T[], count: number) {
-  const shuffledItems = [...items].sort(() => Math.random() - 0.5);
+  const shuffledItems = [...items];
+  for (let index = shuffledItems.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [shuffledItems[index], shuffledItems[swapIndex]] = [shuffledItems[swapIndex], shuffledItems[index]];
+  }
   return shuffledItems.slice(0, count);
 }
 
@@ -671,7 +694,36 @@ function getTeamNames(players: GameParticipant[], teams: Record<"team-1" | "team
 }
 
 function getActivePlayers<T extends { players: GameParticipant[]; eliminatedPlayerIds: string[] }>(state: T) {
-  return state.players.filter((player) => !state.eliminatedPlayerIds.includes(player.id) && player.status !== "disconnected" && player.status !== "spectating");
+  return state.players.filter((player) => !state.eliminatedPlayerIds.includes(player.id) && !["disconnected", "spectating", "left", "kicked"].includes(player.status ?? "active"));
+}
+
+function getEligiblePlayers(state: GameState) {
+  return state.players.filter((player) => !["disconnected", "spectating", "left", "kicked"].includes(player.status ?? "active") && !("eliminatedPlayerIds" in state && state.eliminatedPlayerIds.includes(player.id)));
+}
+
+/** Re-evaluate completion after any departure. Historical submissions remain untouched. */
+function reconcileGameProgress(state: GameState) {
+  if (state.phase === "rules" || state.phase === "results") return;
+  const eligibleIds = getEligiblePlayers(state).map((player) => player.id);
+  if (state.type === "imposter") {
+    state.readyPlayerIds = state.readyPlayerIds.filter((id) => state.players.some((player) => player.id === id));
+    if (state.phase === "role_reveal" && eligibleIds.length > 0 && eligibleIds.every((id) => state.readyPlayerIds.includes(id))) state.phase = "discussion";
+    if (state.phase === "voting" && eligibleIds.length > 0 && eligibleIds.every((id) => state.votes[id] !== undefined)) resolveDeductionVote(state);
+    return;
+  }
+  if (state.type === "imposter-code") {
+    if (state.phase === "answering" && eligibleIds.length > 0 && eligibleIds.every((id) => state.answers[id] !== undefined)) state.phase = "answers";
+    if (state.phase === "voting" && eligibleIds.length > 0 && eligibleIds.every((id) => state.votes[id] !== undefined)) resolveDeductionVote(state);
+    return;
+  }
+  replaceDisconnectedClueGiver(state);
+  if (state.phase === "guess") {
+    const guessers = getWavelengthEligibleGuesserIds(state);
+    if (guessers.length === 0 || (state.mode === "single" && guessers.every((id) => state.guesses[id] !== undefined))) {
+      applyWavelengthScores(state);
+      state.phase = "results";
+    }
+  }
 }
 
 function getEliminationOutcome(
@@ -680,7 +732,7 @@ function getEliminationOutcome(
   imposterIds: string[],
   eliminatedPlayerIds: string[]
 ) {
-  const activeIds = new Set(players.filter((player) => !eliminatedPlayerIds.includes(player.id)).map((player) => player.id));
+  const activeIds = new Set(players.filter((player) => !eliminatedPlayerIds.includes(player.id) && !["disconnected", "spectating", "left", "kicked"].includes(player.status ?? "active")).map((player) => player.id));
   const totals: Record<string, number> = {};
   Object.entries(votes).forEach(([voterId, targetId]) => {
     if (!activeIds.has(voterId) || !activeIds.has(targetId)) return;
@@ -699,7 +751,7 @@ function getEliminationOutcome(
 }
 
 function getImposterWinState(players: GameParticipant[], imposterIds: string[], eliminatedIds: string[]) {
-  const activeIds = new Set(players.filter((player) => !eliminatedIds.includes(player.id)).map((player) => player.id));
+  const activeIds = new Set(players.filter((player) => !eliminatedIds.includes(player.id) && !["disconnected", "spectating", "left", "kicked"].includes(player.status ?? "active")).map((player) => player.id));
   const activeImposters = imposterIds.filter((id) => activeIds.has(id)).length;
   const activeNonImposters = activeIds.size - activeImposters;
   if (activeImposters === 0) return { gameOver: true, winner: "players" as const };
@@ -762,7 +814,7 @@ function getPlayerTeamId(state: WavelengthGameState, playerId: string) {
 }
 
 function getWavelengthEligibleGuesserIds(state: WavelengthGameState) {
-  const connectedIds = new Set(state.players.filter((player) => player.status !== "disconnected" && player.status !== "spectating").map((player) => player.id));
+  const connectedIds = new Set(state.players.filter((player) => !["disconnected", "spectating", "left", "kicked"].includes(player.status ?? "active")).map((player) => player.id));
   if (state.mode === "teams") {
     const activeTeamIds = state.activeTeamId ? state.teams[state.activeTeamId] : [];
     return activeTeamIds.filter((playerId) => playerId !== state.clueGiverId && connectedIds.has(playerId));
@@ -774,11 +826,11 @@ function getWavelengthEligibleGuesserIds(state: WavelengthGameState) {
 
 function replaceDisconnectedClueGiver(state: WavelengthGameState) {
   const current = state.players.find((player) => player.id === state.clueGiverId);
-  if (current?.status !== "disconnected" || state.clue) return;
+  if (!current || !["disconnected", "left", "kicked"].includes(current.status ?? "active") || state.clue) return;
   const pool = state.mode === "teams" && state.activeTeamId
     ? state.players.filter((player) => state.teams[state.activeTeamId!].includes(player.id))
     : state.players;
-  const replacement = pool.find((player) => player.status !== "disconnected" && player.id !== state.clueGiverId);
+  const replacement = pool.find((player) => !["disconnected", "left", "kicked"].includes(player.status ?? "active") && player.id !== state.clueGiverId);
   if (replacement) {
     state.clueGiverId = replacement.id;
     state.clueGiverName = replacement.name;
@@ -792,6 +844,32 @@ function getWavelengthGuessSummary(state: WavelengthGameState) {
     distance: Math.abs(state.secretNumber - guess),
     points: getWavelengthRoundScore(state.secretNumber, guess)
   }));
+}
+
+function getWavelengthResultSummary(state: WavelengthGameState): WavelengthGuessResult[] {
+  const guesses = getWavelengthGuessSummary(state).sort((a, b) => a.distance - b.distance || a.guess - b.guess || a.playerId.localeCompare(b.playerId));
+  const closestDistance = guesses[0]?.distance ?? null;
+  const closestCount = closestDistance === null ? 0 : guesses.filter((guess) => guess.distance === closestDistance).length;
+  const distinctDistances = [...new Set(guesses.map((guess) => guess.distance))];
+  return guesses.map((guess) => {
+    const player = state.players.find((item) => item.id === guess.playerId);
+    const teamId = state.mode === "teams" ? getPlayerTeamId(state, guess.playerId) : null;
+    return {
+      playerId: guess.playerId,
+      playerName: player?.name ?? "Player",
+      avatarId: player?.avatarId,
+      teamId,
+      teamName: teamId ? state.teamNames[teamId] : null,
+      guess: guess.guess,
+      target: state.secretNumber,
+      distance: guess.distance,
+      roundPoints: guess.points,
+      totalPoints: teamId ? state.teamScores[teamId] : state.playerScores[guess.playerId] ?? 0,
+      rank: distinctDistances.indexOf(guess.distance) + 1,
+      isClosest: closestDistance !== null && guess.distance === closestDistance,
+      isTied: closestCount > 1 && guess.distance === closestDistance
+    };
+  });
 }
 
 function applyWavelengthScores(state: WavelengthGameState) {
@@ -856,7 +934,7 @@ function getVoteOutcome(state: ImposterGameState) {
 function startNewImposterRound(state: ImposterGameState) {
   const startedAt = new Date();
   const { entries } = getImposterWordList(state.wordCategory);
-  const promptChoice = pickUnusedPrompt(entries, state.usedPromptIds, false);
+  const promptChoice = pickUnusedPrompt(entries, state.usedPromptIds, true);
   state.players = resetParticipantEliminations(state.players);
   const eligiblePlayers = state.players.filter((player) => player.status !== "disconnected");
   const imposters = pickRandomItems(
@@ -895,7 +973,7 @@ function createImposterCodeState(
   history?: Pick<ImposterCodeGameState, "usedPromptIds">
 ): ImposterCodeGameState {
   const { pack, entries } = getImposterCodePromptList(questionPack);
-  const promptChoice = pickUnusedPrompt(entries, history?.usedPromptIds ?? [], false);
+  const promptChoice = pickUnusedPrompt(entries, history?.usedPromptIds ?? [], true);
   const prompt = promptChoice.selected.item;
   const resetPlayers = resetParticipantEliminations(gameParticipants);
   const eligiblePlayers = resetPlayers.filter((player) => player.status !== "disconnected");
@@ -905,7 +983,7 @@ function createImposterCodeState(
   return {
     type: "imposter-code",
     playMode,
-    phase: "answering",
+    phase: round === 1 ? "rules" : "answering",
     players: resetPlayers,
     question: prompt.question,
     imposterQuestion: prompt.imposterQuestion,
@@ -961,7 +1039,7 @@ function createWavelengthState(
   return {
     type: "wavelength",
     playMode,
-    phase: mode === "teams" ? "announcement" : "clue",
+    phase: round === 1 ? "rules" : mode === "teams" ? "announcement" : "clue",
     players: gameParticipants,
     mode,
     clueGiverId: clueGiver.id,
@@ -1154,6 +1232,8 @@ app.post("/rooms/:code/leave", (req, res) => {
     return res.status(404).json({ message: "Player not found in this room." });
   }
 
+  const participant = room.gameState?.players.find((player) => player.id === playerId);
+  if (participant) participant.status = "left";
   room.players = room.players.filter((player) => player.id !== playerId);
 
   if (room.players.length === 0) {
@@ -1174,6 +1254,8 @@ app.post("/rooms/:code/leave", (req, res) => {
       isHost: index === 0
     }));
   }
+
+  if (room.gameState) reconcileGameProgress(room.gameState);
 
   rooms.set(code, room);
   saveRooms();
@@ -1205,6 +1287,12 @@ app.delete("/rooms/:code/players/:targetPlayerId", (req, res) => {
   }
 
   room.players = room.players.filter((player) => player.id !== targetPlayerId);
+  const participant = room.gameState?.players.find((player) => player.id === targetPlayerId);
+  if (participant) {
+    participant.status = "kicked";
+    participant.removedByHost = true;
+  }
+  if (room.gameState) reconcileGameProgress(room.gameState);
   rooms.set(code, room);
   saveRooms();
   io.to(code).emit("room:removed", {
@@ -1212,6 +1300,33 @@ app.delete("/rooms/:code/players/:targetPlayerId", (req, res) => {
     message: "The room owner removed you."
   });
   emitRoomState(code, room);
+  return res.json({ room });
+});
+
+app.post("/rooms/:code/games/leave", (req, res) => {
+  const code = req.params.code.toUpperCase();
+  const { playerId } = req.body as { playerId?: string };
+  const room = rooms.get(code);
+  if (!room) return res.status(404).json({ message: "Room not found." });
+  const participant = room.gameState?.players.find((player) => player.id === playerId);
+  if (!participant) return res.status(404).json({ message: "Player not found in the active game." });
+  participant.status = "left";
+  if (room.gameState) reconcileGameProgress(room.gameState);
+  saveRooms();
+  emitRoomState(code, room);
+  return res.json({ room, message: "You left the game and remain in the room." });
+});
+
+app.post("/rooms/:code/end", (req, res) => {
+  const code = req.params.code.toUpperCase();
+  const { playerId } = req.body as { playerId?: string };
+  const room = rooms.get(code);
+  if (!room) return res.status(404).json({ message: "Room not found." });
+  if (!room.players.find((player) => player.id === playerId)?.isHost) return res.status(403).json({ message: "Only the host can end the room." });
+  room.status = "ended";
+  saveRooms();
+  emitRoomState(code, room);
+  io.to(code).emit("room:ended", { message: "The host ended the room." });
   return res.json({ room });
 });
 
@@ -1362,7 +1477,7 @@ app.post("/rooms/:code/games/start", (req, res) => {
       settings?.wordCategory
     );
     const imposters = pickRandomItems(gameParticipants, numberOfImposters);
-    const promptChoice = pickUnusedPrompt(entries, [], false);
+    const promptChoice = pickUnusedPrompt(entries, [], true);
     const word = promptChoice.selected.item;
     const startedAt = new Date();
     const endsAt = new Date(startedAt.getTime() + roundTimerSeconds * 1000);
@@ -1370,7 +1485,7 @@ app.post("/rooms/:code/games/start", (req, res) => {
     room.gameState = {
       type: "imposter",
       playMode,
-      phase: "role_reveal",
+      phase: "rules",
       players: gameParticipants,
       word,
       wordCategory,
@@ -1492,7 +1607,8 @@ app.post("/rooms/:code/games/end", (req, res) => {
   const endedGame = room.selectedGame;
 
   room.status = "waiting";
-  room.gameState = undefined;
+  room.lastGameEndedByHost = true;
+  room.lastGameEndedAt = new Date().toISOString();
 
   rooms.set(code, room);
   saveRooms();
@@ -1504,10 +1620,50 @@ app.post("/rooms/:code/games/end", (req, res) => {
   });
 
   return res.json({
-    message: "Game ended.",
+    message: "The host ended the game.",
     room,
     game: endedGame
   });
+});
+
+app.post("/rooms/:code/games/continue", (req, res) => {
+  const code = req.params.code.toUpperCase();
+  const { playerId } = req.body as { playerId?: string };
+  const room = rooms.get(code);
+  if (!room) return res.status(404).json({ message: "Room not found." });
+  if (!room.players.find((player) => player.id === playerId)?.isHost) return res.status(403).json({ message: "Only the host can start the game." });
+  const state = room.gameState;
+  if (!state || state.phase !== "rules") return res.status(409).json({ message: "The rules screen is not active." });
+  state.phase = state.type === "imposter" ? "role_reveal" : state.type === "imposter-code" ? "answering" : state.mode === "teams" ? "announcement" : "clue";
+  const startedAt = new Date();
+  state.startedAt = startedAt.toISOString();
+  state.endsAt = state.roundTimerSeconds > 0 ? new Date(startedAt.getTime() + state.roundTimerSeconds * 1000).toISOString() : startedAt.toISOString();
+  saveRooms();
+  emitRoomState(code, room);
+  io.to(code).emit("game:continued", { phase: state.phase });
+  return res.json({ room });
+});
+
+app.post("/rooms/:code/games/advance", (req, res) => {
+  const code = req.params.code.toUpperCase();
+  const { playerId } = req.body as { playerId?: string };
+  const room = rooms.get(code);
+  if (!room) return res.status(404).json({ message: "Room not found." });
+  if (!room.players.find((player) => player.id === playerId)?.isHost) return res.status(403).json({ message: "Only the host can move the game forward." });
+  const state = room.gameState;
+  if (!state) return res.status(409).json({ message: "No active game state." });
+  if (state.type === "imposter" && state.phase === "role_reveal") state.phase = "discussion";
+  else if (state.type === "imposter" && state.phase === "discussion") state.phase = "voting";
+  else if (state.type === "imposter" && state.phase === "voting") resolveDeductionVote(state);
+  else if (state.type === "imposter-code" && state.phase === "answering") state.phase = "answers";
+  else if (state.type === "imposter-code" && state.phase === "answers") state.phase = "voting";
+  else if (state.type === "imposter-code" && state.phase === "voting") resolveDeductionVote(state);
+  else if (state.type === "wavelength" && state.phase === "announcement") state.phase = "clue";
+  else if (state.type === "wavelength" && state.phase === "guess") { applyWavelengthScores(state); state.phase = "results"; }
+  else return res.status(409).json({ message: "This stage cannot be skipped safely." });
+  saveRooms();
+  emitRoomState(code, room);
+  return res.json({ room });
 });
 
 app.post("/rooms/:code/games/imposter/ready", (req, res) => {
@@ -2184,6 +2340,7 @@ app.get("/rooms/:code/game-state/:playerId", (req, res) => {
     const eligibleGuesserIds = getWavelengthEligibleGuesserIds(room.gameState);
     const playerTeamId = getPlayerTeamId(room.gameState, player.id);
     const guessSummary = getWavelengthGuessSummary(room.gameState);
+    const resultSummary = getWavelengthResultSummary(room.gameState);
     return res.json({
       gameSlug: room.selectedGame.slug,
       playMode: room.gameState.playMode,
@@ -2208,6 +2365,7 @@ app.get("/rooms/:code/game-state/:playerId", (req, res) => {
       guess: room.gameState.guess,
       guesses: room.gameState.phase === "results" ? room.gameState.guesses : {},
       guessSummary: room.gameState.phase === "results" ? guessSummary : [],
+      resultSummary: room.gameState.phase === "results" ? resultSummary : [],
       acceptedGuessPlayerId: room.gameState.acceptedGuessPlayerId,
       eligibleGuesserIds,
       roundTimerSeconds: room.gameState.roundTimerSeconds,
@@ -2304,7 +2462,7 @@ io.on("connection", socket => {
     const isEliminated = state && "eliminatedPlayerIds" in state && state.eliminatedPlayerIds.includes(playerId);
     if (room && state && participant && !isEliminated) {
       participant.status = "disconnected";
-      if (state.type === "wavelength") replaceDisconnectedClueGiver(state);
+      reconcileGameProgress(state);
       saveRooms();
       emitRoomState(code, room);
     }

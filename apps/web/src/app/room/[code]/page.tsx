@@ -68,7 +68,8 @@ export default function RoomPage({
     nextSocket.on("room:state", (roomState: Room) => {
       setRoom(roomState);
       setError("");
-      if (roomState.status === "in_game" && roomState.selectedGame?.slug) {
+      const gameParticipant = roomState.gameState?.players.find((player) => player.id === currentPlayerId);
+      if (roomState.status === "in_game" && roomState.selectedGame?.slug && !["left", "kicked", "spectating"].includes(gameParticipant?.status ?? "active")) {
         router.push(`/room/${roomCode}/play/${roomState.selectedGame.slug}`);
       }
     });

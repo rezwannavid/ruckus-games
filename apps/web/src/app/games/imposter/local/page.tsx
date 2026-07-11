@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MapPin, Minus, Play, Plus, RotateCcw, Shuffle, Skull, Vote } from "lucide-react";
+import { Flag, MapPin, Minus, Play, Plus, RotateCcw, Shuffle, Skull, Vote } from "lucide-react";
 import { Avatar } from "@/components/ui/AvatarPicker";
 import { Button } from "@/components/ui/Button";
 import { AppScreen } from "@/components/ui/GameUI";
@@ -49,6 +49,8 @@ export default function LocalImposterPage() {
   const [timeLeft, setTimeLeft] = useState(90);
   const [roundTimer, setRoundTimer] = useState(90);
   const [usedWords, setUsedWords] = useState<string[]>([]);
+  const [confirmEnd, setConfirmEnd] = useState(false);
+  const [endedByHost, setEndedByHost] = useState(false);
   const activePlayers = players.filter((player) => !player.eliminated);
   const current = activePlayers[index];
 
@@ -66,13 +68,20 @@ export default function LocalImposterPage() {
   }
 
   function startGame() {
-    const shuffled = [...players].sort(() => Math.random() - 0.5);
+    const shuffled = [...players];
+    for (let position = shuffled.length - 1; position > 0; position -= 1) {
+      const swap = Math.floor(Math.random() * (position + 1));
+      [shuffled[position], shuffled[swap]] = [shuffled[swap], shuffled[position]];
+    }
     const imposters = new Set(shuffled.slice(0, imposterCount).map((player) => player.id));
     const words = wordsForSelection(category);
     const available = words.filter((item) => !usedWords.includes(`${category}:${item}`));
-    const nextWord = (available.length > 0 ? available : words)[Math.floor(Math.random() * (available.length > 0 ? available.length : words.length))];
+    const previousWord = usedWords.at(-1)?.slice(category.length + 1);
+    const resetPool = words.filter((item) => item !== previousWord);
+    const pool = available.length > 0 ? available : resetPool.length > 0 ? resetPool : words;
+    const nextWord = pool[Math.floor(Math.random() * pool.length)];
     setWord(nextWord);
-    setUsedWords((history) => [...history, `${category}:${nextWord}`]);
+    setUsedWords((history) => available.length > 0 ? [...history, `${category}:${nextWord}`] : [`${category}:${nextWord}`]);
     setPlayers((list) => list.map((player) => ({ ...player, isImposter: imposters.has(player.id), eliminated: false })));
     setIndex(0);
     setSelectedVote("");
@@ -105,6 +114,12 @@ export default function LocalImposterPage() {
     setPlayers((list) => list.map((player) => player.id === selectedVote ? { ...player, eliminated: true } : player));
     setPhase("result");
   }
+
+  const endControl = phase !== "setup" && <button type="button" onClick={() => setConfirmEnd(true)} className="fixed right-3 top-3 z-50 grid size-12 place-items-center rounded-full bg-[#ff5a45] text-white shadow-xl transition active:scale-90" aria-label="End game"><Flag size={20} /></button>;
+
+  if (confirmEnd) return <AppScreen tone="accent" className="grid place-items-center"><section role="alertdialog" aria-modal="true" className="w-full max-w-sm animate-spring-in rounded-[32px] bg-[var(--surface-inverted-light)] p-6 text-center text-[var(--text-inverted)]"><Flag className="mx-auto" size={42} /><h1 className="mt-4 text-title-sm-bold">End this game?</h1><p className="mt-2 text-body-semibold opacity-65">Completed roles and round progress stay visible until you start again.</p><div className="mt-6 grid grid-cols-2 gap-2"><Button onClick={() => setConfirmEnd(false)} variant="inverted" size="md" showLeftIcon={false}>Keep Playing</Button><Button onClick={() => { setConfirmEnd(false); setAnswerRevealed(true); setEndedByHost(true); }} variant="primary" size="md" showLeftIcon={false}>End Game</Button></div></section></AppScreen>;
+
+  if (endedByHost) return <AppScreen tone="accent" className="grid place-items-center"><section className="w-full max-w-sm text-center"><Flag className="mx-auto animate-celebrate" size={52} /><h1 className="mt-5 text-title-lg-bold">Game ended</h1><p className="mt-3 text-body-semibold opacity-70">The host ended this single-phone game.</p><Button onClick={() => { setEndedByHost(false); setPhase("setup"); }} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<RotateCcw />} className="mt-7 w-full">Play Another Game</Button><Button onClick={() => router.push("/games")} variant="inverted" size="lg" showLeftIcon={false} className="mt-2 w-full">Back to Games</Button></section></AppScreen>;
 
   if (phase === "setup") {
     return (
@@ -184,11 +199,12 @@ export default function LocalImposterPage() {
   if (phase === "pass") {
     return (
       <AppScreen tone="dark">
+        {endControl}
         <section className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-[25rem] flex-col text-center">
           <p className="my-auto text-title-lg-bold text-[var(--text-highlight)]">Pass the phone to {current?.name}</p>
           <div className="mt-auto">
             <Button onClick={() => setPhase("role")} variant="tertiary" size="lg" showLeftIcon={false} className="w-full">I&apos;m {current?.name}</Button>
-            <Button onClick={() => router.push("/")} variant="inverted" size="md" showLeftIcon={false} rightIcon={<Skull />} className="mt-3">End Game</Button>
+            <Button onClick={() => setConfirmEnd(true)} variant="inverted" size="md" showLeftIcon={false} rightIcon={<Skull />} className="mt-3">End Game</Button>
           </div>
         </section>
       </AppScreen>
@@ -199,6 +215,7 @@ export default function LocalImposterPage() {
     const roleText = current?.isImposter ? "IMPOSTER" : word;
     return (
       <AppScreen tone="dark" className="overflow-hidden !p-0">
+        {endControl}
         <div className="relative flex min-h-screen w-full flex-col bg-[var(--surface-primary)] pb-6">
           <div className="absolute inset-x-0 top-0 flex h-[72%] items-center justify-center px-6 text-center">
             <div><p className="text-headline-md-bold">Your {current?.isImposter ? "role" : "word"} is</p><p className="mt-2 break-words text-display-md-semibold">{roleText}</p></div>
@@ -216,7 +233,7 @@ export default function LocalImposterPage() {
           >
             {!hasSeenRole && <p className="text-title-md-extrabold">Swipe up or hold to<br />reveal answer</p>}
             {hasSeenRole && !holdingReveal && <p className="text-title-md-extrabold">Press ready when<br />you are</p>}
-            <Button onClick={() => router.push("/")} variant="inverted" size="md" showLeftIcon={false} rightIcon={<Skull />} className="absolute top-20">End Game</Button>
+            <Button onClick={() => setConfirmEnd(true)} variant="inverted" size="md" showLeftIcon={false} rightIcon={<Skull />} className="absolute top-20">End Game</Button>
           </div>
           <div className="relative z-20 mt-auto px-4">
             <Button onClick={nextRole} disabled={!hasSeenRole || holdingReveal} variant="primary" size="lg" showLeftIcon={false} className="w-full">I&apos;m Ready</Button>
@@ -229,6 +246,7 @@ export default function LocalImposterPage() {
   if (phase === "ready") {
     return (
       <AppScreen tone="accent" className="grid place-items-center">
+        {endControl}
         <section className="w-full max-w-[25rem] text-center">
           <h1 className="text-title-lg-bold">All Players Done</h1>
           <p className="mt-3 text-body-medium opacity-65">Put the phone down and start the discussion.</p>
@@ -241,6 +259,7 @@ export default function LocalImposterPage() {
   if (phase === "discussion") {
     return (
       <AppScreen tone="accent" className="grid place-items-center">
+        {endControl}
         <section className="w-full max-w-[25rem] text-center">
           <p className="text-footnote-semibold">Go clockwise</p>
           <h1 className="mt-2 text-display-md-semibold">Start from<br />{players[0]?.name}</h1>
@@ -253,6 +272,7 @@ export default function LocalImposterPage() {
   if (phase === "voting") {
     return (
       <AppScreen tone="light">
+        {endControl}
         <div className="mx-auto max-w-[25rem]">
           <BrandNav title="Cast your Vote" tone="light" />
           <p className="mt-5 text-center text-title-sm-bold tabular-nums">{Math.floor(timeLeft / 60)}m {String(timeLeft % 60).padStart(2, "0")}s</p>
@@ -274,6 +294,7 @@ export default function LocalImposterPage() {
 
   return (
     <AppScreen tone={showAnswer ? "accent" : "light"} className="!p-0">
+      {endControl}
       <div className={`mx-auto flex min-h-screen max-w-[25rem] flex-col rounded-[48px] px-5 pb-7 pt-16 text-center ${showAnswer ? "" : "bg-[var(--surface-inverted)]"}`}>
         <BrandNav title="Results" tone="light" />
         <div className="flex flex-1 flex-col items-center justify-center">
@@ -293,7 +314,7 @@ export default function LocalImposterPage() {
           <Button onClick={startGame} variant="primary" size="lg" showLeftIcon={false} rightIcon={<RotateCcw />} className="w-full">Another Round</Button>
         ) : null}
         {showAnswer ? (
-          <Button onClick={() => router.push("/")} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Skull />} className="mt-2 w-full">End Game</Button>
+          <Button onClick={() => setConfirmEnd(true)} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Skull />} className="mt-2 w-full">End Game</Button>
         ) : (
           <Button onClick={() => setAnswerRevealed(true)} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Skull />} className="mt-2 w-full">Reveal Result</Button>
         )}

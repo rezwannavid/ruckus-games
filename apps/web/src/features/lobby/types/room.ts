@@ -22,4 +22,8 @@ export type Room = {
   players: Player[];
   status: "waiting" | "in_game" | "ended";
   selectedGame?: Game;
+  gameState?: {
+    players: Array<{ id: string; status?: "active" | "eliminated" | "disconnected" | "spectating" | "left" | "kicked" }>;
+  };
+  lastGameEndedByHost?: boolean;
 };

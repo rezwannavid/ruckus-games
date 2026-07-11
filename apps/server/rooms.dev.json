@@ -2114,6 +2114,165 @@
           "isComplete": false
         }
       }
+    ],
+    [
+      "3927",
+      {
+        "code": "3927",
+        "name": "Navid's Room",
+        "players": [
+          {
+            "id": "ee0ef1de-02dd-4a76-ae74-0c0522fc4b31",
+            "name": "Navid",
+            "avatarId": 5,
+            "isHost": true
+          },
+          {
+            "id": "4df43841-cc58-4c79-aed9-9ea7b5a3f655",
+            "name": "Ludmila",
+            "avatarId": 1,
+            "isHost": false
+          },
+          {
+            "id": "b3889efd-217e-457f-8ccb-c02fe203448e",
+            "name": "Soha",
+            "avatarId": 3,
+            "isHost": false
+          },
+          {
+            "id": "1ddb70d8-18df-45c0-a33d-6491aed8e0f2",
+            "name": "Player 4",
+            "avatarId": 2,
+            "isHost": false
+          }
+        ],
+        "status": "in_game",
+        "selectedGame": {
+          "slug": "wavelength",
+          "name": "Wavelength",
+          "description": "Give a clue and land closest to the secret number.",
+          "minPlayers": 2,
+          "maxPlayers": 12
+        },
+        "gameState": {
+          "type": "wavelength",
+          "playMode": "multiplayer",
+          "phase": "results",
+          "players": [
+            {
+              "id": "ee0ef1de-02dd-4a76-ae74-0c0522fc4b31",
+              "name": "Navid",
+              "avatarId": 5,
+              "status": "disconnected"
+            },
+            {
+              "id": "4df43841-cc58-4c79-aed9-9ea7b5a3f655",
+              "name": "Ludmila",
+              "avatarId": 1,
+              "status": "disconnected"
+            },
+            {
+              "id": "b3889efd-217e-457f-8ccb-c02fe203448e",
+              "name": "Soha",
+              "avatarId": 3,
+              "status": "disconnected"
+            },
+            {
+              "id": "1ddb70d8-18df-45c0-a33d-6491aed8e0f2",
+              "name": "Player 4",
+              "avatarId": 2,
+              "status": "disconnected"
+            }
+          ],
+          "mode": "single",
+          "clueGiverId": "ee0ef1de-02dd-4a76-ae74-0c0522fc4b31",
+          "clueGiverName": "Navid",
+          "activeTeamId": null,
+          "teams": {
+            "team-1": [
+              "ee0ef1de-02dd-4a76-ae74-0c0522fc4b31",
+              "b3889efd-217e-457f-8ccb-c02fe203448e"
+            ],
+            "team-2": [
+              "4df43841-cc58-4c79-aed9-9ea7b5a3f655",
+              "1ddb70d8-18df-45c0-a33d-6491aed8e0f2"
+            ]
+          },
+          "teamNames": {
+            "team-1": "Navid’s Team",
+            "team-2": "Player 4’s Team"
+          },
+          "scaleLeft": "Quiet",
+          "scaleRight": "Loud",
+          "scalePack": "casual",
+          "secretNumber": 96,
+          "clue": "qweeqw",
+          "guess": 79,
+          "guesses": {
+            "b3889efd-217e-457f-8ccb-c02fe203448e": 96,
+            "4df43841-cc58-4c79-aed9-9ea7b5a3f655": 77,
+            "1ddb70d8-18df-45c0-a33d-6491aed8e0f2": 79
+          },
+          "acceptedGuessPlayerId": null,
+          "roundTimerSeconds": 90,
+          "startedAt": "2026-07-11T12:20:28.149Z",
+          "endsAt": "2026-07-11T12:21:58.149Z",
+          "score": 9,
+          "teamScores": {
+            "team-1": 0,
+            "team-2": 0
+          },
+          "playerScores": {
+            "ee0ef1de-02dd-4a76-ae74-0c0522fc4b31": 4,
+            "4df43841-cc58-4c79-aed9-9ea7b5a3f655": 0,
+            "b3889efd-217e-457f-8ccb-c02fe203448e": 5,
+            "1ddb70d8-18df-45c0-a33d-6491aed8e0f2": 0
+          },
+          "maxRounds": 4,
+          "round": 1,
+          "usedPromptIds": [
+            "casual:simple:3"
+          ],
+          "currentPromptId": "casual:simple:3",
+          "roundHistory": [
+            {
+              "round": 1,
+              "target": 96,
+              "guess": 96,
+              "guesserId": "b3889efd-217e-457f-8ccb-c02fe203448e",
+              "distance": 0,
+              "roundScore": 5,
+              "clueGiverPoints": 4,
+              "activeTeamId": null,
+              "guesses": [
+                {
+                  "playerId": "b3889efd-217e-457f-8ccb-c02fe203448e",
+                  "guess": 96,
+                  "distance": 0,
+                  "points": 5
+                },
+                {
+                  "playerId": "1ddb70d8-18df-45c0-a33d-6491aed8e0f2",
+                  "guess": 79,
+                  "distance": 17,
+                  "points": 0
+                },
+                {
+                  "playerId": "4df43841-cc58-4c79-aed9-9ea7b5a3f655",
+                  "guess": 77,
+                  "distance": 19,
+                  "points": 0
+                }
+              ]
+            }
+          ],
+          "lastRoundScore": 5,
+          "lastClueGiverPoints": 4,
+          "isComplete": false
+        },
+        "lastGameEndedByHost": true,
+        "lastGameEndedAt": "2026-07-11T12:20:16.246Z"
+      }
     ]
   ]
 }

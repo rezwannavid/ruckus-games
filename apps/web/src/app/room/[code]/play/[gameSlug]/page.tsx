@@ -3,7 +3,7 @@
 import { use, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { io } from "socket.io-client";
-import { ArrowLeft, Eye, EyeOff, Flag, Play, Send, Skull, Vote } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, FastForward, Flag, LogOut, Play, Send, Skull, UserMinus, Users, Vote, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/AvatarPicker";
 import { AppScreen, ErrorState, LoadingState, PlayerStatusPill, WaitingOrbit } from "@/components/ui/GameUI";
@@ -12,7 +12,8 @@ import { GameArtwork } from "@/features/lobby/components/GameArtwork";
 import { serverUrl } from "@/lib/config";
 import { clearRoomSession, getStoredSession } from "@/lib/session";
 
-type Player = { id: string; name: string; avatarId?: number; isHost?: boolean; status?: "active" | "eliminated" | "disconnected" | "spectating" };
+type Player = { id: string; name: string; avatarId?: number; isHost?: boolean; status?: "active" | "eliminated" | "disconnected" | "spectating" | "left" | "kicked"; removedByHost?: boolean };
+type WavelengthResult = { playerId: string; playerName: string; avatarId?: number; teamId: "team-1" | "team-2" | null; teamName: string | null; guess: number; target: number; distance: number; roundPoints: number; totalPoints: number; rank: number; isClosest: boolean; isTied: boolean };
 type GameState = {
   type: "imposter" | "imposter-code" | "wavelength";
   playMode: "multiplayer" | "single_device";
@@ -45,6 +46,7 @@ type GameState = {
   guess?: number | null;
   guesses?: Record<string, number>;
   guessSummary?: Array<{ playerId: string; guess: number; distance: number; points: number }>;
+  resultSummary?: WavelengthResult[];
   eligibleGuesserIds?: string[];
   score?: number;
   teamScores?: Record<"team-1" | "team-2", number>;
@@ -68,6 +70,7 @@ type Room = {
   status: "waiting" | "in_game" | "ended";
   selectedGame?: { slug: string; name: string };
   gameState?: GameState;
+  lastGameEndedByHost?: boolean;
 };
 type PersonalState = GameState & {
   role?: "player" | "imposter";
@@ -87,6 +90,26 @@ type PersonalState = GameState & {
   playerTeamId?: "team-1" | "team-2" | null;
 };
 
+function AnimatedScore({ value, prefix = "" }: { value: number; prefix?: string }) {
+  const [display, setDisplay] = useState(0);
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      const reducedFrame = requestAnimationFrame(() => setDisplay(value));
+      return () => cancelAnimationFrame(reducedFrame);
+    }
+    const started = performance.now();
+    let frame = 0;
+    const tick = (now: number) => {
+      const progress = Math.min(1, (now - started) / 550);
+      setDisplay(Math.round(value * (1 - Math.pow(1 - progress, 3))));
+      if (progress < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [value]);
+  return <>{prefix}{display}</>;
+}
+
 function WavelengthScale({
   left,
   right,
@@ -94,7 +117,7 @@ function WavelengthScale({
   answer,
   onChange,
   disabled,
-  summaries = []
+  results = []
 }: {
   left?: string;
   right?: string;
@@ -102,45 +125,60 @@ function WavelengthScale({
   answer?: number | null;
   onChange?: (value: number) => void;
   disabled?: boolean;
-  summaries?: Array<{ playerId: string; guess: number; points: number }>;
+  results?: WavelengthResult[];
 }) {
   const showAnswer = answer !== null && answer !== undefined;
   const distance = showAnswer ? Math.abs(answer - value) : 0;
   const low = showAnswer ? Math.min(answer, value) : value;
   const high = showAnswer ? Math.max(answer, value) : value;
+  const orderedForLayout = [...results].sort((a, b) => a.guess - b.guess || a.playerId.localeCompare(b.playerId));
+  const markerLanes = new Map<string, number>();
+  let overlapGroup: WavelengthResult[] = [];
+  const commitGroup = () => overlapGroup.forEach((result, index) => markerLanes.set(result.playerId, index === 0 ? 0 : index % 2 ? -Math.ceil(index / 2) : Math.ceil(index / 2)));
+  orderedForLayout.forEach((result) => {
+    if (overlapGroup.length && result.guess - overlapGroup[overlapGroup.length - 1].guess > 5) {
+      commitGroup();
+      overlapGroup = [];
+    }
+    overlapGroup.push(result);
+  });
+  commitGroup();
 
   return (
     <div className="rounded-[32px] bg-[var(--surface-inverted-light)] p-5 text-[var(--text-inverted)]">
       <div className="flex justify-between gap-4 text-footnote-semibold"><span>{left}</span><span>{right}</span></div>
-      <div className="relative mt-10 h-16 rounded-full bg-[var(--surface-primary)]">
+      <div className="relative mt-8 h-28 rounded-[32px] bg-[var(--surface-primary)]">
         {showAnswer && (
           <div
             className="absolute top-1/2 h-3 -translate-y-1/2 rounded-full bg-[var(--surface-secondary)]/45 transition-all duration-500"
             style={{ left: `${low}%`, width: `${Math.max(2, high - low)}%` }}
           />
         )}
-        {summaries.map((summary, index) => (
+        {results.map((result, index) => {
+          const lane = markerLanes.get(result.playerId) ?? 0;
+          const identity = result.teamName ?? result.playerName;
+          return (
           <div
-            key={summary.playerId}
-            className="absolute top-1/2 grid size-8 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-[var(--surface-inverted)] text-caption-semibold text-[var(--text-inverted)] shadow-md transition-all duration-500"
-            style={{ left: `${summary.guess}%`, transform: `translate(-50%, calc(-50% + ${index * 4}px))` }}
-            title={`${summary.guess}`}
+            key={result.playerId}
+            className={`absolute grid -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-[3px] border-white text-caption-semibold shadow-xl ${result.isClosest ? "z-30 size-16 bg-[var(--surface-secondary)] animate-celebrate" : "z-20 size-9 bg-[var(--surface-inverted)] text-[var(--text-inverted)] animate-pop"}`}
+            style={{ left: `${result.guess}%`, top: `calc(50% + ${lane * 18}px)`, animationDelay: `${result.isClosest ? 520 : 170 + index * 80}ms`, animationFillMode: "both" }}
+            aria-label={`${identity} guessed ${result.guess}, ${result.distance} from target, earning ${result.roundPoints} points`}
           >
-            {summary.points}
+            {result.isClosest ? (result.teamId ? <span className="px-1 text-center text-[10px] font-extrabold leading-tight text-white">{result.teamId === "team-1" ? "T1" : "T2"}</span> : <Avatar avatarId={result.avatarId ?? 1} name={result.playerName} size="sm" tone="black" />) : <span>{result.teamId ? (result.teamId === "team-1" ? "1" : "2") : result.playerName.slice(0, 1).toUpperCase()}</span>}
           </div>
-        ))}
+        );})}
         {showAnswer && (
           <div
-            className="absolute top-1/2 h-14 w-2 -translate-y-1/2 rounded-full bg-[var(--surface-secondary)] shadow-xl transition-all duration-500"
+            className="absolute top-1/2 z-10 h-20 w-2 -translate-y-1/2 animate-pop rounded-full bg-[var(--surface-secondary)] shadow-xl"
             style={{ left: `calc(${answer}% - 4px)` }}
           />
         )}
-        <div
+        {(onChange || results.length === 0) && <div
           className="absolute top-1/2 grid size-12 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-4 border-[var(--surface-primary)] bg-[var(--surface-inverted-light)] text-caption-semibold shadow-xl transition-all duration-200"
           style={{ left: `${value}%` }}
         >
           {value}
-        </div>
+        </div>}
         {onChange && (
           <input
             type="range"
@@ -221,6 +259,8 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
   const [error, setError] = useState("");
   const [ended, setEnded] = useState(false);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
+  const [showPlayers, setShowPlayers] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<"end-game" | "leave-game" | "leave-room" | null>(null);
 
   const gameState = room?.gameState;
   const currentPlayer = room?.players.find((player) => player.id === currentPlayerId);
@@ -248,12 +288,20 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
     socket.emit("room:subscribe", { roomCode, playerId: currentPlayerId });
     socket.on("room:state", (nextRoom: Room) => {
       setRoom(nextRoom);
+      if (nextRoom.status === "waiting" && nextRoom.lastGameEndedByHost) setEnded(true);
       setError("");
     });
     socket.on("game:ended", () => setEnded(true));
     socket.on("room:ended", () => {
       clearRoomSession();
       router.push("/");
+    });
+    socket.on("room:removed", (payload: { playerId: string; message: string }) => {
+      if (payload.playerId === currentPlayerId) {
+        clearRoomSession();
+        setError(payload.message);
+        router.push("/");
+      }
     });
     socket.on("room:error", (payload: { message: string }) => setError(payload.message));
     return () => {
@@ -338,6 +386,41 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
     }
   }
 
+  async function roomAction(path: string, method = "POST", body: Record<string, unknown> = {}) {
+    if (!currentPlayerId || pendingAction) return;
+    setPendingAction(path);
+    try {
+      const response = await fetch(`${serverUrl}/rooms/${roomCode}/${path}`, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playerId: currentPlayerId, ...body })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message);
+      if (data.room) setRoom(data.room);
+      return data;
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "That action failed.");
+    } finally {
+      setPendingAction(null);
+    }
+  }
+
+  async function confirmLifecycleAction() {
+    const action = confirmAction;
+    setConfirmAction(null);
+    if (action === "end-game") return endGame();
+    if (action === "leave-game") {
+      await roomAction("games/leave");
+      router.push(`/room/${roomCode}`);
+    }
+    if (action === "leave-room") {
+      await roomAction("leave");
+      clearRoomSession();
+      router.push("/");
+    }
+  }
+
   if (ended) {
     return (
       <AppScreen tone="accent" className="grid place-items-center">
@@ -355,6 +438,50 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
   }
   if (!room || !gameState || !personal) return <LoadingState title="Joining Game..." subtitle={`as ${currentPlayer?.name ?? "player"}`} />;
 
+  const actionCompletedIds = gameState.phase === "answering"
+    ? Object.keys(gameState.answers ?? {})
+    : gameState.phase === "voting"
+      ? Object.keys(gameState.votes ?? {})
+      : gameState.phase === "role_reveal"
+        ? gameState.readyPlayerIds ?? []
+        : gameState.phase === "guess"
+          ? Object.keys(gameState.guesses ?? {})
+          : [];
+  const universalControls = (
+    <>
+      <div className="fixed right-3 top-3 z-[70] flex gap-2">
+        <button type="button" onClick={() => setShowPlayers(true)} aria-label="Open player panel" className="grid size-12 place-items-center rounded-full border-2 border-black/10 bg-white text-black shadow-lg transition hover:scale-105 active:scale-95"><Users size={21} /></button>
+        {isHost && <button type="button" onClick={() => setConfirmAction("end-game")} aria-label="End game" className="grid size-12 place-items-center rounded-full bg-[#ff5a45] text-white shadow-lg transition hover:scale-105 active:scale-95"><Flag size={20} /></button>}
+      </div>
+      {showPlayers && (
+        <div className="fixed inset-0 z-[80] flex items-end bg-black/45 p-3 backdrop-blur-sm sm:items-center sm:justify-center" onMouseDown={(event) => { if (event.currentTarget === event.target) setShowPlayers(false); }}>
+          <section className="animate-spring-in max-h-[85vh] w-full max-w-[25rem] overflow-y-auto rounded-[32px] bg-[var(--surface-inverted-light)] p-5 text-[var(--text-inverted)] shadow-2xl">
+            <div className="flex items-center justify-between"><div><p className="text-title-sm-bold">Players</p><p className="text-caption-semibold opacity-60">Room {roomCode} · Round {gameState.round}</p></div><button type="button" onClick={() => setShowPlayers(false)} className="grid size-10 place-items-center rounded-full bg-black/10" aria-label="Close"><X /></button></div>
+            <div className="mt-5 space-y-2">
+              {gameState.players.map((player) => {
+                const teamId = gameState.type === "wavelength" ? (gameState.teams?.["team-1"]?.includes(player.id) ? "Team 1" : gameState.teams?.["team-2"]?.includes(player.id) ? "Team 2" : null) : null;
+                const done = actionCompletedIds.includes(player.id);
+                return <div key={player.id} className="flex items-center gap-3 rounded-[22px] bg-white/80 p-3 text-black"><Avatar avatarId={player.avatarId ?? 1} name={player.name} /><div className="min-w-0 flex-1"><p className="truncate text-headline-md-semibold">{player.name} {player.isHost ? "· Host" : ""}</p><p className="text-caption-semibold opacity-55">{player.status ?? "active"}{teamId ? ` · ${teamId}` : ""}{done ? " · Done" : ""}</p></div>{isHost && !player.isHost && !["left", "kicked"].includes(player.status ?? "") && <button type="button" onClick={() => roomAction(`players/${player.id}`, "DELETE")} disabled={pendingAction !== null} className="grid size-10 place-items-center rounded-full bg-[#ffddd7] text-[#b42318] transition active:scale-90" aria-label={`Remove ${player.name}`}><UserMinus size={18} /></button>}</div>;
+              })}
+            </div>
+            {isHost && <Button onClick={() => roomAction("games/advance")} disabled={pendingAction !== null} variant="primary" size="lg" showLeftIcon={false} rightIcon={<FastForward />} className="mt-5 w-full">Move Game Forward</Button>}
+            <div className="mt-2 grid grid-cols-2 gap-2"><Button onClick={() => setConfirmAction("leave-game")} variant="inverted" size="md" showLeftIcon={false}>Leave Game</Button><Button onClick={() => setConfirmAction("leave-room")} variant="inverted" size="md" showLeftIcon={false} rightIcon={<LogOut />}>Leave Room</Button></div>
+          </section>
+        </div>
+      )}
+      {confirmAction && (
+        <div className="fixed inset-0 z-[90] grid place-items-center bg-black/55 p-4 backdrop-blur-sm">
+          <section role="alertdialog" aria-modal="true" className="animate-spring-in w-full max-w-sm rounded-[32px] bg-[var(--surface-inverted-light)] p-6 text-center text-[var(--text-inverted)] shadow-2xl"><div className="mx-auto grid size-16 place-items-center rounded-full bg-[#ffddd7] text-[#b42318]"><Flag /></div><h2 className="mt-4 text-title-sm-bold">Are you sure?</h2><p className="mt-2 text-body-semibold opacity-65">{confirmAction === "end-game" ? "The current round stops for everyone, but the room and completed history stay safe." : confirmAction === "leave-game" ? "You will leave this game but stay in the room." : "You will leave the room. The game continues for everyone else."}</p><div className="mt-6 grid grid-cols-2 gap-2"><Button onClick={() => setConfirmAction(null)} variant="inverted" size="md" showLeftIcon={false}>Cancel</Button><Button onClick={confirmLifecycleAction} variant="primary" size="md" showLeftIcon={false}>Confirm</Button></div></section>
+        </div>
+      )}
+    </>
+  );
+
+  if (gameState.phase === "rules") {
+    const rules = gameState.type === "imposter" ? ["Everyone gets a secret word—except the imposters.", "Give clues without making the word obvious.", "Vote out every imposter before they take over."] : gameState.type === "imposter-code" ? ["Answer your private prompt without revealing it.", "One or more players receive a closely related prompt.", "Compare answers and vote for the imposters."] : ["The clue giver sees a secret number on the scale.", "Give one clue that points everyone toward it.", "Closest guesses earn the biggest points."];
+    return <>{universalControls}<AppScreen tone="accent" className="grid place-items-center"><section className="w-full max-w-[25rem] animate-spring-in"><div className="mx-auto w-28"><GameArtwork gameSlug={gameSlug} tone="light" /></div><p className="mt-6 text-center text-caption-semibold uppercase tracking-[0.18em] opacity-60">How to play</p><h1 className="mt-2 text-center text-title-lg-bold">Ready for a ruckus?</h1><div className="mt-7 space-y-3">{rules.map((rule, index) => <div key={rule} className="flex gap-4 rounded-[24px] bg-[var(--surface-inverted-light)] p-4 text-[var(--text-inverted)]"><span className="grid size-9 shrink-0 place-items-center rounded-full bg-[var(--surface-secondary)] text-headline-md-bold text-white">{index + 1}</span><p className="text-body-semibold">{rule}</p></div>)}</div>{isHost ? <Button onClick={() => roomAction("games/continue")} disabled={pendingAction !== null} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Play />} className="mt-8 w-full">{pendingAction ? "Starting..." : "Start Game"}</Button> : <div className="mt-8 rounded-full bg-black/10 px-5 py-4 text-center text-body-semibold">Waiting for the host to start…</div>}</section></AppScreen></>;
+  }
+
   const formattedTime = `${Math.floor(timeLeft / 60)}m ${String(timeLeft % 60).padStart(2, "0")}s`;
   const ready = Boolean(currentPlayerId && gameState.readyPlayerIds?.includes(currentPlayerId));
   const firstPlayer = gameState.players[gameState.round % gameState.players.length]?.name ?? gameState.players[0]?.name;
@@ -362,6 +489,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
   if (personal.isEliminated && gameState.phase !== "results") {
     return (
       <AppScreen tone="dark" className="grid place-items-center">
+        {universalControls}
         <section className="w-full max-w-[25rem] text-center">
           <Avatar avatarId={currentPlayer?.avatarId ?? 1} name={currentPlayer?.name} size="lg" tone="accent" className="mx-auto !size-[132px] opacity-55" />
           <h1 className="mt-7 text-title-lg-bold">You are eliminated.</h1>
@@ -386,7 +514,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
       return (
         <AppScreen tone="dark" className="!p-0">
           <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-20 text-center">
-            <BrandNav tone="dark" />
+            <BrandNav tone="dark" />{universalControls}
             <div className="flex flex-1 items-center">
               <WaitingOrbit players={activePlayers} completedIds={answeredPlayerIds} title="Answer submitted" subtitle={`${answerCount}/${activePlayerCount} Players Answered`} />
             </div>
@@ -400,7 +528,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
       return (
         <AppScreen tone="dark" className="!p-0">
           <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-20">
-            <BrandNav title="Answer Privately" tone="dark" centerTitle />
+            <BrandNav title="Answer Privately" tone="dark" centerTitle />{universalControls}
             <div className="mt-16 text-center">
               <div className="mx-auto w-24"><GameArtwork gameSlug="imposter-code" tone="light" /></div>
               <p className="mt-6 text-title-md-extrabold text-[var(--text-highlight)]">{personal.prompt}</p>
@@ -434,7 +562,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
       return (
         <AppScreen tone="accent" className="!p-0">
           <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-16 text-center">
-            <BrandNav title="Answers" tone="light" centerTitle />
+            <BrandNav title="Answers" tone="light" centerTitle />{universalControls}
             <h1 className="mt-8 text-title-sm-bold">{personal.question}</h1>
             <div className="mt-7 space-y-2 text-left">
               {activePlayers.map((player) => (
@@ -463,7 +591,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
       return (
         <AppScreen tone="accent" className="!p-0">
           <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-20 text-center">
-            <BrandNav tone="light" />
+            <BrandNav tone="light" />{universalControls}
             <h1 className="my-auto text-title-md-extrabold">All Players<br />Voted</h1>
             {isHost ? (
               <Button onClick={() => perform("reveal")} disabled={pendingAction !== null} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Eye />} className="w-full">{pendingAction === "reveal" ? "Revealing..." : "See Result"}</Button>
@@ -479,7 +607,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
       return (
         <AppScreen tone="dark" className="!p-0">
           <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-20 text-center">
-            <BrandNav tone="dark" />
+            <BrandNav tone="dark" />{universalControls}
             <div className="flex flex-1 items-center">
               <WaitingOrbit players={activePlayers} completedIds={Object.keys(gameState.votes ?? {})} title="Waiting for others" subtitle={`${voteCount}/${activePlayerCount} Players Voted`} />
             </div>
@@ -493,7 +621,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
       return (
         <AppScreen tone="dark" className="!p-0">
           <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-20">
-            <BrandNav title="Cast your Vote" tone="dark" centerTitle />
+            <BrandNav title="Cast your Vote" tone="dark" centerTitle />{universalControls}
             <p className="mt-8 text-center text-body-semibold opacity-60">Who had the odd answer?</p>
             <div className="mt-10 space-y-2">
               {activePlayers.map((player) => (
@@ -515,7 +643,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
     return (
       <AppScreen tone={fullResult || guessedImposter ? "accent" : "light"} className="!p-0">
         <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-16 text-center">
-          <BrandNav title="Results" tone="light" centerTitle />
+          <BrandNav title="Results" tone="light" centerTitle />{universalControls}
           <div className="mt-10">
             <Avatar avatarId={topVotedPlayer?.avatarId ?? 1} name={topVotedPlayer?.name} size="lg" tone={fullResult || guessedImposter ? "black" : "accent"} className="mx-auto !size-[132px] animate-spring-in" />
             {fullResult ? (
@@ -557,8 +685,8 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
               onAnotherGuess={() => { setSelectedVote(""); perform("another-guess"); }}
               onRevealResult={() => perform("reveal-answer")}
               onAnotherRound={() => { setSelectedVote(""); perform("next-round"); }}
-              onEndGame={endGame}
-              onLeave={() => router.push(`/room/${roomCode}`)}
+              onEndGame={() => setConfirmAction("end-game")}
+              onLeave={() => setConfirmAction("leave-game")}
             />
           </div>
         </section>
@@ -588,7 +716,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
       return (
         <AppScreen tone="accent" className="!p-0">
           <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col px-4 pb-safe pt-16 text-center">
-            <BrandNav title="Round Start" tone="light" centerTitle />
+            <BrandNav title="Round Start" tone="light" centerTitle />{universalControls}
             <div className="my-auto animate-spring-in">
               <div className="mx-auto mb-7 flex w-fit -space-x-3">
                 {(gameState.activeTeamId ? gameState.teams?.[gameState.activeTeamId] ?? [] : []).map((id) => {
@@ -609,7 +737,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
       return (
         <AppScreen tone="dark" className="!p-0">
           <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-20 text-center">
-            <BrandNav title="Wavelength" tone="dark" centerTitle />
+            <BrandNav title="Wavelength" tone="dark" centerTitle />{universalControls}
             <div className="mx-auto mt-8 w-24"><GameArtwork gameSlug="wavelength" tone="light" /></div>
             <p className="mt-8 text-body-semibold opacity-60">Scale</p>
             <h1 className="mt-2 text-title-lg-bold text-[var(--text-highlight)]">{gameState.scaleLeft} ↔ {gameState.scaleRight}</h1>
@@ -645,7 +773,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
         return (
           <AppScreen tone="dark" className="!p-0">
             <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-20 text-center">
-              <BrandNav title="Wavelength" tone="dark" centerTitle />
+              <BrandNav title="Wavelength" tone="dark" centerTitle />{universalControls}
               <div className="mt-16">
                 <p className="text-footnote-semibold opacity-40">Time</p>
                 <p className="text-title-lg-semibold tabular-nums">{formattedTime}</p>
@@ -669,7 +797,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
       return (
         <AppScreen tone="dark" className="!p-0">
           <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-16 text-center">
-            <BrandNav title="Make a Guess" tone="dark" centerTitle />
+            <BrandNav title="Make a Guess" tone="dark" centerTitle />{universalControls}
             <div className="mt-10">
               <p className="text-footnote-semibold opacity-40">Time</p>
               <p className="text-title-lg-semibold tabular-nums">{formattedTime}</p>
@@ -691,7 +819,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
     return (
       <AppScreen tone="accent" className="!p-0">
         <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-16 text-center">
-          <BrandNav title="Results" tone="light" centerTitle />
+          <BrandNav title="Results" tone="light" centerTitle />{universalControls}
           {finalRound && <p className="mt-8 animate-pop text-headline-md-bold">{winnerNames.length > 1 ? `Tie: ${winnerNames.join(" & ")}` : `${winnerNames[0]} wins!`}</p>}
           <h1 className={`${finalRound ? "mt-5" : "mt-12"} text-title-lg-bold`}>{gameState.scaleLeft} ↔ {gameState.scaleRight}</h1>
           <p className="mt-3 text-headline-md-bold">Clue: {gameState.clue}</p>
@@ -701,8 +829,14 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
               right={gameState.scaleRight}
               value={gameState.guess ?? gameState.guessSummary?.[0]?.guess ?? 50}
               answer={secretNumber}
-              summaries={gameState.guessSummary ?? []}
+              results={gameState.resultSummary ?? []}
             />
+          </div>
+          <div className="stagger-children mt-5 space-y-2 text-left">
+            {(gameState.resultSummary ?? []).map((result) => {
+              const identity = result.teamName ?? result.playerName;
+              return <div key={result.playerId} className={`flex items-center gap-3 rounded-[24px] p-3 text-black transition ${result.isClosest ? "bg-[var(--surface-primary)] ring-[3px] ring-black/15" : "bg-white/75"}`}><span className={`grid size-8 place-items-center rounded-full text-caption-semibold ${result.isClosest ? "bg-[var(--surface-secondary)] text-white" : "bg-black text-white"}`}>{result.rank}</span>{result.teamId ? <span className="grid size-11 place-items-center rounded-full bg-black text-caption-semibold text-white">{result.teamId === "team-1" ? "T1" : "T2"}</span> : <Avatar avatarId={result.avatarId ?? 1} name={result.playerName} />}<div className="min-w-0 flex-1"><p className="truncate text-headline-md-semibold">{identity}{result.isTied ? " · Tie" : ""}</p><p className="text-caption-semibold opacity-55">Guess {result.guess} · Distance {result.distance}</p></div><div className="text-right"><p className={`animate-pop text-title-sm-bold ${result.isClosest ? "text-[var(--surface-secondary)]" : ""}`}><AnimatedScore value={result.roundPoints} prefix="+" /></p><p className="text-caption-semibold opacity-55">Total <AnimatedScore value={result.totalPoints} /></p></div></div>;
+            })}
           </div>
           <p className="mt-3 text-footnote-semibold opacity-70">{finalRound ? "Final standings" : `Round ${gameState.round}/${gameState.maxRounds}`}</p>
           <div className="mt-4 grid grid-cols-2 gap-2">
@@ -727,10 +861,10 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
             {isHost ? (
               <>
                 {!finalRound && <Button onClick={() => perform("next-round")} disabled={pendingAction !== null} variant="primary" size="lg" showLeftIcon={false} showRightIcon={false}>{pendingAction === "next-round" ? "Starting..." : "Next Round"}</Button>}
-                <Button onClick={endGame} disabled={pendingAction !== null} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Flag />}>{pendingAction === "end-game" ? "Ending..." : "End Game"}</Button>
+                <Button onClick={() => setConfirmAction("end-game")} disabled={pendingAction !== null} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Flag />}>{pendingAction === "end-game" ? "Ending..." : "End Game"}</Button>
               </>
             ) : (
-              <Button onClick={() => router.push(`/room/${roomCode}`)} variant="inverted" size="lg" showLeftIcon={false} className="col-span-2 w-full">Leave Game</Button>
+              <Button onClick={() => setConfirmAction("leave-game")} variant="inverted" size="lg" showLeftIcon={false} className="col-span-2 w-full">Leave Game</Button>
             )}
           </div>
         </section>
@@ -821,7 +955,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
     return (
       <AppScreen tone="accent" className="!p-0">
         <section className="mx-auto flex min-h-screen w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-7 pt-20 text-center">
-          <BrandNav tone="light" />
+          <BrandNav tone="light" />{universalControls}
           <h1 className="my-auto text-title-md-extrabold">All Players<br />Voted</h1>
           {isHost ? (
             <Button onClick={() => perform("reveal")} disabled={pendingAction !== null} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Eye />} className="w-full">{pendingAction === "reveal" ? "Revealing..." : "See Imposter"}</Button>
@@ -837,7 +971,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
     return (
       <AppScreen tone="dark" className="!p-0">
         <section className="mx-auto flex min-h-screen w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-7 pt-20 text-center">
-          <BrandNav tone="dark" />
+          <BrandNav tone="dark" />{universalControls}
           <div className="mt-16">
             <p className="text-footnote-semibold opacity-40">Time</p>
             <p className="text-title-lg-semibold tabular-nums">{formattedTime}</p>
@@ -855,7 +989,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
     return (
       <AppScreen tone="dark" className="!p-0">
         <section className="mx-auto flex min-h-screen w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-7 pt-20">
-          <BrandNav title="Cast your Vote" tone="dark" centerTitle />
+          <BrandNav title="Cast your Vote" tone="dark" centerTitle />{universalControls}
           <div className="mt-14 text-center">
             <p className="text-footnote-semibold opacity-40">Time</p>
             <p className="text-title-lg-semibold tabular-nums">{formattedTime}</p>
@@ -892,7 +1026,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
   return (
     <AppScreen tone={resultTone} className="!p-0">
       <section className="mx-auto flex min-h-screen w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-7 pt-16 text-center">
-        <BrandNav title="Results" tone="light" centerTitle />
+        <BrandNav title="Results" tone="light" centerTitle />{universalControls}
         <div className="mt-10">
           <Avatar
             avatarId={topVotedPlayer?.avatarId ?? 1}
@@ -945,8 +1079,8 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
             onAnotherGuess={() => { setSelectedVote(""); perform("another-guess"); }}
             onRevealResult={() => perform("reveal-answer")}
             onAnotherRound={() => { setSelectedVote(""); perform("next-round"); }}
-            onEndGame={endGame}
-            onLeave={() => router.push(`/room/${roomCode}`)}
+            onEndGame={() => setConfirmAction("end-game")}
+            onLeave={() => setConfirmAction("leave-game")}
           />
         </div>
       </section>
