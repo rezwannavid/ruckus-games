@@ -65,7 +65,7 @@ function CreateRoomContent() {
             <BrandNav title="Enter your Name" tone="light" onBack={() => router.push("/")} />
           </div>
 
-          <label className="absolute left-1/2 top-[298px] flex h-[72px] w-[calc(100%-2rem)] max-w-[360px] -translate-x-1/2 items-center justify-center">
+          <label className="group absolute left-1/2 top-[286px] flex h-[96px] w-[calc(100%-2rem)] max-w-[360px] -translate-x-1/2 cursor-text items-center justify-center rounded-[28px] bg-white/10 px-4 transition duration-200 focus-within:scale-[1.02] focus-within:bg-white/15">
             <span className="sr-only">Your name</span>
             <input
               autoFocus
@@ -73,8 +73,8 @@ function CreateRoomContent() {
               onChange={(event) => setNameOverride(event.target.value)}
               onKeyDown={(event) => { if (event.key === "Enter" && playerName.trim()) setStep("avatar"); }}
               maxLength={16}
-              placeholder=""
-              className="h-[72px] w-full appearance-none border-0 bg-transparent px-2 text-center !text-[56px] font-extrabold leading-none !text-white caret-white shadow-none outline-none ring-0 placeholder:text-transparent focus:border-0 focus:outline-none focus:ring-0"
+              placeholder="Your name"
+              className="h-full w-full appearance-none border-0 bg-transparent px-2 text-center !text-[56px] !font-extrabold leading-none !text-white caret-white shadow-none outline-none ring-0 placeholder:text-[30px] placeholder:font-semibold placeholder:text-white/45 focus:border-0 focus:outline-none focus:ring-0"
 
             />
           </label>

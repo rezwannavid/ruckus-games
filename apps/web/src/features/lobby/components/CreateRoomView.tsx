@@ -58,7 +58,7 @@ export function CreateRoomView({
         )}
 
           <section className="flex flex-1 items-center justify-center">
-            <label className="w-full">
+            <label className="w-full cursor-text rounded-[28px] bg-white/10 px-4 transition duration-200 focus-within:scale-[1.02] focus-within:bg-white/15">
               <span className="sr-only">Your name</span>
               <input
                 autoFocus
@@ -70,7 +70,7 @@ export function CreateRoomView({
                 maxLength={16}
                 autoComplete="nickname"
                 placeholder="Your name"
-                className="h-24 w-full border-0 border-b-4 border-black/20 bg-transparent text-center text-title-lg-bold outline-none placeholder:text-black/20 focus:border-[var(--surface-inverted-light)]"
+                className="h-24 w-full border-0 bg-transparent text-center text-title-lg-bold !font-extrabold caret-[var(--surface-inverted-light)] outline-none placeholder:font-semibold placeholder:text-black/35"
               />
             </label>
           </section>
