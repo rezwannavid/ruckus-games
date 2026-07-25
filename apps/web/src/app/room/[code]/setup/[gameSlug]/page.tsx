@@ -113,7 +113,7 @@ function PackPicker({
               type="button"
               onClick={() => onChange(id)}
               aria-pressed={value === id}
-              className={`interactive-pop group flex h-[158px] w-[150px] shrink-0 snap-start flex-col items-center justify-center rounded-[36px] border-[4px] bg-[var(--surface-primary-light)] text-center text-[var(--text-primary)] ${selected ? "border-[var(--color-game-accent)]" : "border-transparent"}`}
+              className={`ruckus-paper interactive-pop group flex h-[158px] w-[150px] shrink-0 snap-start flex-col items-center justify-center rounded-[36px] border-[4px] text-center text-[var(--text-inverted)] ${selected ? "border-[var(--color-game-accent)]" : "border-transparent"}`}
             >
               <Icon size={54} strokeWidth={2.4} className="text-[var(--color-game-accent)] transition-transform duration-300 group-hover:rotate-3 group-hover:scale-110" />
               <span className="mt-4 text-headline-md-bold">{label}</span>
@@ -122,7 +122,7 @@ function PackPicker({
         })}
       </div>
 
-      <div className="animate-pop rounded-[28px] bg-[var(--surface-primary-light)] p-4">
+      <div className="ruckus-paper animate-pop rounded-[28px] p-4">
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-body-bold">{selectedPack.label}</p>
@@ -135,7 +135,7 @@ function PackPicker({
             type="button"
             onClick={() => onChange(selectedPack.id)}
             aria-pressed={value === selectedPack.id}
-            className="rounded-full bg-[var(--surface-primary)] px-4 py-2 text-footnote-semibold transition hover:-translate-y-0.5 active:scale-95 aria-pressed:bg-[var(--surface-secondary)] aria-pressed:text-[var(--text-inverted-plus)]"
+            className="rounded-full bg-[var(--surface-inverted)] px-4 py-2 text-footnote-semibold transition hover:-translate-y-0.5 active:scale-95 aria-pressed:bg-[var(--surface-secondary)]"
           >
             Full {selectedPack.label}
           </button>
@@ -147,7 +147,7 @@ function PackPicker({
                 type="button"
                 onClick={() => onChange(subcategoryValue)}
                 aria-pressed={value === subcategoryValue}
-                className="rounded-full bg-[var(--surface-primary)] px-4 py-2 text-footnote-semibold transition hover:-translate-y-0.5 active:scale-95 aria-pressed:bg-[var(--surface-secondary)] aria-pressed:text-[var(--text-inverted-plus)]"
+                className="rounded-full bg-[var(--surface-inverted)] px-4 py-2 text-footnote-semibold transition hover:-translate-y-0.5 active:scale-95 aria-pressed:bg-[var(--surface-secondary)]"
               >
                 {subcategory.label}
               </button>
@@ -259,37 +259,37 @@ export default function GameSetupPage({ params }: { params: Promise<{ code: stri
   }
 
   return (
-    <AppScreen tone="dark" className="overflow-hidden pb-4">
+    <AppScreen tone="light" className="overflow-hidden pb-4">
       <div className="mx-auto flex min-h-[calc(100dvh-3rem-var(--safe-bottom)-var(--safe-top))] max-w-[25rem] flex-col">
         <div className="flex items-start justify-between gap-3">
-          <BrandNav title={`${selectedGame.name} Setup`} tone="dark" onBack={() => router.push(`/room/${roomCode}`)} />
+          <BrandNav title="Set Rules" tone="light" onBack={() => router.push(`/room/${roomCode}`)} />
           <Button onClick={() => router.push(`/room/${roomCode}`)} variant="inverted" size="md" showLeftIcon={false} rightIcon={<Skull size={17} />}>End Room</Button>
         </div>
 
         <section className="mt-8 space-y-2">
-          <button type="button" className="flex h-[60px] w-full items-center rounded-[24px] bg-[var(--surface-primary-light)] px-5 text-left">
+          <button type="button" className="ruckus-paper flex h-[60px] w-full items-center rounded-[24px] px-5 text-left">
             <span className="flex-1 text-body-bold">Players</span>
             <span className="text-title-sm-bold">{room.players.length}</span>
             <span className="ml-3 text-title-sm-bold">→</span>
           </button>
           {isImposterFamily ? (
             <>
-              <div className="flex h-[60px] items-center rounded-[24px] bg-[var(--surface-primary-light)] px-5">
+              <div className="ruckus-paper flex h-[60px] items-center rounded-[24px] px-5">
                 <span className="flex-1 text-body-bold">Imposter{numberOfImposters === 1 ? "" : "s"}</span>
-                <button type="button" aria-label="Decrease imposters" onClick={() => setNumberOfImposters((value) => Math.max(1, value - 1))} disabled={numberOfImposters <= 1} className="grid size-10 place-items-center rounded-full bg-[var(--surface-primary)] disabled:opacity-30"><Minus size={19} /></button>
+                <button type="button" aria-label="Decrease imposters" onClick={() => setNumberOfImposters((value) => Math.max(1, value - 1))} disabled={numberOfImposters <= 1} className="grid size-10 place-items-center rounded-full bg-[var(--surface-inverted)] disabled:opacity-30"><Minus size={19} /></button>
                 <output className="w-12 text-center text-title-sm-bold">{numberOfImposters}</output>
-                <button type="button" aria-label="Increase imposters" onClick={() => setNumberOfImposters((value) => Math.min(maxImposters, value + 1))} disabled={numberOfImposters >= maxImposters} className="grid size-10 place-items-center rounded-full bg-[var(--surface-primary)] disabled:opacity-30"><Plus size={19} /></button>
+                <button type="button" aria-label="Increase imposters" onClick={() => setNumberOfImposters((value) => Math.min(maxImposters, value + 1))} disabled={numberOfImposters >= maxImposters} className="grid size-10 place-items-center rounded-full bg-[var(--surface-inverted)] disabled:opacity-30"><Plus size={19} /></button>
               </div>
               {isImposterSetup && (
-                <label className="flex h-[60px] items-center rounded-[24px] bg-[var(--surface-primary-light)] px-5">
+                <label className="ruckus-paper flex h-[60px] items-center rounded-[24px] px-5">
                   <span className="flex-1 text-body-bold">Hint for Imposters</span>
                   <input type="checkbox" checked={hintsEnabled} onChange={(event) => setHintsEnabled(event.target.checked)} className="peer sr-only" />
-                  <span className="relative h-10 w-[74px] rounded-full bg-[var(--surface-primary)] peer-focus-visible:outline-2 peer-focus-visible:outline-[var(--surface-secondary)] after:absolute after:left-3 after:top-[17px] after:h-2 after:w-6 after:rounded-full after:bg-white/25 peer-checked:after:left-[38px] peer-checked:after:bg-[var(--surface-secondary)]" />
+                  <span className="relative h-10 w-[74px] rounded-full bg-[var(--surface-inverted)] peer-focus-visible:outline-2 peer-focus-visible:outline-[var(--surface-secondary)] after:absolute after:left-3 after:top-[17px] after:h-2 after:w-6 after:rounded-full after:bg-black/20 peer-checked:after:left-[38px] peer-checked:after:bg-[var(--surface-secondary)]" />
                 </label>
               )}
             </>
           ) : (
-            <div className="rounded-[32px] bg-[var(--surface-primary-light)] p-6 text-center">
+            <div className="ruckus-paper rounded-[32px] p-6 text-center">
               <div className="mx-auto w-24"><GameArtwork gameSlug={selectedGame.slug} tone="light" /></div>
               <h2 className="mt-4 text-title-sm-bold">{selectedGame.name}</h2>
               <p className="mt-2 text-body-medium opacity-70">
@@ -310,7 +310,7 @@ export default function GameSetupPage({ params }: { params: Promise<{ code: stri
                 type="button"
                 onClick={() => setTimerSetting(value)}
                 aria-pressed={timerSetting === value}
-                className="h-12 rounded-[18px] bg-[var(--surface-primary-light)] text-footnote-semibold transition aria-pressed:bg-[var(--surface-secondary)] aria-pressed:text-[var(--text-inverted-plus)]"
+                className="ruckus-paper h-12 rounded-[18px] text-footnote-semibold transition aria-pressed:bg-[var(--surface-secondary)]"
               >
                 {label}
               </button>
@@ -331,18 +331,18 @@ export default function GameSetupPage({ params }: { params: Promise<{ code: stri
                   type="button"
                   onClick={() => setWavelengthMode(value as "single" | "teams")}
                   aria-pressed={wavelengthMode === value}
-                  className="min-h-14 rounded-[20px] bg-[var(--surface-primary-light)] px-3 text-footnote-semibold transition aria-pressed:bg-[var(--surface-secondary)] aria-pressed:text-[var(--text-inverted-plus)] disabled:opacity-30"
+                  className="ruckus-paper min-h-14 rounded-[20px] px-3 text-footnote-semibold transition aria-pressed:bg-[var(--surface-secondary)] disabled:opacity-30"
                   disabled={value === "teams" && room.players.length < 4}
                 >
                   {label}
                 </button>
               ))}
             </div>
-            <div className="flex h-[60px] items-center rounded-[24px] bg-[var(--surface-primary-light)] px-5">
+            <div className="ruckus-paper flex h-[60px] items-center rounded-[24px] px-5">
               <span className="flex-1 text-body-bold">Rounds</span>
-              <button type="button" aria-label="Decrease rounds" onClick={() => setMaxRounds((value) => Math.max(1, value - 1))} className="grid size-10 place-items-center rounded-full bg-[var(--surface-primary)]"><Minus size={19} /></button>
+              <button type="button" aria-label="Decrease rounds" onClick={() => setMaxRounds((value) => Math.max(1, value - 1))} className="grid size-10 place-items-center rounded-full bg-[var(--surface-inverted)]"><Minus size={19} /></button>
               <output className="w-12 text-center text-title-sm-bold">{maxRounds}</output>
-              <button type="button" aria-label="Increase rounds" onClick={() => setMaxRounds((value) => Math.min(20, value + 1))} className="grid size-10 place-items-center rounded-full bg-[var(--surface-primary)]"><Plus size={19} /></button>
+              <button type="button" aria-label="Increase rounds" onClick={() => setMaxRounds((value) => Math.min(20, value + 1))} className="grid size-10 place-items-center rounded-full bg-[var(--surface-inverted)]"><Plus size={19} /></button>
             </div>
             {wavelengthMode === "teams" && room.players.length < 4 && (
               <p className="text-center text-footnote-semibold text-[var(--text-highlight)]">Team Mode needs at least 4 players.</p>
@@ -361,8 +361,8 @@ export default function GameSetupPage({ params }: { params: Promise<{ code: stri
         {error && <p role="alert" className="mt-3 rounded-[16px] bg-[var(--danger)] px-4 py-3 text-footnote-semibold text-white">{error}</p>}
 
         <div className="mt-auto">
-          <div className="mx-auto mb-5 flex w-fit items-center rounded-full bg-[var(--surface-primary-light)] px-3 py-2">
-            <div className="flex -space-x-2">{room.players.slice(0, 5).map((player) => <span key={player.id} className="grid size-7 place-items-center rounded-full border border-[var(--surface-primary-light)] bg-[var(--surface-primary)]"><Avatar avatarId={player.avatarId} size="sm" className="brightness-0 invert" /></span>)}</div>
+          <div className="ruckus-paper mx-auto mb-5 flex w-fit items-center rounded-full px-3 py-2">
+            <div className="flex -space-x-2">{room.players.slice(0, 5).map((player) => <span key={player.id} className="grid size-7 place-items-center rounded-full border border-[var(--surface-inverted-light)] bg-[var(--surface-inverted)]"><Avatar avatarId={player.avatarId} size="sm" /></span>)}</div>
             <span className="ml-2 text-caption-semibold">{room.players.length} Players</span>
           </div>
           <Button onClick={startGame} disabled={!enoughPlayers || isStarting} variant="tertiary" size="lg" showLeftIcon={false} rightIcon={<Play size={21} />} className="w-full">

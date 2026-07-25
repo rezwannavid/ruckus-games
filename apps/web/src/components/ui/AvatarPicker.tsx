@@ -69,7 +69,7 @@ export function AvatarPicker({ value, onChange, label = "Choose your avatar" }: 
             onClick={() => onChange(avatarId)}
             aria-label={`Choose avatar ${avatarId}`}
             aria-pressed={value === avatarId}
-            className={`interactive-pop absolute z-10 grid size-[82px] place-items-center rounded-full focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-[var(--surface-inverted-light)] aria-pressed:z-20 aria-pressed:bg-[var(--surface-inverted-light)] aria-pressed:scale-[1.28] ${positions[avatarId - 1]}`}
+            className={`interactive-pop ruckus-paper absolute z-10 grid size-[82px] place-items-center rounded-full focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-[var(--surface-secondary)] aria-pressed:z-20 aria-pressed:outline-[5px] aria-pressed:outline-[var(--surface-secondary)] aria-pressed:scale-[1.18] ${positions[avatarId - 1]}`}
             style={{ animationDelay: `${avatarId * 28}ms` }}
           >
             <Avatar avatarId={avatarId} size="lg" className={value === avatarId ? "animate-celebrate" : "animate-spring-in"} />

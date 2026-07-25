@@ -74,6 +74,33 @@ a {
   color: var(--text-inverted);
 }
 
+.ruckus-screen {
+  position: relative;
+  isolation: isolate;
+  background: var(--surface-inverted);
+  color: var(--text-inverted);
+}
+
+.ruckus-screen::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0 0 auto;
+  height: min(38rem, 52dvh);
+  pointer-events: none;
+  background: var(--gradient-top-glow);
+}
+
+.ruckus-paper {
+  background: var(--surface-inverted-light);
+  border: 1px solid color-mix(in srgb, white 20%, transparent);
+  box-shadow: var(--shadow-card);
+}
+
+.ruckus-display {
+  font-family: var(--font-display);
+}
+
 :root {
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);

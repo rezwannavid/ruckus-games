@@ -1,41 +1,53 @@
 :root {
-  /* Primitive colors from Figma */
-  --primitive-white-500: #f7f7f7;
-  --primitive-white-800: #eeeeee;
-  --primitive-blue-500: #ADC84B;
-  --primitive-blue-800: #75892E;
-  --primitive-black-500: #1C1C1C;
-  --primitive-black-800: #101010;
+  /* Figma primitives */
+  --primitive-cream-500: #f0ead7;
+  --primitive-cream-700: #e1dbc8;
+  --primitive-cream-300: #fff8e8;
+  --primitive-coral-500: #f55f42;
+  --primitive-coral-600: #eb5032;
+  --primitive-coral-700: #df4d31;
+  --primitive-coral-300: #ff856e;
+  --primitive-ink-500: #282828;
+  --primitive-ink-700: #1c1c1c;
+  --primitive-white-500: var(--primitive-cream-500);
+  --primitive-white-800: var(--primitive-cream-300);
+  --primitive-blue-500: var(--primitive-coral-500);
+  --primitive-blue-800: var(--primitive-coral-600);
+  --primitive-black-500: var(--primitive-ink-500);
+  --primitive-black-800: var(--primitive-ink-700);
 
   /* Product accents */
   --color-game-accent: var(--primitive-blue-500);
   --color-player-accent: var(--primitive-blue-500);
 
   /* Semantic surfaces */
-  --surface-primary: var(--primitive-black-800);
-  --surface-primary-light: var(--primitive-black-500);
-  --surface-secondary: var(--primitive-blue-500);
-  --surface-inverted: var(--primitive-white-800);
-  --surface-inverted-light: var(--primitive-white-500);
+  --surface-primary: var(--primitive-ink-500);
+  --surface-primary-light: var(--primitive-cream-500);
+  --surface-secondary: var(--primitive-coral-500);
+  --surface-inverted: var(--primitive-cream-700);
+  --surface-inverted-light: var(--primitive-cream-500);
+  --surface-raised: var(--primitive-cream-500);
+  --surface-glass: color-mix(in srgb, var(--primitive-cream-500) 67%, transparent);
 
   /* Semantic text */
-  --text-primary: var(--primitive-white-800);
-  --text-highlight: var(--primitive-blue-500);
-  --text-inverted: var(--primitive-black-500);
-  --text-inverted-plus: var(--primitive-black-800);
+  --text-primary: var(--primitive-cream-300);
+  --text-highlight: var(--primitive-coral-600);
+  --text-inverted: var(--primitive-ink-500);
+  --text-inverted-plus: var(--primitive-ink-500);
+  --text-muted: color-mix(in srgb, var(--primitive-ink-500) 58%, transparent);
 
   /* Button surfaces */
-  --button-primary-surface: var(--primitive-white-800);
-  --button-primary-plus-surface: var(--primitive-white-500);
-  --button-secondary-surface: var(--primitive-blue-800);
-  --button-tertiary-surface: var(--primitive-blue-500);
-  --button-inverted-surface: var(--primitive-black-500);
+  --button-primary-surface: var(--primitive-coral-500);
+  --button-primary-plus-surface: var(--primitive-cream-500);
+  --button-secondary-surface: var(--primitive-coral-600);
+  --button-tertiary-surface: var(--primitive-coral-500);
+  --button-inverted-surface: var(--primitive-ink-500);
 
   /* Button text */
-  --button-primary-text: var(--primitive-black-800);
-  --button-secondary-text: var(--primitive-white-500);
-  --button-tertiary-text: var(--primitive-black-500);
-  --button-inverted-text: var(--primitive-white-500);
+  --button-primary-text: var(--primitive-ink-500);
+  --button-secondary-text: var(--primitive-cream-300);
+  --button-tertiary-text: var(--primitive-ink-500);
+  --button-inverted-text: var(--primitive-cream-300);
 
   /* Button icon */
   --button-primary-icon: var(--primitive-white-500);
@@ -44,23 +56,29 @@
   --button-inverted-icon: var(--primitive-black-800);
 
   /* General icon colors */
-  --icon-primary: var(--primitive-black-800);
-  --icon-inverted: var(--primitive-white-800);
-  --icon-inverted-plus: var(--primitive-white-500);
-  --icon-secondary: var(--primitive-blue-500);
-  --icon-muted: #8a8a86;
+  --icon-primary: var(--primitive-ink-500);
+  --icon-inverted: var(--primitive-cream-300);
+  --icon-inverted-plus: var(--primitive-cream-500);
+  --icon-secondary: var(--primitive-coral-500);
+  --icon-muted: #9b9689;
 
   /* Icon sizes */
   --icon-size-md: 20px;
   --icon-size-lg: 30px;
 
   /* App foundation tokens */
-  --background: var(--surface-primary);
-  --foreground: var(--text-primary);
-  --border-primary: color-mix(in srgb, var(--primitive-white-800) 18%, transparent);
-  --border-strong: color-mix(in srgb, var(--primitive-white-800) 32%, transparent);
-  --focus-ring: var(--primitive-white-500);
-  --danger: #bd3d3a;
+  --background: var(--surface-inverted);
+  --foreground: var(--text-inverted);
+  --border-primary: color-mix(in srgb, var(--primitive-ink-500) 12%, transparent);
+  --border-strong: color-mix(in srgb, var(--primitive-ink-500) 24%, transparent);
+  --focus-ring: var(--primitive-coral-600);
+  --danger: #c84232;
+  --success: #597345;
+  --warning: #a76d28;
+  --gradient-top-glow: radial-gradient(ellipse 105% 48% at 50% 0%, #f55f42 0%, #f97862 28%, rgba(245,95,66,.38) 58%, rgba(245,95,66,0) 100%);
+  --gradient-full-coral: linear-gradient(180deg, #f55f42 0%, #ef4c2d 100%);
+  --shadow-card: 0 6px 4.4px rgba(200,195,182,.24);
+  --shadow-button: inset 0 4px 4px var(--primitive-coral-300), 0 4px 0 var(--primitive-coral-700);
 
   /* Radius tokens */
   --radius-sm: 8px;
@@ -68,7 +86,7 @@
   --radius-lg: 20px;
   --radius-xl: 24px;
   --radius-2xl: 28px;
-  --radius-card: 52px;
+  --radius-card: 46px;
   --radius-full: 999px;
 
   /* Spacing tokens */

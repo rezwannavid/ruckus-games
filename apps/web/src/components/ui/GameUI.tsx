@@ -15,8 +15,8 @@ export function AppScreen({
   className?: string;
 }) {
   const tones = {
-    dark: "bg-[var(--surface-primary)] text-[var(--text-primary)]",
-    light: "page-light bg-[var(--surface-inverted)] text-[var(--text-inverted)]",
+    dark: "ruckus-screen",
+    light: "ruckus-screen page-light",
     accent: "page-accent bg-[var(--surface-secondary)] text-[var(--text-inverted-plus)]"
   };
 
@@ -27,7 +27,7 @@ export function LoadingState({ title, subtitle }: { title: string; subtitle?: st
   return (
     <AppScreen tone="accent" className="grid place-items-center">
       <div className="text-center">
-        <div className="mx-auto size-12 animate-spin rounded-full border-4 border-black/15 border-t-[var(--surface-primary)]" />
+        <p className="ruckus-display animate-wiggle text-[clamp(3.2rem,18vw,5.5rem)] font-bold leading-[.72] tracking-[-.08em]">party<br />starts<br />here</p>
         <h1 className="mt-7 text-title-md-extrabold">{title}</h1>
         {subtitle && <p className="mt-2 text-body-medium opacity-60">{subtitle}</p>}
       </div>
@@ -183,10 +183,10 @@ export function PlayerStatusPill({
   label: string;
 }) {
   return (
-    <div className="fixed bottom-[calc(var(--sticky-bottom)+6.5rem)] left-1/2 z-30 flex -translate-x-1/2 items-center rounded-full bg-[var(--surface-primary-light)] px-3 py-2 text-[var(--text-primary)] shadow-lg">
+    <div className="fixed bottom-[calc(var(--sticky-bottom)+6.5rem)] left-1/2 z-30 flex -translate-x-1/2 items-center rounded-full bg-[var(--surface-primary)] px-3 py-2 text-[var(--text-primary)] shadow-lg">
       <div className="flex -space-x-2">
         {players.slice(0, 7).map((player) => (
-          <span key={player.id} className="grid size-7 place-items-center rounded-full border border-[var(--surface-primary-light)] bg-[var(--surface-inverted-light)] transition-colors">
+          <span key={player.id} className="grid size-7 place-items-center rounded-full border border-[var(--surface-primary)] bg-[var(--surface-inverted-light)] transition-colors">
             <Avatar avatarId={player.avatarId ?? 1} name={player.name} size="sm" tone={completedIds.includes(player.id) ? "black" : "muted"} />
           </span>
         ))}

@@ -449,9 +449,8 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
           : [];
   const universalControls = (
     <>
-      <div className="fixed right-3 top-3 z-[70] flex gap-2">
-        <button type="button" onClick={() => setShowPlayers(true)} aria-label="Open player panel" className="grid size-12 place-items-center rounded-full border-2 border-black/10 bg-white text-black shadow-lg transition hover:scale-105 active:scale-95"><Users size={21} /></button>
-        {isHost && <button type="button" onClick={() => setConfirmAction("end-game")} aria-label="End game" className="grid size-12 place-items-center rounded-full bg-[#ff5a45] text-white shadow-lg transition hover:scale-105 active:scale-95"><Flag size={20} /></button>}
+      <div className="fixed right-4 top-[calc(var(--safe-top)+1rem)] z-[70]">
+        <button type="button" onClick={() => setShowPlayers(true)} aria-label="View room" className="flex h-[33px] items-center gap-1.5 rounded-[17px] bg-[var(--surface-primary)] px-3 text-caption-semibold text-[var(--text-primary)] shadow-lg transition hover:scale-105 active:scale-95">View Room <Users size={13} /></button>
       </div>
       {showPlayers && (
         <div className="fixed inset-0 z-[80] flex items-end bg-black/45 p-3 backdrop-blur-sm sm:items-center sm:justify-center" onMouseDown={(event) => { if (event.currentTarget === event.target) setShowPlayers(false); }}>
@@ -479,7 +478,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
 
   if (gameState.phase === "rules") {
     const rules = gameState.type === "imposter" ? ["Everyone gets a secret word—except the imposters.", "Give clues without making the word obvious.", "Vote out every imposter before they take over."] : gameState.type === "imposter-code" ? ["Answer your private prompt without revealing it.", "One or more players receive a closely related prompt.", "Compare answers and vote for the imposters."] : ["The clue giver sees a secret number on the scale.", "Give one clue that points everyone toward it.", "Closest guesses earn the biggest points."];
-    return <>{universalControls}<AppScreen tone="accent" className="grid place-items-center"><section className="w-full max-w-[25rem] animate-spring-in"><div className="mx-auto w-28"><GameArtwork gameSlug={gameSlug} tone="light" /></div><p className="mt-6 text-center text-caption-semibold uppercase tracking-[0.18em] opacity-60">How to play</p><h1 className="mt-2 text-center text-title-lg-bold">Ready for a ruckus?</h1><div className="mt-7 space-y-3">{rules.map((rule, index) => <div key={rule} className="flex gap-4 rounded-[24px] bg-[var(--surface-inverted-light)] p-4 text-[var(--text-inverted)]"><span className="grid size-9 shrink-0 place-items-center rounded-full bg-[var(--surface-secondary)] text-headline-md-bold text-white">{index + 1}</span><p className="text-body-semibold">{rule}</p></div>)}</div>{isHost ? <Button onClick={() => roomAction("games/continue")} disabled={pendingAction !== null} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Play />} className="mt-8 w-full">{pendingAction ? "Starting..." : "Start Game"}</Button> : <div className="mt-8 rounded-full bg-black/10 px-5 py-4 text-center text-body-semibold">Waiting for the host to start…</div>}</section></AppScreen></>;
+    return <>{universalControls}<AppScreen tone="light" className="grid place-items-center"><section className="w-full max-w-[25rem] animate-spring-in"><div className="mx-auto w-28"><GameArtwork gameSlug={gameSlug} /></div><p className="mt-6 text-center text-caption-semibold uppercase tracking-[0.18em] opacity-60">How to play</p><h1 className="mt-2 text-center text-title-lg-bold">Ready for a ruckus?</h1><div className="mt-7 space-y-3">{rules.map((rule, index) => <div key={rule} className="ruckus-paper flex gap-4 rounded-[24px] p-4"><span className="grid size-9 shrink-0 place-items-center rounded-full bg-[var(--surface-secondary)] text-headline-md-bold">{index + 1}</span><p className="text-body-semibold">{rule}</p></div>)}</div>{isHost ? <Button onClick={() => roomAction("games/continue")} disabled={pendingAction !== null} variant="tertiary" size="lg" showLeftIcon={false} rightIcon={<Play />} className="mt-8 w-full">{pendingAction ? "Starting..." : "Start Game"}</Button> : <div className="mt-8 rounded-full bg-black/10 px-5 py-4 text-center text-body-semibold">Waiting for the host to start…</div>}</section></AppScreen></>;
   }
 
   const formattedTime = `${Math.floor(timeLeft / 60)}m ${String(timeLeft % 60).padStart(2, "0")}s`;
@@ -547,7 +546,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
                 placeholder="Type your answer..."
                 maxLength={120}
                 disabled={isAnswerSubmitting}
-                className="min-h-36 w-full resize-none rounded-[28px] bg-[var(--surface-primary-light)] px-5 py-4 text-title-sm-semibold outline-none placeholder:text-white/20 focus-visible:outline-3 focus-visible:outline-[var(--surface-secondary)]"
+                className="min-h-36 w-full resize-none rounded-[28px] bg-[var(--surface-primary)] px-5 py-4 text-title-sm-semibold text-[var(--text-primary)] outline-none placeholder:text-white/20 focus-visible:outline-3 focus-visible:outline-[var(--surface-secondary)]"
               />
             </label>
             <div className="mt-auto">
@@ -560,7 +559,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
 
     if (gameState.phase === "answers") {
       return (
-        <AppScreen tone="accent" className="!p-0">
+        <AppScreen tone="light" className="!p-0">
           <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-16 text-center">
             <BrandNav title="Answers" tone="light" centerTitle />{universalControls}
             <h1 className="mt-8 text-title-sm-bold">{personal.question}</h1>
@@ -817,7 +816,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
     }
 
     return (
-      <AppScreen tone="accent" className="!p-0">
+      <AppScreen tone="light" className="!p-0">
         <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-16 text-center">
           <BrandNav title="Results" tone="light" centerTitle />{universalControls}
           {finalRound && <p className="mt-8 animate-pop text-headline-md-bold">{winnerNames.length > 1 ? `Tie: ${winnerNames.join(" & ")}` : `${winnerNames[0]} wins!`}</p>}
@@ -835,7 +834,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
           <div className="stagger-children mt-5 space-y-2 text-left">
             {(gameState.resultSummary ?? []).map((result) => {
               const identity = result.teamName ?? result.playerName;
-              return <div key={result.playerId} className={`flex items-center gap-3 rounded-[24px] p-3 text-black transition ${result.isClosest ? "bg-[var(--surface-primary)] ring-[3px] ring-black/15" : "bg-white/75"}`}><span className={`grid size-8 place-items-center rounded-full text-caption-semibold ${result.isClosest ? "bg-[var(--surface-secondary)] text-white" : "bg-black text-white"}`}>{result.rank}</span>{result.teamId ? <span className="grid size-11 place-items-center rounded-full bg-black text-caption-semibold text-white">{result.teamId === "team-1" ? "T1" : "T2"}</span> : <Avatar avatarId={result.avatarId ?? 1} name={result.playerName} />}<div className="min-w-0 flex-1"><p className="truncate text-headline-md-semibold">{identity}{result.isTied ? " · Tie" : ""}</p><p className="text-caption-semibold opacity-55">Guess {result.guess} · Distance {result.distance}</p></div><div className="text-right"><p className={`animate-pop text-title-sm-bold ${result.isClosest ? "text-[var(--surface-secondary)]" : ""}`}><AnimatedScore value={result.roundPoints} prefix="+" /></p><p className="text-caption-semibold opacity-55">Total <AnimatedScore value={result.totalPoints} /></p></div></div>;
+              return <div key={result.playerId} className={`flex items-center gap-3 rounded-[24px] p-3 transition ${result.isClosest ? "bg-[var(--surface-primary)] text-[var(--text-primary)] ring-[3px] ring-black/15" : "bg-white/75 text-black"}`}><span className={`grid size-8 place-items-center rounded-full text-caption-semibold ${result.isClosest ? "bg-[var(--surface-secondary)] text-white" : "bg-black text-white"}`}>{result.rank}</span>{result.teamId ? <span className="grid size-11 place-items-center rounded-full bg-black text-caption-semibold text-white">{result.teamId === "team-1" ? "T1" : "T2"}</span> : <Avatar avatarId={result.avatarId ?? 1} name={result.playerName} />}<div className="min-w-0 flex-1"><p className="truncate text-headline-md-semibold">{identity}{result.isTied ? " · Tie" : ""}</p><p className="text-caption-semibold opacity-55">Guess {result.guess} · Distance {result.distance}</p></div><div className="text-right"><p className={`animate-pop text-title-sm-bold ${result.isClosest ? "text-[var(--surface-secondary)]" : ""}`}><AnimatedScore value={result.roundPoints} prefix="+" /></p><p className="text-caption-semibold opacity-55">Total <AnimatedScore value={result.totalPoints} /></p></div></div>;
             })}
           </div>
           <p className="mt-3 text-footnote-semibold opacity-70">{finalRound ? "Final standings" : `Round ${gameState.round}/${gameState.maxRounds}`}</p>

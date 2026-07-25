@@ -2296,6 +2296,22 @@
           "maxPlayers": 12
         }
       }
+    ],
+    [
+      "6072",
+      {
+        "code": "6072",
+        "name": "Navid's Room",
+        "players": [
+          {
+            "id": "42c88030-5897-413e-a543-5df4c65ca2c7",
+            "name": "Navid",
+            "avatarId": 5,
+            "isHost": true
+          }
+        ],
+        "status": "waiting"
+      }
     ]
   ]
 }

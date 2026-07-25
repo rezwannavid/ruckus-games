@@ -1,12 +1,28 @@
 
 
 :root {
-  --font-primary: var(--font-libre-franklin, "Libre Franklin", Arial, Helvetica, sans-serif);
-  --font-callout: "SF Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-primary: "Stack Sans Text", "Avenir Next", Avenir, "Helvetica Neue", Arial, sans-serif;
+  --font-display: var(--font-averia), "Averia Serif Libre", Georgia, serif;
+  --font-callout: var(--font-primary);
+}
+
+.text-display-md-semibold,
+.text-display-lg-semibold,
+.text-display-lg-bold,
+.text-title-lg-semibold,
+.text-title-lg-bold,
+.text-title-lg-regular,
+.text-title-md-regular,
+.text-title-md-medium,
+.text-title-md-semibold,
+.text-title-md-extrabold,
+.text-title-sm-semibold,
+.text-title-sm-bold,
+.text-title-sm-extrabold {
+  font-family: var(--font-display);
 }
 
 .text-display-md-semibold {
-  font-family: var(--font-primary);
   font-size: 3rem;
   line-height: 1;
   font-weight: 600;
@@ -14,7 +30,6 @@
 }
 
 .text-display-lg-semibold {
-  font-family: var(--font-primary);
   font-size: 4rem;
   line-height: 0.95;
   font-weight: 600;
@@ -22,7 +37,6 @@
 }
 
 .text-display-lg-bold {
-  font-family: var(--font-primary);
   font-size: 4rem;
   line-height: 0.95;
   font-weight: 700;
@@ -30,7 +44,6 @@
 }
 
 .text-title-lg-semibold {
-  font-family: var(--font-primary);
   font-size: 2.125rem;
   line-height: 1.1;
   font-weight: 600;
@@ -38,7 +51,6 @@
 }
 
 .text-title-lg-bold {
-  font-family: var(--font-primary);
   font-size: 2.125rem;
   line-height: 2.5625rem;
   font-weight: 700;
@@ -46,7 +58,6 @@
 }
 
 .text-title-lg-regular {
-  font-family: var(--font-primary);
   font-size: 2.125rem;
   line-height: 1.1;
   font-weight: 400;
@@ -54,7 +65,6 @@
 }
 
 .text-title-md-regular {
-  font-family: var(--font-primary);
   font-size: 1.75rem;
   line-height: 1.15;
   font-weight: 400;
@@ -62,7 +72,6 @@
 }
 
 .text-title-md-medium {
-  font-family: var(--font-primary);
   font-size: 1.75rem;
   line-height: 1.15;
   font-weight: 500;
@@ -70,7 +79,6 @@
 }
 
 .text-title-md-semibold {
-  font-family: var(--font-primary);
   font-size: 1.75rem;
   line-height: 1.15;
   font-weight: 600;
@@ -78,7 +86,6 @@
 }
 
 .text-title-md-extrabold {
-  font-family: var(--font-primary);
   font-size: 1.75rem;
   line-height: 1.15;
   font-weight: 800;
@@ -94,7 +101,6 @@
 }
 
 .text-title-sm-semibold {
-  font-family: var(--font-primary);
   font-size: 1.25rem;
   line-height: 1.2;
   font-weight: 600;
@@ -110,7 +116,6 @@
 }
 
 .text-title-sm-bold {
-  font-family: var(--font-primary);
   font-size: 1.25rem;
   line-height: 1.5625rem;
   font-weight: 700;
@@ -118,7 +123,6 @@
 }
 
 .text-title-sm-extrabold {
-  font-family: var(--font-primary);
   font-size: 1.25rem;
   line-height: 1.2;
   font-weight: 800;

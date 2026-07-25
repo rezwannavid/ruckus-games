@@ -16,7 +16,7 @@ export function GameArtwork({ label = "?", gameSlug, tone = "default" }: GameArt
           alt=""
           width={204}
           height={189}
-          className={`h-auto w-full max-w-[204px] ${toneClass}`}
+          className={`h-auto w-full max-w-[158px] ${toneClass}`}
           priority
         />
       </div>

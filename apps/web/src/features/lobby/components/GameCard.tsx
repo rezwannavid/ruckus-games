@@ -14,12 +14,7 @@ type GameCardProps = {
 };
 
 export function GameCard({ game, selected = false, disabled = false, comingSoon = false, onClick, className = "" }: GameCardProps) {
-  const playerText =
-    game.supportsSingleDevice && !game.supportsMultiplayer
-      ? "Single Phone"
-      : game.supportsSingleDevice
-        ? `${game.minPlayers}-${game.maxPlayers} Players or Single Phone`
-        : `${game.minPlayers}-${game.maxPlayers} Players`;
+  const playerText = `${game.minPlayers}-${game.maxPlayers}\nPlayers`;
 
   return (
     <button
@@ -31,7 +26,7 @@ export function GameCard({ game, selected = false, disabled = false, comingSoon 
       <Card
         size="xl"
         variant={selected ? "selected" : "default"}
-        gameName={game.name.toUpperCase()}
+        gameName={game.name}
         gameDescription={game.description}
         playerCount={playerText}
         className="max-w-none hover:-translate-y-1 active:translate-y-0"
@@ -39,7 +34,7 @@ export function GameCard({ game, selected = false, disabled = false, comingSoon 
         <GameArtwork label={game.name[0]} gameSlug={game.slug} />
       </Card>
       {comingSoon && (
-        <span className="absolute right-5 top-5 rounded-full bg-[var(--surface-primary)] px-3 py-1 text-caption-semibold text-[var(--text-highlight)]">
+        <span className="absolute right-4 top-4 rounded-full bg-[var(--surface-primary)] px-3 py-1 text-caption-semibold text-[var(--text-primary)]">
           Coming Soon
         </span>
       )}

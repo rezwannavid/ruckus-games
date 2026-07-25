@@ -25,17 +25,17 @@ type CardProps = HTMLAttributes<HTMLDivElement> & {
 };
 
 const variantClasses: Record<CardVariant, string> = {
-  default: "bg-[var(--surface-inverted)] text-[var(--text-inverted)]",
+  default: "bg-[var(--surface-inverted-light)] text-[var(--text-inverted)]",
   selected: "bg-[var(--surface-secondary)] text-[var(--text-inverted)]",
-  highlight: "bg-[var(--surface-inverted)] text-[var(--text-inverted)]",
-  inverted: "bg-[var(--surface-primary-light)] text-[var(--text-primary)]"
+  highlight: "bg-[var(--surface-inverted-light)] text-[var(--text-inverted)]",
+  inverted: "bg-[var(--surface-primary)] text-[var(--text-primary)]"
 };
 
 const sizeClasses: Record<CardSize, string> = {
   sm: "h-[4.9375rem] w-full max-w-[22rem] rounded-[1.6875rem] px-6 py-3 gap-[0.875rem]",
   md: "min-h-[7rem] rounded-[1.75rem] p-6 gap-4",
   lg: "min-h-[10rem] rounded-[2rem] p-7 gap-5",
-  xl: "h-[25.25rem] w-full max-w-[16.8125rem] rounded-[3.25rem] px-4 py-8 gap-2.5"
+  xl: "h-[313px] w-full max-w-[246px] rounded-[31px] px-[22px] py-[17px]"
 };
 
 function cx(...classes: Array<string | false | null | undefined>) {
@@ -117,7 +117,7 @@ export function Card({
     return (
       <div
         className={cx(
-          "flex flex-col items-center justify-center text-center transition duration-[var(--motion-fast)]",
+          "ruckus-paper flex flex-col text-left transition duration-[var(--motion-fast)]",
           variantClasses[variant],
           sizeClasses.xl,
           variant === "default" && "cursor-pointer",
@@ -125,19 +125,17 @@ export function Card({
         )}
         {...props}
       >
-        <div className="h-[16.625rem] w-[12.625rem] shrink-0 overflow-hidden rounded-[2.5rem]">
+        <p className="ruckus-display w-full text-[24px] font-bold tracking-[-.03em]">
+          {resolvedTitle}
+        </p>
+
+        <div className="mt-4 h-[184px] w-full shrink-0 overflow-hidden">
           {children}
         </div>
 
-        <div className="flex w-full shrink-0 flex-col items-center gap-1 text-[var(--text-inverted)]">
-          <p className="w-full text-title-sm-extrabold">
-            {resolvedTitle}
-          </p>
-
-          <div className="flex w-full flex-col items-center gap-0.5 text-footnote-regular">
-            {resolvedDescription && <p className="w-full">{resolvedDescription}</p>}
-            {playerCount && <p className="w-full">{playerCount}</p>}
-          </div>
+        <div className="mt-auto flex w-full items-end justify-between gap-3 text-[var(--text-inverted)]">
+          {resolvedDescription && <p className="max-w-[8.5rem] text-footnote-regular opacity-80">{resolvedDescription}</p>}
+          {playerCount && <p className="max-w-[5rem] whitespace-pre-line text-right text-body-regular leading-[1.05]">{playerCount}</p>}
         </div>
       </div>
     );

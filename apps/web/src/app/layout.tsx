@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { Libre_Franklin } from "next/font/google";
+import { Averia_Serif_Libre } from "next/font/google";
 import "./globals.css";
 
-const libreFranklin = Libre_Franklin({
-  variable: "--font-libre-franklin",
+const averia = Averia_Serif_Libre({
+  variable: "--font-averia",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+  weight: ["300", "400", "700"],
 });
 
 export const metadata: Metadata = {
@@ -19,7 +19,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${libreFranklin.variable} h-full antialiased`}>
+    <html lang="en" className={`${averia.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { BrandNav } from "@/features/lobby/components/BrandNav";
 import { GameArtwork } from "@/features/lobby/components/GameArtwork";
-import { DiceIcon } from "@/features/lobby/components/icons";
+import { Clock3, Users } from "lucide-react";
 import { getGameBySlug } from "@/features/lobby/data/games";
 
 export default function GameDetailPage({
@@ -19,7 +19,7 @@ export default function GameDetailPage({
 
   if (!game) {
     return (
-      <main className="min-h-screen bg-[var(--surface-inverted)] px-4 py-8 text-[var(--text-inverted)]">
+      <main className="ruckus-screen min-h-screen px-4 pb-safe pt-safe">
         <div className="mx-auto max-w-[25rem]">
           <BrandNav title="Game Not Found" tone="light" onBack={() => router.push("/games")} />
           <p className="mt-12 text-body-regular">This game is not available yet.</p>
@@ -29,45 +29,38 @@ export default function GameDetailPage({
   }
 
   return (
-    <main className="min-h-screen bg-[var(--surface-primary)] px-4 py-8 text-[var(--text-primary)]">
-      <div className="mx-auto max-w-[25rem]">
-        <BrandNav title={game.name} tone="dark" onBack={() => router.push("/games")} />
+    <main className="ruckus-screen min-screen-safe px-[10px] pb-safe pt-safe">
+      <div className="mx-auto flex min-h-[calc(100dvh-2rem)] max-w-[393px] flex-col">
+        <div className="px-2"><BrandNav tone="light" onBack={() => router.push("/games")} /></div>
 
-        <section className="mt-10">
-          <div className="h-[18rem]">
-            <GameArtwork label={game.name[0]} gameSlug={game.slug} tone="light" />
+        <section className="ruckus-paper mt-8 flex min-h-[555px] flex-col overflow-hidden rounded-[31px]">
+          <div className="mx-auto mt-8 h-[220px] w-[220px]">
+            <GameArtwork label={game.name[0]} gameSlug={game.slug} />
           </div>
 
-          <p className="mt-8 text-footnote-semibold uppercase tracking-[0.18em] text-[var(--text-highlight)]">
-            {game.description}
-          </p>
-          <h1 className="mt-2 text-title-md-extrabold">{game.name}</h1>
-          <p className="mt-3 text-body-regular">
+          <h1 className="text-center text-title-md-extrabold">{game.name}</h1>
+          <p className="mx-6 mt-10 text-[20px] font-medium leading-[1.3]">
             {game.summary ?? game.description}
           </p>
-
-          <div className="mt-6 rounded-[1.5rem] bg-[var(--surface-primary-light)] p-5">
-            <p className="text-title-sm-semibold">Ways to play</p>
-            <div className="mt-3 grid gap-2 text-body-regular">
-              {game.supportsMultiplayer && (
-                <p>{game.minPlayers}-{game.maxPlayers} players can join from their own phones.</p>
-              )}
-              {game.supportsSingleDevice && (
-                <p>Single-phone mode is available for passing one device around.</p>
-              )}
-            </div>
+          <p className="mx-6 mt-3 max-h-[4.5rem] overflow-hidden text-footnote-regular opacity-70">
+            {game.slug === "imposter" ? "Everyone will get a single word without the imposter. Everyone has to find out who the imposters are." : game.description}
+          </p>
+          <div className="mt-auto grid grid-cols-[1fr_1fr_1.4fr] items-center border-t border-black/5 px-5 py-5">
+            <span className="flex items-center gap-2"><Users size={22} /><span><strong className="block text-footnote-regular">{game.minPlayers}-{game.maxPlayers}</strong><small className="opacity-50">Players</small></span></span>
+            <span className="flex items-center gap-2"><Clock3 size={22} /><span><strong className="block text-footnote-regular">2-3 min</strong><small className="opacity-50">Time</small></span></span>
+            <strong className="text-right text-footnote-regular">{game.description}</strong>
           </div>
         </section>
 
         <Button
           onClick={() => router.push(`/room-required?game=${game.slug}`)}
           variant="tertiary"
-          size="lg"
+          size="xl"
           showLeftIcon={false}
-          rightIcon={<DiceIcon className="size-[1.875rem]" />}
-          className="mt-8 w-full"
+          showRightIcon={false}
+          className="mt-5 w-full"
         >
-          Play
+          play {game.name.toLowerCase()}
         </Button>
       </div>
     </main>

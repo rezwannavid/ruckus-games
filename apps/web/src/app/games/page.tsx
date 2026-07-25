@@ -9,11 +9,11 @@ export default function GamesListPage() {
   const router = useRouter();
 
   return (
-    <main className="min-screen-safe bg-[var(--surface-primary)] px-4 pb-safe pt-safe text-[var(--text-primary)]">
+    <main className="ruckus-screen min-screen-safe px-4 pb-safe pt-safe">
       <div className="mx-auto max-w-5xl">
-        <BrandNav title="Games" onBack={() => router.push("/")} />
+        <BrandNav title="Games" tone="light" onBack={() => router.push("/")} />
 
-        <section className="mt-10 grid grid-cols-[repeat(auto-fit,minmax(16.75rem,1fr))] gap-4">
+        <section className="mt-10 grid grid-cols-[repeat(auto-fit,minmax(15.5rem,1fr))] justify-items-center gap-4">
           {games.map((game) => (
             <GameCard
               key={game.slug}

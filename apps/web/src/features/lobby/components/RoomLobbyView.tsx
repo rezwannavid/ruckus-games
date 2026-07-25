@@ -1,9 +1,10 @@
 "use client";
 
 import { Button } from "@/components/ui/Button";
-import { PlayerCard } from "@/components/ui/PlayerCard";
+import { Avatar } from "@/components/ui/AvatarPicker";
 import { BrandNav } from "@/features/lobby/components/BrandNav";
-import { CopyIcon, DiceIcon, SkullIcon } from "@/features/lobby/components/icons";
+import { CopyIcon } from "@/features/lobby/components/icons";
+import { Crown, Eye, KeyRound, X } from "lucide-react";
 import type { Player } from "@/features/lobby/types/room";
 
 type RoomLobbyViewProps = {
@@ -34,60 +35,51 @@ export function RoomLobbyView({
   onRemovePlayer
 }: RoomLobbyViewProps) {
   return (
-    <main className="min-h-screen overflow-hidden bg-[var(--surface-inverted)] px-4 pb-28 pt-8 text-[var(--text-inverted)]">
-      <div className="mx-auto max-w-5xl">
-        <BrandNav title={isHost ? "Your Room" : "Room"} tone="light" onBack={onBack} />
+    <main className="ruckus-screen min-screen-safe overflow-hidden px-4 pb-safe pt-safe">
+      <div className="mx-auto flex min-h-[calc(100dvh-2rem)] max-w-[393px] flex-col">
+        <div className="flex items-start justify-between gap-3">
+          <BrandNav title={isHost ? "Your Room" : "Room"} tone="light" onBack={onBack} />
+          <Button onClick={onEndRoom} variant="inverted" size="md" showLeftIcon={false} showRightIcon={false}>
+            {isHost ? "End Room" : "Leave Room"}
+          </Button>
+        </div>
 
-        <section className="mx-auto mt-11 max-w-[25rem] text-center">
-          <p className="text-title-sm-semibold text-[var(--text-highlight)]">
-            {roomName}
-          </p>
-          <p className="mt-1 text-display-lg-bold">{roomCode}</p>
-
-          <div className="mt-8 grid grid-cols-2 gap-2">
-            <Button
-              onClick={onCopyLink}
-              variant="primary-plus"
-              size="md"
-              showLeftIcon={false}
-              rightIcon={<CopyIcon className="size-5" />}
-            >
-              Copy Link
-            </Button>
-
-            <Button
-              onClick={onEndRoom}
-              variant="inverted"
-              size="md"
-              showLeftIcon={false}
-              rightIcon={<SkullIcon className="size-5" />}
-            >
-              {isHost ? "End Room" : "Leave Room"}
-            </Button>
-          </div>
-
-          {copyMessage && (
-            <p className="mt-3 text-footnote-semibold text-[var(--text-highlight)]">
-              {copyMessage}
-            </p>
-          )}
+        <section className="mt-5">
+          <button onClick={onCopyLink} className="flex h-[54px] w-full items-center gap-3 rounded-[17px] border border-white/25 bg-[var(--surface-glass)] px-4 text-left backdrop-blur-md">
+            <KeyRound size={20} className="text-[var(--surface-secondary)]" />
+            <span className="flex-1 text-title-sm-regular tracking-[.08em]">{roomCode.replace(/./g, "*")}</span>
+            <Eye size={20} />
+            <CopyIcon className="size-5" />
+          </button>
+          {(copyMessage || roomName) && <p className="mt-2 text-center text-caption-regular opacity-65">{copyMessage || roomName}</p>}
         </section>
 
-        <section className="mx-auto mt-7 max-w-[25rem]">
-          <h2 className="text-center text-title-sm-extrabold">
-            {players.length} PLAYER{players.length === 1 ? "" : "S"}
-          </h2>
-
-          <div className="mt-4 flex flex-col gap-1">
-            {players.map((player) => (
-              <PlayerCard
-                key={player.id}
-                player={player}
-                isCurrentPlayer={player.id === currentPlayerId}
-                onRemove={isHost && !player.isHost ? () => onRemovePlayer(player.id) : undefined}
-              />
-            ))}
+        <section className="relative mt-16 h-[410px]">
+          <div className="absolute inset-x-0 top-14 text-center">
+            <span className="grid place-items-center"><span className="grid size-8 place-items-center rounded-full bg-[var(--surface-inverted-light)] text-[var(--surface-secondary)]">?</span></span>
+            <p className="mt-2 text-body-regular opacity-50">1 player is joining</p>
+            <p className="-mt-1 text-body-semibold">{players.length} player{players.length === 1 ? "" : "s"} joined</p>
           </div>
+          {players.slice(0, 6).map((player, index) => {
+            const positions = [
+              "left-[8%] bottom-[6%] rotate-[-8deg]",
+              "left-[35%] bottom-[1%] rotate-[7deg]",
+              "right-[1%] bottom-[7%] rotate-[-6deg]",
+              "left-[16%] bottom-[34%] rotate-[4deg]",
+              "right-[17%] bottom-[35%] rotate-[-9deg]",
+              "left-[41%] bottom-[28%] rotate-[9deg]"
+            ];
+            return (
+              <article key={player.id} className={`ruckus-paper interactive-pop absolute grid h-[121px] w-[121px] place-items-center rounded-full px-3 py-4 text-center ${positions[index]}`}>
+                <div className="relative">
+                  {player.isHost && <Crown className="absolute -top-6 left-1/2 -translate-x-1/2 text-[var(--surface-secondary)]" size={24} />}
+                  <Avatar avatarId={player.avatarId} name={player.name} size="lg" />
+                </div>
+                <p className="-mt-2 max-w-full truncate text-[15px]">{player.name}{player.id === currentPlayerId ? " (you)" : ""}</p>
+                {isHost && !player.isHost && <button type="button" onClick={() => onRemovePlayer(player.id)} aria-label={`Remove ${player.name}`} className="absolute right-1 top-1 grid size-6 place-items-center rounded-full bg-[var(--surface-primary)] text-[var(--text-primary)]"><X size={13} /></button>}
+              </article>
+            );
+          })}
         </section>
 
         <Button
@@ -95,10 +87,10 @@ export function RoomLobbyView({
           variant="tertiary"
           size="lg"
           showLeftIcon={false}
-          rightIcon={<DiceIcon className="size-[1.875rem]" />}
-          className="fixed inset-x-4 bottom-8 mx-auto max-w-[22.5625rem]"
+          showRightIcon={false}
+          className="mx-auto mt-auto w-[238px]"
         >
-          {isHost ? "Select a Game" : "Show Games"}
+          {isHost ? "select games" : "show games"}
         </Button>
       </div>
     </main>

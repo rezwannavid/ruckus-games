@@ -39,9 +39,9 @@ const variantClasses: Record<ButtonVariant, string> = {
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  md: "h-12 px-6 py-1 gap-2 text-footnote-semibold rounded-[20px]",
-  lg: "h-20 px-6 py-1 gap-[13px] text-headline-md-bold rounded-[28px]",
-  xl: "h-[7.5rem] px-6 py-1 gap-2 text-title-sm-extrabold"
+  md: "h-[47px] px-5 py-1 gap-2 text-footnote-regular rounded-[17px]",
+  lg: "h-[85px] px-6 py-1 gap-[13px] text-title-sm-bold rounded-full",
+  xl: "h-[105px] px-6 py-1 gap-2 text-title-sm-bold rounded-full"
 };
 
 const iconSizeClasses: Record<ButtonSize, string> = {
@@ -90,11 +90,12 @@ export function Button({
       type={type}
       disabled={disabled}
       className={cx(
-        "inline-flex items-center justify-center overflow-hidden whitespace-nowrap transition duration-[var(--motion-fast)] will-change-transform",
+        "interactive-pop inline-flex items-center justify-center overflow-hidden whitespace-nowrap transition duration-[var(--motion-fast)] will-change-transform",
         "focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-[var(--focus-ring)]",
         "button-content-disabled disabled:pointer-events-none",
         "hover:brightness-110 active:translate-y-px active:scale-[0.985] active:brightness-90",
         variantClasses[resolvedVariant],
+        (resolvedVariant === "primary" || resolvedVariant === "tertiary") && "shadow-[var(--shadow-button)]",
         sizeClasses[resolvedSize],
         className
       )}

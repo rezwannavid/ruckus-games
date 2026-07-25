@@ -61,10 +61,10 @@ export default function RoomGamesPage({ params }: { params: Promise<{ code: stri
   if (!room) return <LoadingState title="Loading Games..." subtitle={`Room ${roomCode}`} />;
 
   return (
-    <AppScreen tone="dark" className="overflow-hidden pb-4">
+    <AppScreen tone="light" className="overflow-hidden pb-4">
       <div className="mx-auto flex min-h-[calc(100vh-3rem)] max-w-6xl flex-col">
-        <BrandNav title="Select a game" tone="dark" onBack={() => router.push(`/room/${roomCode}`)} />
-        {!isHost && <p className="mx-auto mt-5 rounded-full bg-[var(--surface-primary-light)] px-4 py-2 text-footnote-semibold">Only the Room Owner can start a game</p>}
+        <BrandNav title="Your Room" tone="light" onBack={() => router.push(`/room/${roomCode}`)} />
+        {!isHost && <p className="mx-auto mt-5 rounded-full bg-[var(--surface-primary)] px-4 py-2 text-footnote-semibold text-[var(--text-primary)]">Only the Room Owner can start a game</p>}
         {error && <p role="alert" className="mx-auto mt-5 rounded-[16px] bg-[var(--danger)] px-4 py-3 text-footnote-semibold text-white">{error}</p>}
         <section className="-mx-4 mt-8 flex snap-x gap-4 overflow-x-auto px-4 pb-5 [scrollbar-width:none] md:grid md:grid-cols-3 md:overflow-visible">
           {games.map((game) => (
@@ -74,13 +74,13 @@ export default function RoomGamesPage({ params }: { params: Promise<{ code: stri
               disabled={!isHost || !playableGameSlugs.has(game.slug) || room.players.length > game.maxPlayers}
               comingSoon={!playableGameSlugs.has(game.slug)}
               onClick={() => chooseGame(game.slug)}
-              className="w-[269px] shrink-0 snap-start md:w-full"
+              className="w-[246px] shrink-0 snap-start md:w-full"
             />
           ))}
         </section>
-        <div className="mx-auto mt-auto flex w-fit items-center rounded-full bg-[var(--surface-primary-light)] px-3 py-2">
+        <div className="ruckus-paper mx-auto mt-auto flex w-fit items-center rounded-full px-3 py-2">
           <div className="flex -space-x-2">
-            {room.players.slice(0, 6).map((player) => <span key={player.id} className="grid size-7 place-items-center rounded-full border border-[var(--surface-primary-light)] bg-[var(--surface-primary)]"><Avatar avatarId={player.avatarId} size="sm" className="brightness-0 invert" /></span>)}
+            {room.players.slice(0, 6).map((player) => <span key={player.id} className="grid size-7 place-items-center rounded-full border border-[var(--surface-inverted-light)] bg-[var(--surface-inverted)]"><Avatar avatarId={player.avatarId} size="sm" /></span>)}
           </div>
           <span className="ml-2 text-caption-semibold">{room.players.length} Players</span>
         </div>
