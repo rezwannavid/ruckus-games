@@ -258,6 +258,364 @@ body:has(.page-accent) {
   animation: ruckus-wiggle 420ms ease-out both;
 }
 
+.home-page {
+  display: flex;
+  min-height: 100vh;
+  min-height: 100dvh;
+  justify-content: center;
+  background: #282828;
+  color: #282828;
+}
+
+.home-screen {
+  position: relative;
+  width: min(100vw, 402px);
+  min-height: max(848px, 100dvh);
+  overflow: hidden;
+  border-radius: 48px;
+  background: #e1dbc8;
+}
+
+.home-gradient {
+  position: absolute;
+  z-index: 0;
+  top: -616px;
+  left: calc(50% - 440px);
+  width: 881px;
+  height: 881px;
+  max-width: none;
+  pointer-events: none;
+  user-select: none;
+}
+
+.home-logo {
+  position: absolute;
+  z-index: 2;
+  top: 82px;
+  left: 50%;
+  display: flex;
+  width: 64px;
+  transform: translateX(-50%);
+  flex-direction: column;
+  align-items: center;
+}
+
+.home-logo img {
+  display: block;
+  width: 64px;
+  height: 39px;
+}
+
+.home-logo span {
+  margin-top: -1px;
+  font-family: var(--font-display);
+  font-size: 16.4px;
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: -1.26px;
+}
+
+.home-room-actions {
+  position: absolute;
+  z-index: 2;
+  top: 163px;
+  left: 50%;
+  display: grid;
+  width: 278px;
+  transform: translateX(-50%);
+  grid-template-columns: repeat(2, 135px);
+  gap: 8px;
+}
+
+.home-room-button {
+  display: flex;
+  height: 47px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 17px;
+  font-family: var(--font-primary);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1;
+  transition: transform 150ms ease, filter 150ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.home-room-button:hover {
+  filter: brightness(1.04);
+}
+
+.home-room-button:active {
+  transform: translateY(1px) scale(.98);
+}
+
+.home-room-button--dark {
+  background: #282828;
+  color: #f0ead7;
+}
+
+.home-room-button--light {
+  background: rgba(240, 234, 215, .92);
+  color: #282828;
+  backdrop-filter: blur(12.45px);
+}
+
+.home-room-button img {
+  width: 16px;
+  height: 16px;
+}
+
+.home-swipe-label {
+  position: absolute;
+  z-index: 2;
+  top: 255px;
+  left: 50%;
+  margin: 0;
+  transform: translateX(-50%);
+  color: rgba(0, 0, 0, .7);
+  font-family: var(--font-primary);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 15px;
+  letter-spacing: -.39px;
+  white-space: nowrap;
+}
+
+.home-card-deck {
+  position: absolute;
+  z-index: 2;
+  top: 281px;
+  left: 50%;
+  width: 246px;
+  height: 313px;
+  transform: translateX(-50%);
+  outline: none;
+}
+
+.home-card-deck:focus-visible .home-card-shell--front {
+  outline: 3px solid rgba(40, 40, 40, .6);
+  outline-offset: 4px;
+}
+
+.home-card-shell {
+  position: absolute;
+  overflow: hidden;
+  border-radius: 31px;
+  background: #f0ead7;
+  box-shadow: 0 6px 4.4px rgba(200, 195, 182, .24);
+}
+
+.home-card-shell--back {
+  top: 19px;
+  left: 72px;
+  width: 201px;
+  height: 255px;
+  transform: rotate(3.5deg);
+  background: #e4decc;
+}
+
+.home-card-shell--middle {
+  top: 9px;
+  left: 40px;
+  width: 221px;
+  height: 282px;
+  transform: rotate(1.72deg);
+  background: #e9e3d1;
+}
+
+.home-card-shell--front {
+  inset: 0;
+  width: 246px;
+  height: 313px;
+  cursor: grab;
+  touch-action: pan-y;
+  user-select: none;
+  will-change: transform;
+}
+
+.home-card-shell--front:active {
+  cursor: grabbing;
+}
+
+.home-card-shell--front h1 {
+  position: absolute;
+  top: 20px;
+  left: 22px;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 23px;
+  letter-spacing: -.72px;
+}
+
+.home-card-artwork {
+  position: absolute;
+  top: 83px;
+  left: 36px;
+  width: 158px;
+  height: 147px;
+  pointer-events: none;
+}
+
+.home-card-artwork img {
+  max-width: 158px !important;
+  max-height: 147px;
+}
+
+.home-card-description {
+  position: absolute;
+  bottom: 19px;
+  left: 22px;
+  margin: 0;
+  max-width: 150px;
+  color: rgba(40, 40, 40, .8);
+  font-family: var(--font-primary);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 17px;
+  letter-spacing: -.39px;
+  white-space: nowrap;
+}
+
+.home-card-players {
+  position: absolute;
+  right: 24px;
+  bottom: 18px;
+  display: flex;
+  margin: 0;
+  flex-direction: column;
+  align-items: flex-end;
+  font-family: var(--font-primary);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 14px;
+  letter-spacing: -.36px;
+}
+
+.home-card-players span {
+  font-size: 16px;
+  line-height: 17px;
+  letter-spacing: -.48px;
+}
+
+.home-select-game {
+  position: absolute;
+  z-index: 2;
+  top: 638px;
+  left: 50%;
+  width: 238px;
+  height: 89px;
+  transform: translateX(-50%);
+  border: 0;
+  border-bottom: 4px solid #df4d31;
+  border-radius: 52px;
+  background: #f55f42;
+  box-shadow: inset 0 4px 4px #ff856e;
+  color: #282828;
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -1.2px;
+  transition: transform 150ms ease, filter 150ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.home-select-game:hover {
+  filter: brightness(1.025);
+}
+
+.home-select-game:active {
+  transform: translateX(-50%) translateY(2px) scale(.985);
+  filter: brightness(.96);
+}
+
+.home-error {
+  position: absolute;
+  z-index: 3;
+  top: 730px;
+  left: 50%;
+  width: 330px;
+  margin: 0;
+  transform: translateX(-50%);
+  color: #9f2314;
+  font-size: 11px;
+  text-align: center;
+}
+
+.home-footer {
+  position: absolute;
+  z-index: 2;
+  top: 758px;
+  left: 50%;
+  display: flex;
+  width: 230px;
+  transform: translateX(-50%);
+  flex-direction: column;
+  align-items: center;
+  font-family: var(--font-primary);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 13px;
+  letter-spacing: -.11px;
+}
+
+.home-footer p {
+  margin: 0;
+}
+
+.home-footer strong {
+  font-weight: 500;
+}
+
+.home-footer nav {
+  display: flex;
+  margin-top: 8px;
+  gap: 10px;
+}
+
+.home-footer nav a,
+.home-footer nav img {
+  display: block;
+  width: 24px;
+  height: 24px;
+}
+
+.home-footer nav a {
+  opacity: .9;
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.home-footer nav a:hover {
+  opacity: 1;
+  transform: translateY(-1px);
+}
+
+.home-footer-site {
+  margin-top: 4px;
+  opacity: .9;
+  text-decoration: underline;
+  text-underline-offset: 1px;
+}
+
+@media (max-width: 401px) {
+  .home-screen {
+    border-radius: 0 0 48px 48px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-card-shell--front,
+  .home-room-button,
+  .home-select-game,
+  .home-footer nav a {
+    transition-duration: 1ms !important;
+  }
+}
+
 .animate-pulse-soft {
   animation: ruckus-pulse-soft 1.8s ease-in-out infinite;
 }
@@ -270,6 +628,160 @@ body:has(.page-accent) {
 
 .wavelength-slider {
   -webkit-tap-highlight-color: transparent;
+}
+
+.physics-stage {
+  contain: layout paint;
+}
+
+.physics-token {
+  transition: opacity var(--motion-medium) ease, scale var(--motion-bouncy) cubic-bezier(.2,.9,.25,1.25);
+  animation: ruckus-token-arrive var(--motion-bouncy) cubic-bezier(.2,.9,.25,1.25) both;
+}
+
+@keyframes ruckus-token-arrive {
+  from { opacity: 0; scale: .55; }
+  to { opacity: 1; scale: 1; }
+}
+
+.wavelength-board {
+  --wave-board-width: min(100%, 393px);
+  outline: none;
+}
+
+.wavelength-board[role="slider"]:focus-visible {
+  border-radius: var(--radius-xl);
+  box-shadow: 0 0 0 3px var(--surface-inverted), 0 0 0 6px var(--focus-ring);
+}
+
+.wavelength-endpoint {
+  position: absolute;
+  top: 228px;
+  z-index: 5;
+  max-width: 9rem;
+  font-family: var(--font-display);
+  font-size: clamp(.78rem, 3.8vw, 1rem);
+  line-height: 1;
+}
+
+.wavelength-endpoint-left {
+  left: 8%;
+  transform: rotate(-38deg);
+  transform-origin: left center;
+}
+
+.wavelength-endpoint-right {
+  right: 8%;
+  transform: rotate(38deg);
+  transform-origin: right center;
+}
+
+.wavelength-flower {
+  --flower-bg: var(--surface-inverted-light);
+  position: absolute;
+  z-index: 20;
+  display: grid;
+  width: 74px;
+  height: 74px;
+  place-items: center;
+  translate: -50% -50%;
+  font-family: var(--font-display);
+  font-size: 1.65rem;
+  line-height: 1;
+  transition: left var(--motion-fast) ease-out, top var(--motion-fast) ease-out, scale var(--motion-fast) ease-out;
+  isolation: isolate;
+}
+
+.wavelength-flower-shape {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.wavelength-flower-outer { fill: var(--flower-bg); }
+.wavelength-flower-inner { fill: var(--surface-inverted-light); }
+.wavelength-flower > * { position: relative; z-index: 2; }
+
+.wavelength-flower-target {
+  --flower-bg: var(--surface-secondary);
+  z-index: 25;
+  color: var(--text-inverted);
+}
+
+.wavelength-flower-guess {
+  --flower-bg: var(--surface-secondary);
+  color: var(--text-inverted);
+  filter: drop-shadow(0 8px 12px rgba(40,40,40,.12));
+}
+
+.wavelength-flower-guess > span {
+  display: grid;
+  place-items: center;
+}
+
+.wavelength-flower-guess.is-hidden {
+  --flower-bg: var(--surface-primary);
+  color: var(--text-primary);
+  filter: none;
+}
+
+.wavelength-flower-guess.is-hidden > span {
+  color: var(--text-primary);
+}
+
+.wavelength-flower-interactive {
+  width: 88px;
+  height: 88px;
+  font-size: 2rem;
+}
+
+.wavelength-distance {
+  transition: d var(--motion-medium) ease, opacity var(--motion-medium) ease;
+}
+
+.wavelength-player-marker {
+  position: absolute;
+  z-index: 30;
+  display: flex;
+  min-width: 52px;
+  translate: -50% -50%;
+  rotate: var(--marker-rotation, 0deg);
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  border-radius: var(--radius-full);
+  background: var(--surface-inverted-light);
+  padding: 6px 9px;
+  color: var(--text-inverted);
+  font-size: .72rem;
+  line-height: 1;
+  box-shadow: 0 5px 15px rgba(40,40,40,.1);
+}
+
+.wavelength-player-marker.is-highlighted {
+  background: var(--surface-secondary);
+}
+
+.swipe-reveal-cover {
+  transition: transform 360ms cubic-bezier(.2,.85,.2,1);
+  will-change: transform;
+}
+
+.swipe-reveal-cover:focus-visible {
+  outline: 4px solid var(--focus-ring);
+  outline-offset: -6px;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --space-page: 40px;
+  }
+
+  .tablet-panel {
+    max-width: 48rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

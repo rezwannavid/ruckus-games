@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Braces, Eye, EyeOff, Flag, Minus, Play, Plus, Send, Shuffle, Utensils, Vote } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { AppScreen } from "@/components/ui/GameUI";
+import { WavelengthBoard } from "@/components/ui/WavelengthBoard";
 import { BrandNav } from "@/features/lobby/components/BrandNav";
 import { GameArtwork } from "@/features/lobby/components/GameArtwork";
 import { getGameBySlug, playableGameSlugs } from "@/features/lobby/data/games";
@@ -202,18 +203,6 @@ function PackSelector<T extends string>({
         })}
       </div>
     </section>
-  );
-}
-
-function SecretScale({ left, right, value, hidden = false }: { left: string; right: string; value: number; hidden?: boolean }) {
-  return (
-    <div className="rounded-[30px] bg-[var(--surface-primary-light)] p-5">
-      <div className="flex justify-between text-footnote-semibold opacity-70"><span>{left}</span><span>{right}</span></div>
-      <div className="relative mt-6 h-12 rounded-full bg-[var(--surface-primary)]">
-        {!hidden && <div className="absolute top-1/2 h-14 w-2 -translate-y-1/2 rounded-full bg-[var(--surface-secondary)] transition-all duration-500" style={{ left: `calc(${value}% - 4px)` }} />}
-      </div>
-      <output className="mt-5 block text-display-md-semibold">{hidden ? "??" : value}</output>
-    </div>
   );
 }
 
@@ -444,17 +433,15 @@ function LocalWavelength(props: {
 
   if (phase === "private") {
     return (
-      <AppScreen tone="dark" className="!p-0">
-        <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col px-4 pb-safe pt-20 text-center">
-          <BrandNav title={clueGiver?.name ?? "Clue Giver"} tone="dark" />
-          <div className="mx-auto mt-8 w-24"><GameArtwork gameSlug="wavelength" tone="light" /></div>
-          <h1 className="mt-6 text-title-md-bold text-[var(--text-highlight)]">{scale[0]} - {scale[1]}</h1>
-          <div className="mt-6">
-            <SecretScale left={scale[0]} right={scale[1]} value={secret} hidden={!secretVisible} />
+      <AppScreen tone="light" className="!p-0">
+        <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col overflow-hidden rounded-[48px] px-4 pb-safe pt-20 text-center">
+          <BrandNav title="Set Rules" tone="dark" />
+          <div className="-mx-4 mt-5">
+            <WavelengthBoard left={scale[0]} right={scale[1]} value={secret} hideValue={!secretVisible} compact label={secretVisible ? `Secret number ${secret}` : "Secret number hidden"} />
           </div>
-          <Button onClick={() => setSecretVisible((value) => !value)} variant="inverted" size="md" showLeftIcon={false} rightIcon={secretVisible ? <EyeOff /> : <Eye />} className="mx-auto mt-4">{secretVisible ? "Hide" : "Reveal"}</Button>
-          <input value={clue} onChange={(event) => setClue(event.target.value)} placeholder="Give a clue..." className="mt-8 h-16 w-full rounded-[24px] bg-[var(--surface-primary-light)] px-5 text-center text-headline-md-bold outline-none placeholder:text-white/20" />
-          <Button onClick={() => setPhase("guess")} disabled={!clue.trim()} variant="tertiary" size="lg" showLeftIcon={false} rightIcon={<Send />} className="mt-auto w-full">Send Clue</Button>
+          <Button onClick={() => setSecretVisible((value) => !value)} variant={secretVisible ? "inverted" : "primary"} size="md" showLeftIcon={false} rightIcon={secretVisible ? <EyeOff /> : <Eye />} className="mx-auto -mt-1">{secretVisible ? "Hide" : "See number"}</Button>
+          <textarea value={clue} onChange={(event) => setClue(event.target.value)} maxLength={80} rows={2} placeholder="Your answer" className="mt-14 min-h-20 w-full resize-none border-b border-[var(--border-primary)] bg-transparent px-4 pb-4 text-center text-title-md-bold outline-none placeholder:text-[var(--text-inverted)]/12 focus:border-[var(--surface-secondary)]" />
+          <Button onClick={() => setPhase("guess")} disabled={!clue.trim()} variant="tertiary" size="lg" showLeftIcon={false} rightIcon={<Send />} className="mt-auto w-full">Submit</Button>
         </section>
       </AppScreen>
     );
@@ -462,17 +449,15 @@ function LocalWavelength(props: {
 
   if (phase === "guess") {
     return (
-      <AppScreen tone="accent" className="!p-0">
-        <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col px-4 pb-safe pt-16 text-center">
-          <BrandNav title="Make a Guess" tone="light" />
-          <p className="mt-10 text-body-semibold opacity-60">Clue</p>
-          <h1 className="mt-2 text-title-lg-bold">{clue}</h1>
-          <div className="mt-12 rounded-[32px] bg-[var(--surface-inverted-light)] p-5 text-[var(--text-inverted)]">
-            <div className="flex justify-between text-footnote-semibold"><span>{scale[0]}</span><span>{scale[1]}</span></div>
-            <input type="range" min={0} max={100} value={guess} onChange={(event) => setGuess(Number(event.target.value))} className="mt-8 w-full accent-[var(--surface-secondary)]" />
-            <output className="mt-5 block text-display-md-semibold">{guess}</output>
+      <AppScreen tone="light" className="!p-0">
+        <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col overflow-hidden rounded-[48px] px-4 pb-safe pt-20 text-center">
+          <BrandNav title="Wavelength" tone="dark" />
+          <p className="mt-10 text-body-regular">{clueGiver?.name}&apos;s Answer</p>
+          <h1 className="mx-auto mt-2 max-w-[18rem] text-title-md-bold">{clue}</h1>
+          <div className="-mx-4 mt-5">
+            <WavelengthBoard left={scale[0]} right={scale[1]} value={guess} onChange={setGuess} label={`Guess for ${clue}`} />
           </div>
-          <Button onClick={lockGuess} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Flag />} className="mt-auto w-full">Lock Guess</Button>
+          <Button onClick={lockGuess} variant="tertiary" size="lg" showLeftIcon={false} rightIcon={<Flag />} className="mt-auto w-full">guess</Button>
         </section>
       </AppScreen>
     );
@@ -481,20 +466,16 @@ function LocalWavelength(props: {
   const roundScore = getWavelengthScore(secret, guess);
   const clueGiverScore = Math.max(0, roundScore - 1);
   return (
-    <AppScreen tone="accent" className="!p-0">
-      <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col px-4 pb-safe pt-16 text-center">
-        <BrandNav title="Results" tone="light" />
-        <h1 className="mt-12 text-title-lg-bold">{scale[0]} - {scale[1]}</h1>
-        <div className="mt-12 rounded-[32px] bg-[var(--surface-inverted-light)] p-5 text-[var(--text-inverted)]">
-          <div className="relative h-16 rounded-full bg-[var(--surface-primary)]">
-            <div className="absolute top-1/2 h-14 w-2 -translate-y-1/2 rounded-full bg-[var(--surface-secondary)] transition-all duration-700" style={{ left: `calc(${secret}% - 4px)` }} />
-            <div className="absolute top-1/2 h-10 w-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--surface-inverted)] transition-all duration-700" style={{ left: `${guess}%` }} />
-          </div>
-          <p className="mt-6 text-title-sm-bold">Guess {guess} / Answer {secret}</p>
-          <p className="mt-2 text-headline-md-bold">Round Score: +{roundScore}</p>
-          <p className="mt-1 text-body-semibold">Clue-Giver Bonus: +{clueGiverScore}</p>
+    <AppScreen tone="light" className="!p-0">
+      <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col overflow-hidden rounded-[48px] px-4 pb-safe pt-20 text-center">
+        <BrandNav title="Results" tone="dark" />
+        <p className="mt-8 text-body-regular">{clueGiver?.name}&apos;s Answer</p>
+        <h1 className="mx-auto mt-1 max-w-[18rem] text-title-sm-bold">{clue}</h1>
+        <div className="-mx-4 mt-3">
+          <WavelengthBoard left={scale[0]} right={scale[1]} value={guess} target={secret} compact label={`Result. Guess ${guess}, answer ${secret}`} />
         </div>
-        <p className="mt-8 text-title-sm-bold">Total Score: {score}</p>
+        <div className="mx-auto -mt-2 flex items-center gap-5 text-body-semibold"><span>Guess {guess}</span><span className="grid size-12 place-items-center rounded-full bg-[var(--surface-secondary)] text-title-sm-bold">{roundScore}</span></div>
+        <p className="mt-4 text-body-semibold">Clue-giver +{clueGiverScore} · Total {score}</p>
         <div className="mt-auto grid grid-cols-2 gap-2">
           <Button onClick={() => { setClueGiverIndex((value) => value + 1); start(); }} variant="primary" size="lg" showLeftIcon={false} showRightIcon={false}>Next Round</Button>
           <Button onClick={props.onExit} variant="inverted" size="lg" showLeftIcon={false} rightIcon={<Flag />}>End Game</Button>

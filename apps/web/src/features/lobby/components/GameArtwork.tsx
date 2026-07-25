@@ -17,6 +17,7 @@ export function GameArtwork({ label = "?", gameSlug, tone = "default" }: GameArt
           width={204}
           height={189}
           className={`h-auto w-full max-w-[158px] ${toneClass}`}
+          style={{ width: "100%", height: "auto" }}
           priority
         />
       </div>
@@ -26,7 +27,7 @@ export function GameArtwork({ label = "?", gameSlug, tone = "default" }: GameArt
   if (gameSlug === "imposter-code") {
     return (
       <div className="flex h-full w-full items-center justify-center">
-        <Image src="/impostercodeartwork.svg" alt="" width={220} height={200} className={`h-auto w-full max-w-[220px] ${toneClass}`} priority />
+        <Image src="/impostercodeartwork.svg" alt="" width={220} height={200} className={`h-auto w-full max-w-[220px] ${toneClass}`} style={{ width: "100%", height: "auto" }} priority />
       </div>
     );
   }
@@ -34,7 +35,7 @@ export function GameArtwork({ label = "?", gameSlug, tone = "default" }: GameArt
   if (gameSlug === "wavelength") {
     return (
       <div className="flex h-full w-full items-center justify-center">
-        <Image src="/wavelengthartwork.svg" alt="" width={220} height={200} className={`h-auto w-full max-w-[220px] ${toneClass}`} priority />
+        <Image src="/wavelengthartwork.svg" alt="" width={220} height={200} className={`h-auto w-full max-w-[220px] ${toneClass}`} style={{ width: "100%", height: "auto" }} priority />
       </div>
     );
   }

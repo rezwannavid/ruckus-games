@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/AvatarPicker";
+import { PhysicsStage } from "@/components/ui/PhysicsStage";
 import { BrandNav } from "@/features/lobby/components/BrandNav";
 import { CopyIcon } from "@/features/lobby/components/icons";
 import { Crown, Eye, KeyRound, X } from "lucide-react";
@@ -54,23 +55,20 @@ export function RoomLobbyView({
           {(copyMessage || roomName) && <p className="mt-2 text-center text-caption-regular opacity-65">{copyMessage || roomName}</p>}
         </section>
 
-        <section className="relative mt-16 h-[410px]">
-          <div className="absolute inset-x-0 top-14 text-center">
+        <section className="relative mt-10 h-[440px]">
+          <div className="pointer-events-none absolute inset-x-0 top-[42%] z-20 -translate-y-1/2 text-center">
             <span className="grid place-items-center"><span className="grid size-8 place-items-center rounded-full bg-[var(--surface-inverted-light)] text-[var(--surface-secondary)]">?</span></span>
             <p className="mt-2 text-body-regular opacity-50">1 player is joining</p>
             <p className="-mt-1 text-body-semibold">{players.length} player{players.length === 1 ? "" : "s"} joined</p>
           </div>
-          {players.slice(0, 6).map((player, index) => {
-            const positions = [
-              "left-[8%] bottom-[6%] rotate-[-8deg]",
-              "left-[35%] bottom-[1%] rotate-[7deg]",
-              "right-[1%] bottom-[7%] rotate-[-6deg]",
-              "left-[16%] bottom-[34%] rotate-[4deg]",
-              "right-[17%] bottom-[35%] rotate-[-9deg]",
-              "left-[41%] bottom-[28%] rotate-[9deg]"
-            ];
-            return (
-              <article key={player.id} className={`ruckus-paper interactive-pop absolute grid h-[121px] w-[121px] place-items-center rounded-full px-3 py-4 text-center ${positions[index]}`}>
+          <PhysicsStage
+            className="h-full w-full"
+            ariaLabel={`${players.length} players in room ${roomCode}`}
+            tokens={players.slice(0, 8).map((player) => ({
+              id: player.id,
+              radius: 59,
+              render: (
+              <article className="ruckus-paper interactive-pop relative grid h-[118px] w-[118px] place-items-center rounded-full px-3 py-4 text-center">
                 <div className="relative">
                   {player.isHost && <Crown className="absolute -top-6 left-1/2 -translate-x-1/2 text-[var(--surface-secondary)]" size={24} />}
                   <Avatar avatarId={player.avatarId} name={player.name} size="lg" />
@@ -78,8 +76,9 @@ export function RoomLobbyView({
                 <p className="-mt-2 max-w-full truncate text-[15px]">{player.name}{player.id === currentPlayerId ? " (you)" : ""}</p>
                 {isHost && !player.isHost && <button type="button" onClick={() => onRemovePlayer(player.id)} aria-label={`Remove ${player.name}`} className="absolute right-1 top-1 grid size-6 place-items-center rounded-full bg-[var(--surface-primary)] text-[var(--text-primary)]"><X size={13} /></button>}
               </article>
-            );
-          })}
+              )
+            }))}
+          />
         </section>
 
         <Button

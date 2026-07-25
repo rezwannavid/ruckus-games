@@ -7,6 +7,9 @@ import { ArrowLeft, Eye, EyeOff, FastForward, Flag, LogOut, Play, Send, Skull, U
 import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/AvatarPicker";
 import { AppScreen, ErrorState, LoadingState, PlayerStatusPill, WaitingOrbit } from "@/components/ui/GameUI";
+import { WavelengthBoard } from "@/components/ui/WavelengthBoard";
+import { SwipeReveal } from "@/components/ui/SwipeReveal";
+import { Dialog } from "@/components/ui/Dialog";
 import { BrandNav } from "@/features/lobby/components/BrandNav";
 import { GameArtwork } from "@/features/lobby/components/GameArtwork";
 import { serverUrl } from "@/lib/config";
@@ -110,96 +113,6 @@ function AnimatedScore({ value, prefix = "" }: { value: number; prefix?: string 
   return <>{prefix}{display}</>;
 }
 
-function WavelengthScale({
-  left,
-  right,
-  value,
-  answer,
-  onChange,
-  disabled,
-  results = []
-}: {
-  left?: string;
-  right?: string;
-  value: number;
-  answer?: number | null;
-  onChange?: (value: number) => void;
-  disabled?: boolean;
-  results?: WavelengthResult[];
-}) {
-  const showAnswer = answer !== null && answer !== undefined;
-  const distance = showAnswer ? Math.abs(answer - value) : 0;
-  const low = showAnswer ? Math.min(answer, value) : value;
-  const high = showAnswer ? Math.max(answer, value) : value;
-  const orderedForLayout = [...results].sort((a, b) => a.guess - b.guess || a.playerId.localeCompare(b.playerId));
-  const markerLanes = new Map<string, number>();
-  let overlapGroup: WavelengthResult[] = [];
-  const commitGroup = () => overlapGroup.forEach((result, index) => markerLanes.set(result.playerId, index === 0 ? 0 : index % 2 ? -Math.ceil(index / 2) : Math.ceil(index / 2)));
-  orderedForLayout.forEach((result) => {
-    if (overlapGroup.length && result.guess - overlapGroup[overlapGroup.length - 1].guess > 5) {
-      commitGroup();
-      overlapGroup = [];
-    }
-    overlapGroup.push(result);
-  });
-  commitGroup();
-
-  return (
-    <div className="rounded-[32px] bg-[var(--surface-inverted-light)] p-5 text-[var(--text-inverted)]">
-      <div className="flex justify-between gap-4 text-footnote-semibold"><span>{left}</span><span>{right}</span></div>
-      <div className="relative mt-8 h-28 rounded-[32px] bg-[var(--surface-primary)]">
-        {showAnswer && (
-          <div
-            className="absolute top-1/2 h-3 -translate-y-1/2 rounded-full bg-[var(--surface-secondary)]/45 transition-all duration-500"
-            style={{ left: `${low}%`, width: `${Math.max(2, high - low)}%` }}
-          />
-        )}
-        {results.map((result, index) => {
-          const lane = markerLanes.get(result.playerId) ?? 0;
-          const identity = result.teamName ?? result.playerName;
-          return (
-          <div
-            key={result.playerId}
-            className={`absolute grid -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-[3px] border-white text-caption-semibold shadow-xl ${result.isClosest ? "z-30 size-16 bg-[var(--surface-secondary)] animate-celebrate" : "z-20 size-9 bg-[var(--surface-inverted)] text-[var(--text-inverted)] animate-pop"}`}
-            style={{ left: `${result.guess}%`, top: `calc(50% + ${lane * 18}px)`, animationDelay: `${result.isClosest ? 520 : 170 + index * 80}ms`, animationFillMode: "both" }}
-            aria-label={`${identity} guessed ${result.guess}, ${result.distance} from target, earning ${result.roundPoints} points`}
-          >
-            {result.isClosest ? (result.teamId ? <span className="px-1 text-center text-[10px] font-extrabold leading-tight text-white">{result.teamId === "team-1" ? "T1" : "T2"}</span> : <Avatar avatarId={result.avatarId ?? 1} name={result.playerName} size="sm" tone="black" />) : <span>{result.teamId ? (result.teamId === "team-1" ? "1" : "2") : result.playerName.slice(0, 1).toUpperCase()}</span>}
-          </div>
-        );})}
-        {showAnswer && (
-          <div
-            className="absolute top-1/2 z-10 h-20 w-2 -translate-y-1/2 animate-pop rounded-full bg-[var(--surface-secondary)] shadow-xl"
-            style={{ left: `calc(${answer}% - 4px)` }}
-          />
-        )}
-        {(onChange || results.length === 0) && <div
-          className="absolute top-1/2 grid size-12 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-4 border-[var(--surface-primary)] bg-[var(--surface-inverted-light)] text-caption-semibold shadow-xl transition-all duration-200"
-          style={{ left: `${value}%` }}
-        >
-          {value}
-        </div>}
-        {onChange && (
-          <input
-            type="range"
-            min={0}
-            max={100}
-            value={value}
-            disabled={disabled}
-            onChange={(event) => onChange(Number(event.target.value))}
-            className="wavelength-slider absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
-          />
-        )}
-      </div>
-      <div className={`mt-7 grid gap-2 text-center ${showAnswer ? "grid-cols-3" : "grid-cols-1"}`}>
-        <div><p className="text-caption-semibold opacity-60">Guess</p><p className="text-title-sm-bold">{value}</p></div>
-        {showAnswer && <div><p className="text-caption-semibold opacity-60">Answer</p><p className="text-title-sm-bold">{answer}</p></div>}
-        {showAnswer && <div><p className="text-caption-semibold opacity-60">Distance</p><p className="text-title-sm-bold">{distance}</p></div>}
-      </div>
-    </div>
-  );
-}
-
 function DeductionActions({
   isHost,
   fullResult,
@@ -247,7 +160,6 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
   const [room, setRoom] = useState<Room | null>(null);
   const [personal, setPersonal] = useState<PersonalState | null>(null);
   const [currentPlayerId] = useState(() => getStoredSession().roomCode?.toUpperCase() === roomCode ? getStoredSession().playerId : null);
-  const [holdingReveal, setHoldingReveal] = useState(false);
   const [hasSeenRole, setHasSeenRole] = useState(false);
   const [selectedVote, setSelectedVote] = useState("");
   const [answerText, setAnswerText] = useState("");
@@ -452,9 +364,7 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
       <div className="fixed right-4 top-[calc(var(--safe-top)+1rem)] z-[70]">
         <button type="button" onClick={() => setShowPlayers(true)} aria-label="View room" className="flex h-[33px] items-center gap-1.5 rounded-[17px] bg-[var(--surface-primary)] px-3 text-caption-semibold text-[var(--text-primary)] shadow-lg transition hover:scale-105 active:scale-95">View Room <Users size={13} /></button>
       </div>
-      {showPlayers && (
-        <div className="fixed inset-0 z-[80] flex items-end bg-black/45 p-3 backdrop-blur-sm sm:items-center sm:justify-center" onMouseDown={(event) => { if (event.currentTarget === event.target) setShowPlayers(false); }}>
-          <section className="animate-spring-in max-h-[85vh] w-full max-w-[25rem] overflow-y-auto rounded-[32px] bg-[var(--surface-inverted-light)] p-5 text-[var(--text-inverted)] shadow-2xl">
+      <Dialog open={showPlayers} onClose={() => setShowPlayers(false)} title={`Players in room ${roomCode}`} sheet className="max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between"><div><p className="text-title-sm-bold">Players</p><p className="text-caption-semibold opacity-60">Room {roomCode} · Round {gameState.round}</p></div><button type="button" onClick={() => setShowPlayers(false)} className="grid size-10 place-items-center rounded-full bg-black/10" aria-label="Close"><X /></button></div>
             <div className="mt-5 space-y-2">
               {gameState.players.map((player) => {
@@ -464,15 +374,11 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
               })}
             </div>
             {isHost && <Button onClick={() => roomAction("games/advance")} disabled={pendingAction !== null} variant="primary" size="lg" showLeftIcon={false} rightIcon={<FastForward />} className="mt-5 w-full">Move Game Forward</Button>}
-            <div className="mt-2 grid grid-cols-2 gap-2"><Button onClick={() => setConfirmAction("leave-game")} variant="inverted" size="md" showLeftIcon={false}>Leave Game</Button><Button onClick={() => setConfirmAction("leave-room")} variant="inverted" size="md" showLeftIcon={false} rightIcon={<LogOut />}>Leave Room</Button></div>
-          </section>
-        </div>
-      )}
-      {confirmAction && (
-        <div className="fixed inset-0 z-[90] grid place-items-center bg-black/55 p-4 backdrop-blur-sm">
-          <section role="alertdialog" aria-modal="true" className="animate-spring-in w-full max-w-sm rounded-[32px] bg-[var(--surface-inverted-light)] p-6 text-center text-[var(--text-inverted)] shadow-2xl"><div className="mx-auto grid size-16 place-items-center rounded-full bg-[#ffddd7] text-[#b42318]"><Flag /></div><h2 className="mt-4 text-title-sm-bold">Are you sure?</h2><p className="mt-2 text-body-semibold opacity-65">{confirmAction === "end-game" ? "The current round stops for everyone, but the room and completed history stay safe." : confirmAction === "leave-game" ? "You will leave this game but stay in the room." : "You will leave the room. The game continues for everyone else."}</p><div className="mt-6 grid grid-cols-2 gap-2"><Button onClick={() => setConfirmAction(null)} variant="inverted" size="md" showLeftIcon={false}>Cancel</Button><Button onClick={confirmLifecycleAction} variant="primary" size="md" showLeftIcon={false}>Confirm</Button></div></section>
-        </div>
-      )}
+            <div className="mt-2 grid grid-cols-2 gap-2"><Button onClick={() => { setShowPlayers(false); setConfirmAction("leave-game"); }} variant="inverted" size="md" showLeftIcon={false}>Leave Game</Button><Button onClick={() => { setShowPlayers(false); setConfirmAction("leave-room"); }} variant="inverted" size="md" showLeftIcon={false} rightIcon={<LogOut />}>Leave Room</Button></div>
+      </Dialog>
+      <Dialog open={confirmAction !== null} onClose={() => setConfirmAction(null)} title="Are you sure?" description={confirmAction === "end-game" ? "The current round stops for everyone." : "Confirm leaving the current game."} alert className="p-6 text-center">
+        <div className="mx-auto grid size-16 place-items-center rounded-full bg-[var(--state-danger-surface)] text-[var(--state-danger-text)]"><Flag /></div><h2 className="mt-4 text-title-sm-bold">Are you sure?</h2><p className="mt-2 text-body-semibold opacity-65">{confirmAction === "end-game" ? "The current round stops for everyone, but the room and completed history stay safe." : confirmAction === "leave-game" ? "You will leave this game but stay in the room." : "You will leave the room. The game continues for everyone else."}</p><div className="mt-6 grid grid-cols-2 gap-2"><Button onClick={() => setConfirmAction(null)} variant="inverted" size="md" showLeftIcon={false}>Cancel</Button><Button onClick={confirmLifecycleAction} variant="primary" size="md" showLeftIcon={false}>Confirm</Button></div>
+      </Dialog>
     </>
   );
 
@@ -734,28 +640,34 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
 
     if (gameState.phase === "clue") {
       return (
-        <AppScreen tone="dark" className="!p-0">
-          <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-20 text-center">
-            <BrandNav title="Wavelength" tone="dark" centerTitle />{universalControls}
-            <div className="mx-auto mt-8 w-24"><GameArtwork gameSlug="wavelength" tone="light" /></div>
-            <p className="mt-8 text-body-semibold opacity-60">Scale</p>
-            <h1 className="mt-2 text-title-lg-bold text-[var(--text-highlight)]">{gameState.scaleLeft} ↔ {gameState.scaleRight}</h1>
+        <AppScreen tone="light" className="!p-0">
+          <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col overflow-hidden rounded-[48px] px-4 pb-safe pt-20 text-center">
+            <BrandNav title="Set Rules" tone="dark" />{universalControls}
             {personal.isClueGiver ? (
               <>
-                <div className="mt-8 rounded-[30px] bg-[var(--surface-primary-light)] p-5">
-                  <div className="flex justify-between text-footnote-semibold opacity-70"><span>{gameState.scaleLeft}</span><span>{gameState.scaleRight}</span></div>
-                  <div className="relative mt-6 h-12 rounded-full bg-[var(--surface-primary)]">
-                    {secretVisible && <div className="absolute top-1/2 h-14 w-2 -translate-y-1/2 rounded-full bg-[var(--surface-secondary)] transition-all duration-500" style={{ left: `calc(${secretNumber}% - 4px)` }} />}
-                  </div>
-                  <output className="mt-5 block text-display-md-semibold">{secretVisible ? secretNumber : "??"}</output>
+                <div className="-mx-4 mt-5">
+                  <WavelengthBoard
+                    left={gameState.scaleLeft}
+                    right={gameState.scaleRight}
+                    value={secretNumber}
+                    hideValue={!secretVisible}
+                    compact
+                    label={secretVisible ? `Secret number ${secretNumber}` : "Secret number hidden"}
+                  />
                 </div>
-                <Button onClick={() => setSecretVisible((value) => !value)} variant="inverted" size="md" showLeftIcon={false} rightIcon={secretVisible ? <EyeOff /> : <Eye />} className="mx-auto mt-4">{secretVisible ? "Hide" : "Reveal"}</Button>
-                <input value={clueText} onChange={(event) => setClueText(event.target.value)} placeholder="Give a clue..." maxLength={80} className="mt-8 h-16 w-full rounded-[24px] bg-[var(--surface-primary-light)] px-5 text-center text-headline-md-bold outline-none placeholder:text-white/20 focus-visible:outline-3 focus-visible:outline-[var(--surface-secondary)]" />
-                <Button onClick={() => { perform("submit-clue", { clue: clueText }); setClueText(""); setSecretVisible(false); }} disabled={!clueText.trim() || pendingAction !== null} variant="tertiary" size="lg" showLeftIcon={false} rightIcon={<Send />} className="mt-auto w-full">{pendingAction === "submit-clue" ? "Sending..." : "Send Clue"}</Button>
+                <Button onClick={() => setSecretVisible((value) => !value)} variant={secretVisible ? "inverted" : "primary"} size="md" showLeftIcon={false} rightIcon={secretVisible ? <EyeOff /> : <Eye />} className="mx-auto -mt-1 min-w-[132px]">{secretVisible ? "Hide" : "See number"}</Button>
+                <label className="relative mt-14 block">
+                  <span className="sr-only">Your clue</span>
+                  <textarea value={clueText} onChange={(event) => setClueText(event.target.value)} placeholder="Your answer" maxLength={80} rows={2} className="min-h-20 w-full resize-none border-b border-[var(--border-primary)] bg-transparent px-4 pb-4 text-center text-title-md-bold outline-none placeholder:text-[var(--text-inverted)]/12 focus:border-[var(--surface-secondary)]" />
+                  <span className="absolute bottom-1 right-1 text-caption-regular opacity-35">{clueText.length}/80</span>
+                </label>
+                <Button onClick={() => { perform("submit-clue", { clue: clueText }); setClueText(""); setSecretVisible(false); }} disabled={!clueText.trim() || pendingAction !== null} variant="tertiary" size="lg" showLeftIcon={false} rightIcon={<Send />} className="mt-auto w-full">{pendingAction === "submit-clue" ? "Sending..." : "Submit"}</Button>
               </>
             ) : (
               <>
-                <p className="mt-8 text-title-sm-bold">Waiting for {gameState.clueGiverName}</p>
+                <div className="flex flex-1 items-center">
+                  <WaitingOrbit players={gameState.players} completedIds={[]} title={`Waiting for ${gameState.clueGiverName}`} subtitle="The secret number is being turned into a clue" />
+                </div>
                 <p className="mt-2 text-body-semibold opacity-60">
                   {gameState.mode === "teams" ? `${activeTeamName} is giving this clue.` : "The clue-giver is preparing the scale."}
                 </p>
@@ -794,21 +706,20 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
       }
 
       return (
-        <AppScreen tone="dark" className="!p-0">
-          <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-16 text-center">
-            <BrandNav title="Make a Guess" tone="dark" centerTitle />{universalControls}
+        <AppScreen tone="light" className="!p-0">
+          <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col overflow-hidden rounded-[48px] px-4 pb-safe pt-20 text-center">
+            <BrandNav title="Wavelength" tone="dark" />{universalControls}
             <div className="mt-10">
-              <p className="text-footnote-semibold opacity-40">Time</p>
-              <p className="text-title-lg-semibold tabular-nums">{formattedTime}</p>
+              <p className="text-body-regular">{gameState.clueGiverName}&apos;s Answer</p>
+              <h1 className="mx-auto mt-2 max-w-[18rem] text-title-md-bold">{gameState.clue}</h1>
+              <p className="mt-3 text-footnote-semibold opacity-45">{formattedTime}</p>
             </div>
-            <p className="mt-10 text-body-semibold opacity-60">Clue</p>
-            <h1 className="mt-2 text-title-lg-bold text-[var(--text-highlight)]">{gameState.clue}</h1>
-            <div className="mt-12 animate-pop">
-              <WavelengthScale left={gameState.scaleLeft} right={gameState.scaleRight} value={guess} onChange={setGuess} />
+            <div className="-mx-4 mt-5 animate-pop">
+              <WavelengthBoard left={gameState.scaleLeft} right={gameState.scaleRight} value={guess} onChange={setGuess} label={`Guess for ${gameState.clue}`} />
             </div>
             <div className="mt-auto">
               <PlayerStatusPill players={gameState.players} completedIds={submittedGuessIds} label={`${submittedGuessIds.length}/${eligibleGuesserIds.length} guessed`} />
-              <Button onClick={() => perform("submit-guess", { guess })} disabled={pendingAction !== null} variant="primary" size="lg" showLeftIcon={false} rightIcon={<Flag />} className="w-full">{pendingAction === "submit-guess" ? "Locking..." : "Submit Guess"}</Button>
+              <Button onClick={() => perform("submit-guess", { guess })} disabled={pendingAction !== null} variant="tertiary" size="lg" showLeftIcon={false} rightIcon={<Flag />} className="w-full">{pendingAction === "submit-guess" ? "Locking..." : "guess"}</Button>
             </div>
           </section>
         </AppScreen>
@@ -820,21 +731,31 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
         <section className="mx-auto flex min-screen-safe w-full max-w-[25rem] flex-col rounded-[48px] px-4 pb-safe pt-16 text-center">
           <BrandNav title="Results" tone="light" centerTitle />{universalControls}
           {finalRound && <p className="mt-8 animate-pop text-headline-md-bold">{winnerNames.length > 1 ? `Tie: ${winnerNames.join(" & ")}` : `${winnerNames[0]} wins!`}</p>}
-          <h1 className={`${finalRound ? "mt-5" : "mt-12"} text-title-lg-bold`}>{gameState.scaleLeft} ↔ {gameState.scaleRight}</h1>
-          <p className="mt-3 text-headline-md-bold">Clue: {gameState.clue}</p>
-          <div className="mt-12 animate-pop">
-            <WavelengthScale
+          <p className={`${finalRound ? "mt-5" : "mt-10"} text-body-regular`}>{gameState.clueGiverName}&apos;s Answer</p>
+          <h1 className="mx-auto mt-1 max-w-[18rem] text-title-sm-bold">{gameState.clue}</h1>
+          <div className="-mx-4 mt-3 animate-pop">
+            <WavelengthBoard
               left={gameState.scaleLeft}
               right={gameState.scaleRight}
               value={gameState.guess ?? gameState.guessSummary?.[0]?.guess ?? 50}
-              answer={secretNumber}
-              results={gameState.resultSummary ?? []}
+              target={secretNumber}
+              markers={(gameState.resultSummary ?? []).map((result) => ({
+                id: result.playerId,
+                name: result.teamName ?? result.playerName,
+                avatarId: result.avatarId,
+                value: result.guess,
+                points: result.roundPoints,
+                delta: result.distance,
+                highlighted: result.isClosest
+              }))}
+              compact
+              label={`Results. Answer ${secretNumber}`}
             />
           </div>
-          <div className="stagger-children mt-5 space-y-2 text-left">
+          <div className="stagger-children -mt-2 space-y-0 text-left">
             {(gameState.resultSummary ?? []).map((result) => {
               const identity = result.teamName ?? result.playerName;
-              return <div key={result.playerId} className={`flex items-center gap-3 rounded-[24px] p-3 transition ${result.isClosest ? "bg-[var(--surface-primary)] text-[var(--text-primary)] ring-[3px] ring-black/15" : "bg-white/75 text-black"}`}><span className={`grid size-8 place-items-center rounded-full text-caption-semibold ${result.isClosest ? "bg-[var(--surface-secondary)] text-white" : "bg-black text-white"}`}>{result.rank}</span>{result.teamId ? <span className="grid size-11 place-items-center rounded-full bg-black text-caption-semibold text-white">{result.teamId === "team-1" ? "T1" : "T2"}</span> : <Avatar avatarId={result.avatarId ?? 1} name={result.playerName} />}<div className="min-w-0 flex-1"><p className="truncate text-headline-md-semibold">{identity}{result.isTied ? " · Tie" : ""}</p><p className="text-caption-semibold opacity-55">Guess {result.guess} · Distance {result.distance}</p></div><div className="text-right"><p className={`animate-pop text-title-sm-bold ${result.isClosest ? "text-[var(--surface-secondary)]" : ""}`}><AnimatedScore value={result.roundPoints} prefix="+" /></p><p className="text-caption-semibold opacity-55">Total <AnimatedScore value={result.totalPoints} /></p></div></div>;
+              return <div key={result.playerId} className="flex min-h-[61px] items-center gap-3 border-b border-[var(--border-primary)] px-1 py-2 text-[var(--text-inverted)]"><span className="w-5 text-center text-caption-semibold opacity-45">{result.rank}</span>{result.teamId ? <span className="grid size-9 place-items-center rounded-full bg-[var(--surface-primary)] text-caption-semibold text-[var(--text-primary)]">{result.teamId === "team-1" ? "T1" : "T2"}</span> : <Avatar avatarId={result.avatarId ?? 1} name={result.playerName} />}<div className="min-w-0 flex-1"><p className="truncate text-headline-md-semibold">{identity}{result.isTied ? " · Tie" : ""}</p></div><div className="w-12 text-center"><p className="text-caption-regular opacity-50">Guess</p><p className="text-body-semibold">{result.guess}</p><p className="text-caption-regular opacity-35">+{result.distance}</p></div><div className={`w-11 text-center ${result.isClosest ? "rounded-full bg-[var(--surface-secondary)] py-1" : ""}`}><p className="text-caption-regular opacity-50">Points</p><p className="text-title-sm-bold"><AnimatedScore value={result.roundPoints} /></p></div></div>;
             })}
           </div>
           <p className="mt-3 text-footnote-semibold opacity-70">{finalRound ? "Final standings" : `Round ${gameState.round}/${gameState.maxRounds}`}</p>
@@ -875,44 +796,41 @@ export default function PlayGamePage({ params }: { params: Promise<{ code: strin
     const roleText = personal.role === "imposter" ? "IMPOSTER" : personal.word;
     return (
       <AppScreen tone="dark" className="overflow-hidden !p-0">
-        <div className="relative flex min-h-screen w-full flex-col bg-[var(--surface-primary)] pb-6">
-          <div className="absolute inset-x-0 top-0 flex h-[72%] items-center justify-center px-6 text-center">
-            <div><p className="text-headline-md-bold">Your {personal.role === "imposter" ? "role" : "word"} is</p><p className="mt-2 break-words text-display-md-semibold">{roleText}</p></div>
-          </div>
-
-          <div
-            role="button"
-            tabIndex={0}
-            aria-label="Hold to reveal your role"
-            onPointerDown={(event) => { if (ready) return; event.currentTarget.setPointerCapture(event.pointerId); setHoldingReveal(true); }}
-            onPointerUp={() => { if (ready) return; setHoldingReveal(false); setHasSeenRole(true); }}
-            onPointerCancel={() => { setHoldingReveal(false); setHasSeenRole(true); }}
-            className={`absolute inset-x-0 top-0 z-10 flex h-[85%] w-full touch-none items-center justify-center rounded-b-[60px] bg-[var(--surface-secondary)] px-8 text-center transition-transform duration-300 ease-out ${holdingReveal ? "-translate-y-[72%]" : "translate-y-0"}`}
+        <div className="relative flex min-h-screen w-full flex-col bg-[var(--surface-primary)] pb-safe">
+          <SwipeReveal
+            className="h-[calc(100dvh-7rem)] min-h-[620px]"
+            revealed={hasSeenRole}
+            disabled={ready}
+            onReveal={() => setHasSeenRole(true)}
+            label={`Swipe up or press Enter to reveal your ${personal.role === "imposter" ? "role" : "word"}`}
+            cover={
+              <div className="relative flex h-full items-center justify-center rounded-b-[60px] bg-[var(--surface-secondary)] px-8 text-center">
+                {isHost && (
+                  <div className="absolute left-1/2 top-20 flex -translate-x-1/2 gap-2">
+                    <Button onClick={endGame} variant="inverted" size="md" showLeftIcon={false} rightIcon={<Skull size={17} />}>End Game</Button>
+                    <Button onClick={() => router.push(`/room/${roomCode}`)} variant="inverted" size="md" showLeftIcon={false}>Go to Room</Button>
+                  </div>
+                )}
+                <div className="absolute left-1/2 top-[144px] flex -translate-x-1/2 items-center rounded-full bg-[var(--surface-inverted)] px-3 py-2 text-[var(--text-inverted)]">
+                  <div className="flex -space-x-2">
+                    {activePlayers.map((player) => {
+                      const isReady = gameState.readyPlayerIds?.includes(player.id);
+                      return <span key={player.id} className="grid size-7 place-items-center rounded-full bg-[var(--surface-inverted-light)]"><Avatar avatarId={player.avatarId ?? 1} size="sm" tone={isReady ? "black" : "muted"} /></span>;
+                    })}
+                  </div>
+                  <span className="ml-2 whitespace-nowrap text-caption-semibold">{readyCount}/{activePlayerCount} players ready</span>
+                </div>
+                <p className="text-title-md-extrabold">{ready ? (allReady ? "All Players Ready" : "Waiting for other players") : "Swipe up to reveal your word"}<br /><span className="text-body-semibold opacity-55">or press Enter</span></p>
+              </div>
+            }
           >
-            {isHost && (
-              <div className="absolute left-1/2 top-20 flex -translate-x-1/2 gap-2">
-                <Button onClick={endGame} variant="inverted" size="md" showLeftIcon={false} rightIcon={<Skull size={17} />}>End Game</Button>
-                <Button onClick={() => router.push(`/room/${roomCode}`)} variant="inverted" size="md" showLeftIcon={false} rightIcon={<Skull size={17} />}>Go to Room</Button>
-              </div>
-            )}
-            <div className="absolute left-1/2 top-[144px] flex -translate-x-1/2 items-center rounded-full bg-[var(--surface-inverted)] px-3 py-2 text-[var(--text-inverted)]">
-              <div className="flex -space-x-2">
-                {activePlayers.map((player) => {
-                  const isReady = gameState.readyPlayerIds?.includes(player.id);
-                  return <span key={player.id} className="grid size-7 place-items-center rounded-full bg-[var(--surface-inverted-light)]"><Avatar avatarId={player.avatarId ?? 1} size="sm" tone={isReady ? "black" : "muted"} /></span>;
-                })}
-              </div>
-              <span className="ml-2 whitespace-nowrap text-caption-semibold">{readyCount}/{activePlayerCount} players ready</span>
+            <div className="flex h-[72%] items-center justify-center px-6 text-center">
+              <div><p className="text-headline-md-bold">Your {personal.role === "imposter" ? "role" : "word"} is</p><p className="mt-2 break-words text-display-md-semibold">{roleText}</p></div>
             </div>
-            {!ready && !hasSeenRole && <p className="text-title-md-extrabold">Swipe up to<br />reveal your word</p>}
-            {!ready && hasSeenRole && !holdingReveal && <p className="text-title-md-extrabold">Press ready when<br />you are</p>}
-            {ready && !allReady && <p className="text-title-md-extrabold">Waiting for<br />other players</p>}
-            {ready && allReady && <p className="text-title-md-extrabold">All Players Ready</p>}
-          </div>
-
+          </SwipeReveal>
           <div className="relative z-20 mt-auto px-4">
             {!ready ? (
-              <Button onClick={() => perform("ready")} disabled={!hasSeenRole || holdingReveal || pendingAction !== null} variant="primary" size="lg" showLeftIcon={false} className="w-full">{pendingAction === "ready" ? "Saving..." : "I'm Ready"}</Button>
+              <Button onClick={() => perform("ready")} disabled={!hasSeenRole || pendingAction !== null} variant="primary" size="lg" showLeftIcon={false} className="w-full">{pendingAction === "ready" ? "Saving..." : "I'm Ready"}</Button>
             ) : allReady && isHost ? (
               <Button onClick={() => perform("start-round")} disabled={pendingAction !== null} variant="tertiary" size="lg" showLeftIcon={false} rightIcon={<Play />} className="w-full">{pendingAction === "start-round" ? "Starting..." : "Start Round"}</Button>
             ) : (

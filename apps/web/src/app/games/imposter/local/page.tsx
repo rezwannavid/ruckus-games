@@ -6,6 +6,7 @@ import { Flag, MapPin, Minus, Play, Plus, RotateCcw, Shuffle, Skull, Vote } from
 import { Avatar } from "@/components/ui/AvatarPicker";
 import { Button } from "@/components/ui/Button";
 import { AppScreen } from "@/components/ui/GameUI";
+import { SwipeReveal } from "@/components/ui/SwipeReveal";
 import { BrandNav } from "@/features/lobby/components/BrandNav";
 import { imposterWords } from "@/features/imposter/data/words";
 
@@ -43,7 +44,6 @@ export default function LocalImposterPage() {
   const [index, setIndex] = useState(0);
   const [word, setWord] = useState("");
   const [selectedVote, setSelectedVote] = useState("");
-  const [holdingReveal, setHoldingReveal] = useState(false);
   const [hasSeenRole, setHasSeenRole] = useState(false);
   const [answerRevealed, setAnswerRevealed] = useState(false);
   const [timeLeft, setTimeLeft] = useState(90);
@@ -85,7 +85,6 @@ export default function LocalImposterPage() {
     setPlayers((list) => list.map((player) => ({ ...player, isImposter: imposters.has(player.id), eliminated: false })));
     setIndex(0);
     setSelectedVote("");
-    setHoldingReveal(false);
     setHasSeenRole(false);
     setAnswerRevealed(false);
     setTimeLeft(roundTimer);
@@ -216,27 +215,25 @@ export default function LocalImposterPage() {
     return (
       <AppScreen tone="dark" className="overflow-hidden !p-0">
         {endControl}
-        <div className="relative flex min-h-screen w-full flex-col bg-[var(--surface-primary)] pb-6">
-          <div className="absolute inset-x-0 top-0 flex h-[72%] items-center justify-center px-6 text-center">
-            <div><p className="text-headline-md-bold">Your {current?.isImposter ? "role" : "word"} is</p><p className="mt-2 break-words text-display-md-semibold">{roleText}</p></div>
-          </div>
-          <div
-            role="button"
-            tabIndex={0}
-            aria-label="Hold to reveal your role"
-            onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); setHoldingReveal(true); }}
-            onPointerUp={() => { setHoldingReveal(false); setHasSeenRole(true); }}
-            onPointerCancel={() => { setHoldingReveal(false); setHasSeenRole(true); }}
-            onKeyDown={(event) => { if (event.key === " " || event.key === "Enter") setHoldingReveal(true); }}
-            onKeyUp={() => { setHoldingReveal(false); setHasSeenRole(true); }}
-            className={`absolute inset-x-0 top-0 z-10 flex h-[85%] w-full touch-none items-center justify-center rounded-b-[60px] bg-[var(--surface-secondary)] px-8 text-center transition-transform duration-300 ease-out ${holdingReveal ? "-translate-y-[72%]" : "translate-y-0"}`}
+        <div className="relative flex min-h-screen w-full flex-col bg-[var(--surface-primary)] pb-safe">
+          <SwipeReveal
+            className="h-[calc(100dvh-7rem)] min-h-[620px]"
+            revealed={hasSeenRole}
+            onReveal={() => setHasSeenRole(true)}
+            label={`Swipe up or press Enter to reveal your ${current?.isImposter ? "role" : "word"}`}
+            cover={
+              <div className="relative flex h-full items-center justify-center rounded-b-[60px] bg-[var(--surface-secondary)] px-8 text-center">
+                <p className="text-title-md-extrabold">Swipe up to<br />reveal answer<br /><span className="text-body-semibold opacity-55">or press Enter</span></p>
+                <Button onClick={() => setConfirmEnd(true)} variant="inverted" size="md" showLeftIcon={false} rightIcon={<Skull />} className="absolute top-20">End Game</Button>
+              </div>
+            }
           >
-            {!hasSeenRole && <p className="text-title-md-extrabold">Swipe up or hold to<br />reveal answer</p>}
-            {hasSeenRole && !holdingReveal && <p className="text-title-md-extrabold">Press ready when<br />you are</p>}
-            <Button onClick={() => setConfirmEnd(true)} variant="inverted" size="md" showLeftIcon={false} rightIcon={<Skull />} className="absolute top-20">End Game</Button>
-          </div>
+            <div className="flex h-[72%] items-center justify-center px-6 text-center">
+              <div><p className="text-headline-md-bold">Your {current?.isImposter ? "role" : "word"} is</p><p className="mt-2 break-words text-display-md-semibold">{roleText}</p></div>
+            </div>
+          </SwipeReveal>
           <div className="relative z-20 mt-auto px-4">
-            <Button onClick={nextRole} disabled={!hasSeenRole || holdingReveal} variant="primary" size="lg" showLeftIcon={false} className="w-full">I&apos;m Ready</Button>
+            <Button onClick={nextRole} disabled={!hasSeenRole} variant="primary" size="lg" showLeftIcon={false} className="w-full">I&apos;m Ready</Button>
           </div>
         </div>
       </AppScreen>

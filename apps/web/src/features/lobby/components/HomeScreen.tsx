@@ -1,9 +1,9 @@
 "use client";
 
-import { Button } from "@/components/ui/Button";
-import { GameCard } from "@/features/lobby/components/GameCard";
-import { DoorOpen, Github, Instagram, LogIn } from "lucide-react";
-import { games, playableGameSlugs } from "@/features/lobby/data/games";
+import Image from "next/image";
+import { useEffect, useRef, useState, type PointerEvent } from "react";
+import { GameArtwork } from "@/features/lobby/components/GameArtwork";
+import { games } from "@/features/lobby/data/games";
 
 type HomeScreenProps = {
   onCreateRoom: () => void;
@@ -13,52 +13,175 @@ type HomeScreenProps = {
   error?: string;
 };
 
+const SWIPE_THRESHOLD = 42;
+
 export function HomeScreen({
   onCreateRoom,
   onJoinRoom,
-  onBrowseGames,
   onGameClick,
   error
 }: HomeScreenProps) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [dragX, setDragX] = useState(0);
+  const [exitSide, setExitSide] = useState<-1 | 0 | 1>(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const pointerStart = useRef<number | null>(null);
+  const transitionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const activeGame = games[activeIndex];
+
+  useEffect(() => {
+    return () => {
+      if (transitionTimer.current) clearTimeout(transitionTimer.current);
+    };
+  }, []);
+
+  function changeGame(delta: -1 | 1, side: -1 | 1) {
+    if (exitSide !== 0) return;
+
+    setExitSide(side);
+    transitionTimer.current = setTimeout(() => {
+      setActiveIndex((index) => (index + delta + games.length) % games.length);
+      setDragX(0);
+      setExitSide(0);
+    }, 190);
+  }
+
+  function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
+    if (exitSide !== 0) return;
+    pointerStart.current = event.clientX;
+    setIsDragging(true);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function handlePointerMove(event: PointerEvent<HTMLDivElement>) {
+    if (pointerStart.current === null || exitSide !== 0) return;
+    const distance = event.clientX - pointerStart.current;
+    setDragX(Math.max(-112, Math.min(112, distance)));
+  }
+
+  function finishPointer(event: PointerEvent<HTMLDivElement>) {
+    if (pointerStart.current === null) return;
+    const distance = event.clientX - pointerStart.current;
+    pointerStart.current = null;
+    setIsDragging(false);
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
+    if (distance <= -SWIPE_THRESHOLD) {
+      changeGame(1, -1);
+    } else if (distance >= SWIPE_THRESHOLD) {
+      changeGame(-1, 1);
+    } else {
+      setDragX(0);
+    }
+  }
+
+  const activeCardTransform =
+    exitSide === 0
+      ? `translate3d(${dragX}px, 0, 0) rotate(${dragX * 0.035}deg)`
+      : `translate3d(${exitSide * 340}px, -12px, 0) rotate(${exitSide * 13}deg)`;
+
   return (
-    <main className="ruckus-screen min-screen-safe overflow-x-hidden px-4 pb-safe pt-safe">
-      <div className="mx-auto flex min-h-[calc(100dvh-2rem-var(--safe-bottom)-var(--safe-top))] max-w-6xl flex-col">
-        <section className="flex flex-col items-center text-center">
-          <div className="ruckus-display text-[34px] font-bold leading-[.62] tracking-[-.12em]" aria-label="Ruckus Games">
-            <span className="block translate-x-1">r<span className="relative -top-2">u</span>k<span className="relative top-1">u</span></span>
-            <span className="block">r<span className="relative -top-1">c</span>ks</span>
-            <span className="mt-2 block text-[16px] font-light tracking-[-.08em]">games</span>
+    <main className="home-page">
+      <div className="home-screen" data-node-id="606:9721">
+        <Image
+          src="/figma/home/gradient-ellipse.svg"
+          alt=""
+          width={881}
+          height={881}
+          priority
+          className="home-gradient"
+        />
+
+        <header className="home-logo" aria-label="Ruckus Games">
+          <Image
+            src="/figma/home/ruckus-logo.svg"
+            alt=""
+            width={64}
+            height={39}
+            priority
+          />
+          <span>games</span>
+        </header>
+
+        <section className="home-room-actions" aria-label="Room actions">
+          <button type="button" className="home-room-button home-room-button--dark" onClick={onCreateRoom}>
+            <span>Create Room</span>
+            <Image src="/figma/home/door-open.svg" alt="" width={16} height={16} />
+          </button>
+          <button type="button" className="home-room-button home-room-button--light" onClick={onJoinRoom}>
+            <span>Join Room</span>
+            <Image src="/figma/home/door-enter.svg" alt="" width={16} height={16} />
+          </button>
+        </section>
+
+        <p className="home-swipe-label">Swipe to see more games</p>
+
+        <section
+          className="home-card-deck"
+          aria-roledescription="carousel"
+          aria-label="Games"
+          tabIndex={0}
+          onKeyDown={(event) => {
+            if (event.key === "ArrowRight") changeGame(1, -1);
+            if (event.key === "ArrowLeft") changeGame(-1, 1);
+          }}
+        >
+          <div className="home-card-shell home-card-shell--back" aria-hidden="true" />
+          <div className="home-card-shell home-card-shell--middle" aria-hidden="true" />
+          <div
+            className="home-card-shell home-card-shell--front"
+            style={{
+              transform: activeCardTransform,
+              transition: isDragging ? "none" : "transform 190ms cubic-bezier(.22,.8,.3,1)"
+            }}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={finishPointer}
+            onPointerCancel={finishPointer}
+          >
+            <h1>{activeGame.name}</h1>
+            <div className="home-card-artwork">
+              <GameArtwork gameSlug={activeGame.slug} />
+            </div>
+            <p className="home-card-description">{activeGame.description}</p>
+            <p className="home-card-players">
+              <span>{activeGame.minPlayers}-{activeGame.maxPlayers}</span>
+              Players
+            </p>
           </div>
+          <p className="sr-only" aria-live="polite">
+            {activeGame.name}, {activeGame.description}, {activeGame.minPlayers} to {activeGame.maxPlayers} players
+          </p>
         </section>
 
-        <section aria-label="Room actions" className="mx-auto mt-7 grid w-full max-w-[278px] grid-cols-2 gap-2">
-          <Button onClick={onCreateRoom} variant="inverted" size="md" showLeftIcon={false} rightIcon={<DoorOpen size={16} />}>Create Room</Button>
-          <Button onClick={onJoinRoom} variant="primary-plus" size="md" showLeftIcon={false} rightIcon={<LogIn size={16} />}>Join Room</Button>
-        </section>
+        <button
+          type="button"
+          className="home-select-game"
+          onClick={() => onGameClick(activeGame.slug)}
+        >
+          select game
+        </button>
 
-        <p className="mt-10 text-center text-footnote-regular opacity-70">Swipe to see more games</p>
+        {error && <p className="home-error" role="alert">{error}</p>}
 
-        <section className="-mx-4 mt-3 flex snap-x snap-mandatory gap-3 overflow-x-auto px-[calc(50%-123px)] pb-4 [scrollbar-width:none] md:mx-0 md:grid md:grid-cols-[repeat(auto-fit,minmax(16rem,1fr))] md:px-0">
-          {games.map((game) => (
-            <GameCard
-              key={game.slug}
-              game={game}
-              disabled={!playableGameSlugs.has(game.slug)}
-              comingSoon={!playableGameSlugs.has(game.slug)}
-              className="w-[246px] shrink-0 snap-center md:w-full"
-              onClick={() => onGameClick(game.slug)}
-            />
-          ))}
-        </section>
-
-        <Button onClick={onBrowseGames} variant="tertiary" size="lg" showLeftIcon={false} showRightIcon={false} className="mx-auto mt-6 w-[238px]">select game</Button>
-
-        {error && <p className="mt-4 text-center text-sm text-red-300">{error}</p>}
-
-        <footer className="mt-auto pt-8 text-center text-caption-regular">
+        <footer className="home-footer">
           <p>made with love by <strong>Rezwan Navid</strong></p>
-          <div className="mt-2 flex justify-center gap-3"><Instagram size={18} /><span className="text-[18px] leading-none">@</span><Github size={18} /></div>
-          <a className="mt-1 inline-block underline" href="https://rezwannavid.me">rezwannavid.me</a>
+          <nav aria-label="Rezwan Navid social links">
+            <a href="https://www.instagram.com/rezwannavid" aria-label="Instagram">
+              <Image src="/figma/home/instagram.svg" alt="" width={24} height={24} />
+            </a>
+            <a href="https://www.threads.net/@rezwannavid" aria-label="Threads">
+              <Image src="/figma/home/threads.svg" alt="" width={24} height={24} />
+            </a>
+            <a href="https://github.com/rezwannavid" aria-label="GitHub">
+              <Image src="/figma/home/github.svg" alt="" width={24} height={24} />
+            </a>
+          </nav>
+          <a className="home-footer-site" href="https://rezwannavid.me">rezwannavid.me</a>
         </footer>
       </div>
     </main>

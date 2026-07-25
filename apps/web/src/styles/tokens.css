@@ -75,6 +75,14 @@
   --danger: #c84232;
   --success: #597345;
   --warning: #a76d28;
+  --state-ready: #4f7147;
+  --state-waiting: #9b9689;
+  --state-eliminated: #8c877c;
+  --state-danger-surface: #ffddd7;
+  --state-danger-text: #9e3024;
+  --overlay-scrim: color-mix(in srgb, var(--primitive-ink-700) 62%, transparent);
+  --wave-arc-base: #f0ead7;
+  --wave-arc-highlight: #e8e2cf;
   --gradient-top-glow: radial-gradient(ellipse 105% 48% at 50% 0%, #f55f42 0%, #f97862 28%, rgba(245,95,66,.38) 58%, rgba(245,95,66,0) 100%);
   --gradient-full-coral: linear-gradient(180deg, #f55f42 0%, #ef4c2d 100%);
   --shadow-card: 0 6px 4.4px rgba(200,195,182,.24);
@@ -107,4 +115,8 @@
   --motion-fast: 150ms;
   --motion-medium: 220ms;
   --motion-bouncy: 420ms;
+  --motion-drift: 2800ms;
+  --z-sticky: 30;
+  --z-sheet: 80;
+  --z-dialog: 90;
 }

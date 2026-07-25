@@ -4,6 +4,7 @@ import Image from "next/image";
 import type { ReactNode } from "react";
 import { Check, ChevronRight, Clock3, Users } from "lucide-react";
 import { Avatar } from "@/components/ui/AvatarPicker";
+import { PhysicsStage } from "@/components/ui/PhysicsStage";
 
 export function AppScreen({
   children,
@@ -207,23 +208,24 @@ export function WaitingOrbit({
   title: string;
   subtitle: string;
 }) {
-  const positions = [
-    "left-[8%] top-[12%]",
-    "right-[8%] top-[8%]",
-    "left-[2%] top-[48%]",
-    "right-[2%] top-[52%]",
-    "left-[18%] bottom-[7%]",
-    "right-[18%] bottom-[5%]"
-  ];
-
   return (
     <div className="relative mx-auto h-[420px] w-full max-w-[25rem]">
-      {players.slice(0, 6).map((player, index) => (
-        <div key={player.id} className={`absolute ${positions[index]} animate-float`} style={{ animationDelay: `${index * 180}ms` }}>
-          <Avatar avatarId={player.avatarId ?? 1} name={player.name} size="lg" tone={completedIds.includes(player.id) ? "accent" : "muted"} />
-        </div>
-      ))}
-      <div className="absolute inset-0 grid place-items-center text-center">
+      <PhysicsStage
+        className="absolute inset-0"
+        ariaLabel={subtitle}
+        centerPull={0.000011}
+        speed={0.1}
+        tokens={players.slice(0, 8).map((player) => ({
+          id: player.id,
+          radius: 47,
+          render: (
+            <div className={`ruckus-paper grid size-[92px] place-items-center rounded-full ${completedIds.includes(player.id) ? "ring-4 ring-[var(--surface-secondary)]" : "opacity-70"}`}>
+              <Avatar avatarId={player.avatarId ?? 1} name={player.name} size="lg" tone={completedIds.includes(player.id) ? "accent" : "muted"} />
+            </div>
+          )
+        }))}
+      />
+      <div className="pointer-events-none absolute inset-0 z-20 grid place-items-center text-center">
         <div><h2 className="animate-pulse-soft text-title-md-extrabold">{title}</h2><p className="mt-2 text-body-medium opacity-60">{subtitle}</p></div>
       </div>
     </div>
